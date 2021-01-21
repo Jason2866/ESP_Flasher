@@ -1,6 +1,6 @@
 # ESP-Flasher
 
-ESP-Flasher is a utility app for the and is designed to make flashing ESPs as simple as possible by:
+ESP-Flasher is a utility app for ESP8266 / ESP32 and is designed to make flashing ESPs as simple as possible by:
 
  * Having pre-built binaries for most operating systems.
  * Hiding all non-essential options for flashing. All necessary options for flashing
@@ -12,7 +12,7 @@ library by espressif.
 ## Installation
 
 It doesn't have to be installed, just double-click it and it'll start.
-Check the [releases section](tbd)
+Check the [releases section](https://github.com/Jason2866/ESP_Flasher/releases)
 for downloads for your platform.
 
 ## Build it yourself
