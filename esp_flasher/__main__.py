@@ -9,7 +9,7 @@ import esptool
 import serial
 
 from esp_flasher import const
-from esp_flasher.common import ESP32ChipInfo, esp_flasherError, chip_run_stub, \
+from esp_flasher.common import ESP32ChipInfo, Esp_flasherError, chip_run_stub, \
     configure_write_flash_args, detect_chip, detect_flash_size, read_chip_info
 from esp_flasher.const import ESP32_DEFAULT_BOOTLOADER_FORMAT, ESP32_DEFAULT_OTA_DATA, \
     ESP32_DEFAULT_PARTITIONS
