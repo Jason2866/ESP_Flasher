@@ -49,13 +49,13 @@ def select_port(args):
         return args.port
     ports = list_serial_ports()
     if not ports:
-        raise esp_flasherError("No serial port found!")
+        raise Esp_flasherError("No serial port found!")
     if len(ports) != 1:
         print("Found more than one serial port:")
         for port, desc in ports:
             print(u" * {} ({})".format(port, desc))
         print("Please choose one with the --port argument.")
-        raise esp_flasherError
+        raise Esp_flasherError
     print(u"Auto-detected serial port: {}".format(ports[0][0]))
     return ports[0][0]
 
