@@ -7,7 +7,7 @@ from esp_flasher.const import HTTP_REGEX
 from esp_flasher.helpers import prevent_print
 
 
-class esp_flasherError(Exception):
+class Esp_flasherError(Exception):
     pass
 
 
@@ -80,7 +80,7 @@ def read_chip_property(func, *args, **kwargs):
     try:
         return prevent_print(func, *args, **kwargs)
     except esptool.FatalError as err:
-        raise esp_flasherError("Reading chip details failed: {}".format(err))
+        raise Esp_flasherError("Reading chip details failed: {}".format(err))
 
 
 def read_chip_info(chip):
@@ -99,14 +99,14 @@ def read_chip_info(chip):
         model = read_chip_property(chip.get_chip_description)
         chip_id = read_chip_property(chip.chip_id)
         return ESP8266ChipInfo(model, mac, chip_id)
-    raise esp_flasherError("Unknown chip type {}".format(type(chip)))
+    raise Esp_flasherError("Unknown chip type {}".format(type(chip)))
 
 
 def chip_run_stub(chip):
     try:
         return chip.run_stub()
     except esptool.FatalError as err:
-        raise esp_flasherError("Error putting ESP in stub flash mode: {}".format(err))
+        raise Esp_flasherError("Error putting ESP in stub flash mode: {}".format(err))
 
 
 def detect_flash_size(stub_chip):
@@ -120,7 +120,7 @@ def read_firmware_info(firmware):
 
     magic, _, flash_mode_raw, flash_size_freq = struct.unpack("BBBB", header)
     if magic != esptool.ESPLoader.ESP_IMAGE_MAGIC:
-        raise esp_flasherError(
+        raise Esp_flasherError(
             "The firmware binary is invalid (magic byte={:02X}, should be {:02X})"
             "".format(magic, esptool.ESPLoader.ESP_IMAGE_MAGIC))
     flash_freq_raw = flash_size_freq & 0x0F
@@ -141,10 +141,10 @@ def open_downloadable_binary(path):
             response = requests.get(path)
             response.raise_for_status()
         except requests.exceptions.Timeout as err:
-            raise esp_flasherError(
+            raise Esp_flasherError(
                 "Timeout while retrieving firmware file '{}': {}".format(path, err))
         except requests.exceptions.RequestException as err:
-            raise esp_flasherError(
+            raise Esp_flasherError(
                 "Error while retrieving firmware file '{}': {}".format(path, err))
 
         binary = io.BytesIO()
@@ -155,7 +155,7 @@ def open_downloadable_binary(path):
     try:
         return open(path, 'rb')
     except IOError as err:
-        raise esp_flasherError("Error opening binary '{}': {}".format(path, err))
+        raise Esp_flasherError("Error opening binary '{}': {}".format(path, err))
 
 
 def format_bootloader_path(path, flash_mode, flash_freq):
@@ -169,7 +169,7 @@ def configure_write_flash_args(info, firmware_path, flash_size,
     flash_mode, flash_freq = read_firmware_info(firmware)
     if isinstance(info, ESP32ChipInfo):
         if flash_freq in ('26m', '20m'):
-            raise esp_flasherError(
+            raise Esp_flasherError(
                 "No bootloader available for flash frequency {}".format(flash_freq))
         bootloader = open_downloadable_binary(
             format_bootloader_path(bootloader_path, flash_mode, flash_freq))
@@ -193,11 +193,11 @@ def detect_chip(port, force_esp8266=False, force_esp32=False):
         try:
             chip = esptool.ESPLoader.detect_chip(port)
         except esptool.FatalError as err:
-            raise esp_flasherError("ESP Chip Auto-Detection failed: {}".format(err))
+            raise Esp_flasherError("ESP Chip Auto-Detection failed: {}".format(err))
 
     try:
         chip.connect()
     except esptool.FatalError as err:
-        raise esp_flasherError("Error connecting to ESP: {}".format(err))
+        raise Esp_flasherError("Error connecting to ESP: {}".format(err))
 
     return chip

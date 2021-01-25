@@ -91,7 +91,7 @@ def run_esp_flasher(argv):
     try:
         firmware = open(args.binary, 'rb')
     except IOError as err:
-        raise esp_flasherError("Error opening binary: {}".format(err))
+        raise Esp_flasherError("Error opening binary: {}".format(err))
     chip = detect_chip(port, args.esp8266, args.esp32)
     info = read_chip_info(chip)
 
@@ -118,12 +118,12 @@ def run_esp_flasher(argv):
         try:
             stub_chip.change_baud(args.upload_baud_rate)
         except esptool.FatalError as err:
-            raise esp_flasherError("Error changing ESP upload baud rate: {}".format(err))
+            raise Esp_flasherError("Error changing ESP upload baud rate: {}".format(err))
 
         # Check if the higher baud rate works
         try:
             flash_size = detect_flash_size(stub_chip)
-        except esp_flasherError as err:
+        except Esp_flasherError as err:
             # Go back to old baud rate by recreating chip instance
             print("Chip does not support baud rate {}, changing to 115200".format(args.upload_baud_rate))
             stub_chip._port.close()
@@ -146,18 +146,18 @@ def run_esp_flasher(argv):
     try:
         stub_chip.flash_set_parameters(esptool.flash_size_bytes(flash_size))
     except esptool.FatalError as err:
-        raise esp_flasherError("Error setting flash parameters: {}".format(err))
+        raise Esp_flasherError("Error setting flash parameters: {}".format(err))
 
     if not args.no_erase:
         try:
             esptool.erase_flash(stub_chip, mock_args)
         except esptool.FatalError as err:
-            raise esp_flasherError("Error while erasing flash: {}".format(err))
+            raise Esp_flasherError("Error while erasing flash: {}".format(err))
 
     try:
         esptool.write_flash(stub_chip, mock_args)
     except esptool.FatalError as err:
-        raise esp_flasherError("Error while writing flash: {}".format(err))
+        raise Esp_flasherError("Error while writing flash: {}".format(err))
 
     print("Hard Resetting...")
     stub_chip.hard_reset()
@@ -180,7 +180,7 @@ def main():
 
             return gui.main() or 0
         return run_esp_flasher(sys.argv) or 0
-    except esp_flasherError as err:
+    except Esp_flasherError as err:
         msg = str(err)
         if msg:
             print(msg)
