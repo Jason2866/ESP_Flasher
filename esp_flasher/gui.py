@@ -283,7 +283,7 @@ class App(wx.App, wx.lib.mixins.inspection.InspectionMixin):
         wx.SystemOptions.SetOption("mac.window-plain-transition", 1)
         self.SetAppName("esp-flasher (Based on NodeMCU PyFlasher)")
 
-        frame = MainFrame(None, "esp-flasher (Based on NodeMCU PyFlasher)")
+        frame = MainFrame(None, "Esp-flasher (based on NodeMCU PyFlasher)")
         frame.Show()
 
         return True
