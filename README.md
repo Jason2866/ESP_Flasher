@@ -33,10 +33,12 @@ You can use the following command to install a wxpython suitable with your OS:
 
 ```bash
 # Go to https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ and select the correct OS type
-# here, we assume ubuntu 18.04 bionic
-pip3 install -U \
-    -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-18.04 \
-    wxPython
+# here, we assume ubuntu 20.04
+         sudo apt-get update
+         sudo apt install libgtk-3-dev libnotify-dev libsdl2-dev
+         pip3 install -U \
+          -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04 \
+          wxPython
 ```
 
 ## License
