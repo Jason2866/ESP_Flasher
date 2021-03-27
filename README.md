@@ -1,5 +1,7 @@
 # ESP-Flasher
 
+[![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
+
 ESP-Flasher is a utility app for ESP8266 / ESP32 and is designed to make flashing ESPs as simple as possible by:
 
  * Having pre-built binaries for most operating systems.
