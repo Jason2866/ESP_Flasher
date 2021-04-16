@@ -1,5 +1,7 @@
 # ESP-Flasher
 
+## Caution ESP-Flasher uses new partition.bin for ESP32 since 16.04. [More Info](https://github.com/arendst/Tasmota/pull/11746)
+
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
 
 ESP-Flasher is a utility app for ESP8266 / ESP32 and is designed to make flashing ESPs as simple as possible by:
