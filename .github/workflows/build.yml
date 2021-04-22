@@ -76,10 +76,12 @@ jobs:
          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher/__main__.py
      - name: See dist directory
        run: ls dist
+     - name: 'Tar files'
+       run: tar -cvf dist.tar dist/*
      - uses: actions/upload-artifact@v2
        with:
          name: Ubuntu
-         path: dist/ESP-Flasher
+         path: dist.tar
 
 
   build-macos:
