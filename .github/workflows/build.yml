@@ -81,7 +81,7 @@ jobs:
      - uses: actions/upload-artifact@v2
        with:
          name: Ubuntu
-         path: dist.tar
+         path: dist.tar.gz
 
 
   build-macos:
