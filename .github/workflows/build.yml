@@ -77,7 +77,7 @@ jobs:
      - name: See dist directory
        run: ls dist
      - name: 'Tar files'
-       run: tar -cvfz dist.tar dist/*
+       run: tar -cvfz dist.tar.gz dist/*
      - uses: actions/upload-artifact@v2
        with:
          name: Ubuntu
