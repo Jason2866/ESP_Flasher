@@ -78,6 +78,8 @@ jobs:
        run: ls dist
      - name: 'Tar files'
        run: gzip dist/ESP-Flasher
+     - name: 'show gzip'
+       run: ls dist
      - uses: actions/upload-artifact@v2
        with:
          name: Ubuntu
