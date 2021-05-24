@@ -83,7 +83,7 @@ jobs:
      - uses: actions/upload-artifact@v2
        with:
          name: Ubuntu
-         path: dist
+         path: dist/ESP-Flasher.gz
 
 
   build-macos:
