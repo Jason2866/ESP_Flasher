@@ -1,7 +1,5 @@
 # ESP-Flasher
 
-## :warning: ESP-Flasher uses new partition.bin for ESP32. Default since Tasmota v.9.4.0. [More Info](https://github.com/arendst/Tasmota/pull/11746)
-
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
 
 ESP-Flasher is a utility app for ESP8266 / ESP32 and is designed to make flashing Tasmota on ESPs as simple as possible by:
@@ -19,6 +17,8 @@ It doesn't have to be installed, just double-click it and it'll start.
 Check the [releases section](https://github.com/Jason2866/ESP_Flasher/releases)
 for downloads for your platform.
 
+If you have Python installed you can install from PyPI: **`pip install esp-flasher`**
+
 ## Build it yourself
 
 If you want to build this application yourself you need to:
@@ -28,6 +28,14 @@ If you want to build this application yourself you need to:
 - Download this project and run `pip3 install -e .` in the project's root.
 - Start the GUI using `esp_flasher`. Alternatively, you can use the command line interface (
   type `esp_flasher -h` for info)
+
+### Mac OSX Big Sur Drivers
+
+Some info and link to download the latest driver needed for Mac OSX Big Sur.
+
+Info: https://www.silabs.com/community/interface/forum.topic.html/vcp_driver_for_macosbigsur110x-krlP
+
+Driver: https://www.silabs.com/documents/public/software/Mac_OSX_VCP_Driver.zip
 
 
 ## Linux Notes

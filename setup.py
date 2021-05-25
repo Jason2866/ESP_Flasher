@@ -10,18 +10,16 @@ PROJECT_NAME = 'ESP_Flasher'
 PROJECT_PACKAGE_NAME = 'esp_flasher'
 PROJECT_LICENSE = 'MIT'
 PROJECT_AUTHOR = 'Jason2866'
-PROJECT_COPYRIGHT = '2020, Jason2866'
+PROJECT_COPYRIGHT = '2021, Jason2866'
 PROJECT_URL = 'https://github.com/Jason2866/ESP_Flasher'
-PROJECT_EMAIL = 'contact@github.io'
+PROJECT_EMAIL = 'obermeier.johann@googlemail.com'
 
 PROJECT_GITHUB_USERNAME = 'Jason2866'
-PROJECT_GITHUB_REPOSITORY = 'ESP-Flasher'
+PROJECT_GITHUB_REPOSITORY = 'ESP_Flasher'
 
 PYPI_URL = 'https://pypi.python.org/pypi/{}'.format(PROJECT_PACKAGE_NAME)
 GITHUB_PATH = '{}/{}'.format(PROJECT_GITHUB_USERNAME, PROJECT_GITHUB_REPOSITORY)
 GITHUB_URL = 'https://github.com/{}'.format(GITHUB_PATH)
-
-DOWNLOAD_URL = '{}/archive/{}.zip'.format(GITHUB_URL, const.__version__)
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -37,7 +35,6 @@ setup(
     version=const.__version__,
     license=PROJECT_LICENSE,
     url=GITHUB_URL,
-    download_url=DOWNLOAD_URL,
     author=PROJECT_AUTHOR,
     author_email=PROJECT_EMAIL,
     description="ESP8266/ESP32 firmware flasher for ESP",
