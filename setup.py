@@ -10,7 +10,7 @@ PROJECT_NAME = 'ESP_Flasher'
 PROJECT_PACKAGE_NAME = 'esp_flasher'
 PROJECT_LICENSE = 'MIT'
 PROJECT_AUTHOR = 'Jason2866'
-PROJECT_COPYRIGHT = '2020, Jason2866'
+PROJECT_COPYRIGHT = '2021, Jason2866'
 PROJECT_URL = 'https://github.com/Jason2866/ESP_Flasher'
 PROJECT_EMAIL = 'obermeier.johann@googlemail.com'
 
