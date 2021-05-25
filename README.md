@@ -1,7 +1,5 @@
 # ESP-Flasher
 
-## :warning: ESP-Flasher uses new partition.bin for ESP32. Default since Tasmota v.9.4.0. [More Info](https://github.com/arendst/Tasmota/pull/11746)
-
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
 
 ESP-Flasher is a utility app for ESP8266 / ESP32 and is designed to make flashing Tasmota on ESPs as simple as possible by:
@@ -18,6 +16,8 @@ library by espressif.
 It doesn't have to be installed, just double-click it and it'll start.
 Check the [releases section](https://github.com/Jason2866/ESP_Flasher/releases)
 for downloads for your platform.
+
+If you have Python installed you can install from PyPI: **`pip install esp-flasher`**
 
 ## Build it yourself
 
