@@ -2,7 +2,7 @@ name: Build Workflow
 
 on:
   push:
-    branches: main
+    branches: pypi_publish
 
 jobs:
   build-windows:
@@ -147,3 +147,8 @@ jobs:
        with:
          name: bdist_wheel
          path: dist/esp_flasher-*.whl
+     - name: Publish a Python distribution to PyPI
+       uses: pypa/gh-action-pypi-publish@release/v1
+       with:
+         user: __token__
+         password: ${{ secrets.PYPI_API_TOKEN }}
