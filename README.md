@@ -29,6 +29,14 @@ If you want to build this application yourself you need to:
 - Start the GUI using `esp_flasher`. Alternatively, you can use the command line interface (
   type `esp_flasher -h` for info)
 
+### Mac OSX Big Sur Drivers
+
+Some info and link to download the latest driver needed for Mac OSX Big Sur.
+
+Info: https://www.silabs.com/community/interface/forum.topic.html/vcp_driver_for_macosbigsur110x-krlP
+
+Driver: https://www.silabs.com/documents/public/software/Mac_OSX_VCP_Driver.zip
+
 
 ## Linux Notes
 
