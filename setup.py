@@ -12,10 +12,10 @@ PROJECT_LICENSE = 'MIT'
 PROJECT_AUTHOR = 'Jason2866'
 PROJECT_COPYRIGHT = '2020, Jason2866'
 PROJECT_URL = 'https://github.com/Jason2866/ESP_Flasher'
-PROJECT_EMAIL = 'contact@github.io'
+PROJECT_EMAIL = 'obermeier.johann@googlemail.com'
 
 PROJECT_GITHUB_USERNAME = 'Jason2866'
-PROJECT_GITHUB_REPOSITORY = 'ESP-Flasher'
+PROJECT_GITHUB_REPOSITORY = 'ESP_Flasher'
 
 PYPI_URL = 'https://pypi.python.org/pypi/{}'.format(PROJECT_PACKAGE_NAME)
 GITHUB_PATH = '{}/{}'.format(PROJECT_GITHUB_USERNAME, PROJECT_GITHUB_REPOSITORY)
