@@ -2,7 +2,10 @@ name: Build Workflow
 
 on:
   push:
-    branches: esptool31
+    branches:
+    - esptool31
+    paths-ignore:
+    - '.github/**' # Ignore changes towards the .github directory
 
 jobs:
   build-windows:
