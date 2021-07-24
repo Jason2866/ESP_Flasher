@@ -1,7 +1,7 @@
 import io
 import struct
 
-import own_esptool as esptool
+import esp_flasher.own_esptool as esptool
 
 from esp_flasher.const import HTTP_REGEX
 from esp_flasher.helpers import prevent_print
