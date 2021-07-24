@@ -3,7 +3,7 @@ name: Build Workflow
 on:
   push:
     branches:
-    - esptool31
+    - Solo1_esptool
     paths-ignore:
     - '.github/**' # Ignore changes towards the .github directory
 
