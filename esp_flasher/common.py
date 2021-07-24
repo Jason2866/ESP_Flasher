@@ -1,7 +1,7 @@
 import io
 import struct
 
-import esptool
+import own_esptool as esptool
 
 from esp_flasher.const import HTTP_REGEX
 from esp_flasher.helpers import prevent_print
@@ -23,6 +23,7 @@ class MockEsptoolArgs(object):
         self.verify = False
         self.erase_all = False
         self.encrypt = False
+        self.encrypt_files = None
 
 
 class ChipInfo(object):

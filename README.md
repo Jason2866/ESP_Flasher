@@ -13,9 +13,10 @@ library by espressif.
 
 ## Installation
 
-It doesn't have to be installed, just double-click it and it'll start.
-Check the [releases section](https://github.com/Jason2866/ESP_Flasher/releases)
-for downloads for your platform.
+- Check the [releases section](https://github.com/Jason2866/ESP_Flasher/releases) for downloads for your platform. Just double-click it and it'll start.
+
+- If you have Python installed you can install from PyPI: **`pip install esp-flasher`**.
+  Start the GUI by `esp_flasher`. Alternatively, you can use the command line interface ( type `esp_flasher -h` for info)
 
 If you have Python installed you can install from PyPI: **`pip install esp-flasher`**
 
