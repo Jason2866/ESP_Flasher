@@ -2,7 +2,10 @@ name: Build Workflow
 
 on:
   push:
-    branches: main
+    branches:
+    - main
+    paths-ignore:
+    - '.github/**' # Ignore changes towards the .github directory
 
 jobs:
   build-windows:
