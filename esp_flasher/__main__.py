@@ -5,7 +5,7 @@ from datetime import datetime
 import sys
 import time
 
-import esptool
+import esp_flasher.own_esptool as esptool
 import serial
 
 from esp_flasher import const
