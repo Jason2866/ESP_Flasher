@@ -18,8 +18,6 @@ library by espressif.
 - If you have Python installed you can install from PyPI: **`pip install esp-flasher`**.
   Start the GUI by `esp_flasher`. Alternatively, you can use the command line interface ( type `esp_flasher -h` for info)
 
-If you have Python installed you can install from PyPI: **`pip install esp-flasher`**
-
 ## Build it yourself
 
 If you want to build this application yourself you need to:
