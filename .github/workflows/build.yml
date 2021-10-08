@@ -91,7 +91,7 @@ jobs:
 
 
   build-macos:
-    runs-on: macOS-10.13
+    runs-on: macOS-10.15
     steps:
       - name: Checkout
         uses: actions/checkout@v1
