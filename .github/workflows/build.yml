@@ -1,6 +1,7 @@
 name: Build Workflow
 
 on:
+  workflow_dispatch:  # Manually start a workflow
   push:
     branches:
     - main
