@@ -30,30 +30,6 @@ jobs:
           name: Windows
           path: dist/ESP-Flasher.exe
 
-  build-windows-x86:
-    runs-on: windows-2019
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-      - name: Install Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: '3.9'
-          architecture: 'x86'
-      - name: Install requirements
-        run: |
-          pip install -r requirements.txt -r requirements_build.txt
-          pip install -e .
-      - name: Run PyInstaller
-        run: |
-          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
-      - name: See dist directory
-        run: ls dist
-      - uses: actions/upload-artifact@v2
-        with:
-          name: Windows-x86
-          path: dist/ESP-Flasher.exe
-
   build-ubuntu:
     runs-on: ubuntu-20.04
     steps:
@@ -87,7 +63,6 @@ jobs:
        with:
          name: Ubuntu
          path: dist/ESP-Flasher.gz
-
 
   build-macos:
     runs-on: macOS-latest
