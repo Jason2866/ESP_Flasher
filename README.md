@@ -58,3 +58,4 @@ You can use the following command to install a wxpython suitable with your OS:
 ## License
 
 [MIT](http://opensource.org/licenses/MIT) © Marcel Stör, Otto Winter, Johann Obermeier
+
