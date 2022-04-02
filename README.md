@@ -1,3 +1,6 @@
+[![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
+
+
 # ESP-Flasher
 
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
@@ -28,9 +31,9 @@ If you want to build this application yourself you need to:
 - Start the GUI using `esp_flasher`. Alternatively, you can use the command line interface (
   type `esp_flasher -h` for info)
 
-### Mac OSX Big Sur Drivers
+### Mac OSX (compiled binary only for 10.15 and newer)
 
-Some info and link to download the latest driver needed for Mac OSX Big Sur.
+Driver needed for Mac OSX Big Sur.
 
 Info: https://www.silabs.com/community/interface/forum.topic.html/vcp_driver_for_macosbigsur110x-krlP
 
@@ -55,3 +58,4 @@ You can use the following command to install a wxpython suitable with your OS:
 ## License
 
 [MIT](http://opensource.org/licenses/MIT) © Marcel Stör, Otto Winter, Johann Obermeier
+
