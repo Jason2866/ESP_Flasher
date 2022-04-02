@@ -207,12 +207,18 @@ def configure_write_flash_args(
         if "ESP32-C3" in info.model:
             model = "esp32c3"
             ofs_bootloader = 0x0
+        elif "ESP32-S3" in info.model:
+            model = "esp32s3"
+            ofs_bootloader = 0x0
+        elif "ESP32-S2" in info.model:
+            model = "esp32s2"
+            ofs_bootloader = 0x1000
         else:
             model = "esp32"
             ofs_bootloader = 0x1000
 
         if flash_freq in ("26m", "20m"):
-            raise EsphomeflasherError(
+            raise Esp_flasherError(
                 f"No bootloader available for flash frequency {flash_freq}"
             )
         bootloader = open_downloadable_binary(

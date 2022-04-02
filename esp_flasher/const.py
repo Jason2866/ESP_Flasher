@@ -4,8 +4,8 @@ __version__ = "1.4.0"
 
 ESP32_DEFAULT_OTA_DATA = "https://github.com/espressif/arduino-esp32/raw/1.0.6/tools/partitions/boot_app0.bin"
 ESP32_DEFAULT_BOOTLOADER_FORMAT = (
-    "https://raw.githubusercontent.com/espressif/arduino-esp32/"
-    "2.0.2/tools/sdk/$MODEL$/bin/bootloader_$FLASH_MODE$_$FLASH_FREQ$.bin"
+    "https://github.com/espressif/arduino-esp32/raw/2.0.3-RC1/"
+    "tools/sdk/$MODEL$/bin/bootloader_$FLASH_MODE$_$FLASH_FREQ$.bin"
 )
 ESP32_DEFAULT_PARTITIONS = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/dev_c3/partitions.$MODEL$.bin"
