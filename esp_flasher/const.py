@@ -8,7 +8,7 @@ ESP32_DEFAULT_BOOTLOADER_FORMAT = (
     "2.0.2/tools/sdk/$MODEL$/bin/bootloader_$FLASH_MODE$_$FLASH_FREQ$.bin"
 )
 ESP32_DEFAULT_PARTITIONS = (
-    "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/main/partitions.$MODEL$.bin"
+    "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/dev_c3/partitions.$MODEL$.bin"
 )
 
 # https://stackoverflow.com/a/3809435/8924614
