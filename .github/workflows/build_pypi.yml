@@ -1,12 +1,9 @@
 name: PyPi Publish
 
 on:
-  workflow_dispatch:  # Manually start a workflow
-#  push:
-#    branches:
-#    - pypi_publish
-#    paths-ignore:
-#    - '.github/**' # Ignore changes towards the .github directory
+  push:
+    branches:
+    - pypi_publish
 
 jobs:
 
@@ -14,7 +11,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
      - name: Checkout
-       uses: actions/checkout@v2
+       uses: actions/checkout@v3
      - name: Install Python
        uses: actions/setup-python@v2
        with:
