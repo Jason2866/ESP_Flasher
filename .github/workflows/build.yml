@@ -40,16 +40,16 @@ jobs:
        uses: actions/setup-python@v2
        with:
          python-version: '3.9'
-     - name: Install dependencies
+     - name: Install requirements
        run: |
          sudo apt-get update
+         pip install -r requirements_build.txt -r requirements_ubuntu.txt
          sudo apt install libgtk-3-dev libnotify-dev libsdl2-dev
          pip install -U \
           -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04 \
           wxPython
-     - name: Install requirements
+     - name: Run PyInstaller
        run: |
-         pip install -r requirements_build.txt -r requirements_ubuntu.txt
          pip install -e .
      - name: Run PyInstaller
        run: |
@@ -104,16 +104,16 @@ jobs:
        uses: actions/setup-python@v2
        with:
          python-version: '3.7'
-     - name: Install dependencies
+     - name: Install requirements
        run: |
          sudo apt-get update
+         pip install -r requirements_build.txt -r requirements_ubuntu.txt
          sudo apt install libgtk-3-dev libnotify-dev libsdl2-dev
          pip install -U \
           -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04 \
           wxPython
-     - name: Install requirements
+     - name: Run PyInstaller 
        run: |
-         pip install -r requirements_build.txt -r requirements_ubuntu.txt
          pip install -e .
      - name: Run sdist
        run: python setup.py sdist bdist_wheel
