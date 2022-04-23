@@ -43,7 +43,7 @@ Driver: https://www.silabs.com/documents/public/software/Mac_OSX_VCP_Driver.zip
 ## Linux Notes
 
 Installing wxpython for linux can be a bit challenging (especially when you don't want to install from source).
-You can use the following command to install a wxpython suitable with your OS:
+You can use the following command to install a wxpython suitable with your OS and Python version:
 
 ```bash
 # Go to https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ and select the correct OS type
