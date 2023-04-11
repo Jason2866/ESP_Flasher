@@ -1,7 +1,7 @@
 [![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 
-# ESP-Flasher
+# ESP-Flasher for Tasmota
 
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
 
@@ -43,7 +43,7 @@ Driver: https://www.silabs.com/documents/public/software/Mac_OSX_VCP_Driver.zip
 ## Linux Notes
 
 Installing wxpython for linux can be a bit challenging (especially when you don't want to install from source).
-You can use the following command to install a wxpython suitable with your OS:
+You can use the following command to install a wxpython suitable with your OS and Python version:
 
 ```bash
 # Go to https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ and select the correct OS type
