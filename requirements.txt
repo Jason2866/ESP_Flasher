@@ -1,3 +1,4 @@
+attrdict
 attrdict3
 wxpython>=4.0,<5.0
 pyserial>=3.5
