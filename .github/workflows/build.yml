@@ -43,7 +43,7 @@ jobs:
           architecture: 'x86'
       - name: Install requirements
         run: |
-          pip install -r requirements-x86.txt -r requirements_build.txt
+          pip install -r requirements_x86.txt -r requirements_build.txt
           pip install -e .
       - name: Run PyInstaller
         run: |
