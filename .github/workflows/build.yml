@@ -26,7 +26,7 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: Windows
           path: dist/ESP-Flasher.exe
@@ -48,7 +48,7 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: Windows-x86
           path: dist/ESP-Flasher.exe
@@ -80,7 +80,7 @@ jobs:
        run: gzip dist/ESP-Flasher
      - name: 'show gzip'
        run: ls dist
-     - uses: actions/upload-artifact@v2
+     - uses: actions/upload-artifact@v3
        with:
          name: Ubuntu
          path: dist/ESP-Flasher.gz
@@ -110,7 +110,7 @@ jobs:
       - name: 'Tar files'
         run: tar -cvf dist.tar dist/*
       - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: macOS
           path: dist.tar
