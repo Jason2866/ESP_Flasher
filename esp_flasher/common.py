@@ -5,6 +5,7 @@ import esp_flasher.own_esptool as esptool
 
 from esp_flasher.const import (
     ESP32_DEFAULT_PARTITIONS,
+    ESP32_DEFAULT_SAFEBOOT,
     HTTP_REGEX,
 )
 from esp_flasher.helpers import prevent_print
@@ -198,7 +199,6 @@ def configure_write_flash_args(
 ):
     addr_filename = []
     firmware = open_downloadable_binary(firmware_path)
-    factory_firm = open_downloadable_binary(factory_firm_path)
     flash_mode, flash_freq = read_firmware_info(firmware)
     if isinstance(info, ESP32ChipInfo):
         ofs_partitions = 0x8000
@@ -229,8 +229,11 @@ def configure_write_flash_args(
 
         if not partitions_path:
             partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
+        if not factory_firm_path:
+            factory_firm_path = format_partitions_path(ESP32_DEFAULT_SAFEBOOT, model)
 
         partitions = open_downloadable_binary(partitions_path)
+        factory_firm = open_downloadable_binary(factory_firm_path)
         otadata = open_downloadable_binary(otadata_path)
 
         addr_filename.append((ofs_bootloader, bootloader))
