@@ -206,8 +206,14 @@ def configure_write_flash_args(
         ofs_factory_firm = 0x10000
         ofs_firmware = 0xe0000
 
-        if "ESP32-C3" in info.model:
+        if "ESP32-C2" in info.model:
+            model = "esp32c2"
+            ofs_bootloader = 0x0
+        elif "ESP32-C3" in info.model:
             model = "esp32c3"
+            ofs_bootloader = 0x0
+        elif "ESP32-C6" in info.model:
+            model = "esp32c6"
             ofs_bootloader = 0x0
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
