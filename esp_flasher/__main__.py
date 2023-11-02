@@ -46,7 +46,6 @@ def parse_args(argv):
     parser.add_argument(
         "--safeboot",
         help="(ESP32x-only) The safeboot factory image to flash.",
-        default=ESP32_DEFAULT_SAFEBOOT,
     )
     parser.add_argument(
         "--partitions",
