@@ -166,7 +166,7 @@ def run_esp_flasher(argv):
     print(f" - Flash Size: {flash_size}")
 
     mock_args = configure_write_flash_args(
-        info, factory_firm, firmware, flash_size, args.bootloader, args.partitions, args.otadata
+        info, firmware, flash_size, args.bootloader, args.partitions, args.otadata
     )
 
     print(f" - Flash Mode: {mock_args.flash_mode}")

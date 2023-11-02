@@ -195,7 +195,7 @@ def format_partitions_path(path, model):
 
 
 def configure_write_flash_args(
-    info, factory_firm_path, firmware_path, flash_size, bootloader_path, partitions_path, otadata_path
+    info, firmware_path, flash_size, bootloader_path, partitions_path, otadata_path
 ):
     addr_filename = []
     firmware = open_downloadable_binary(firmware_path)
@@ -229,9 +229,8 @@ def configure_write_flash_args(
 
         if not partitions_path:
             partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
-        if not factory_firm_path:
-            factory_firm_path = format_partitions_path(ESP32_DEFAULT_SAFEBOOT, model)
 
+        factory_firm_path = format_partitions_path(ESP32_DEFAULT_SAFEBOOT, model)
         partitions = open_downloadable_binary(partitions_path)
         factory_firm = open_downloadable_binary(factory_firm_path)
         otadata = open_downloadable_binary(otadata_path)
