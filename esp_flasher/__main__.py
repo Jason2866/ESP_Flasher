@@ -21,6 +21,7 @@ from esp_flasher.common import (
 from esp_flasher.const import (
     ESP32_DEFAULT_BOOTLOADER_FORMAT,
     ESP32_DEFAULT_OTA_DATA,
+    ESP32_DEFAULT_SAFEBOOT,
 )
 from esp_flasher.helpers import list_serial_ports
 
@@ -35,20 +36,25 @@ def parse_args(argv):
         "--upload-baud-rate",
         type=int,
         default=460800,
-        help="Baud rate to upload with (not for logging)",
+        help="Baud rate to upload (not for logging)",
     )
     parser.add_argument(
         "--bootloader",
-        help="(ESP32-only) The bootloader to flash.",
+        help="(ESP32x-only) The bootloader to flash.",
         default=ESP32_DEFAULT_BOOTLOADER_FORMAT,
     )
     parser.add_argument(
+        "--safeboot",
+        help="(ESP32x-only) The safeboot factory image to flash.",
+        default=ESP32_DEFAULT_SAFEBOOT,
+    )
+    parser.add_argument(
         "--partitions",
-        help="(ESP32-only) The partitions to flash.",
+        help="(ESP32x-only) The partitions to flash.",
     )
     parser.add_argument(
         "--otadata",
-        help="(ESP32-only) The otadata file to flash.",
+        help="(ESP32x-only) The otadata file to flash.",
         default=ESP32_DEFAULT_OTA_DATA,
     )
     parser.add_argument(
@@ -160,7 +166,7 @@ def run_esp_flasher(argv):
     print(f" - Flash Size: {flash_size}")
 
     mock_args = configure_write_flash_args(
-        info, firmware, flash_size, args.bootloader, args.partitions, args.otadata
+        info, factory_firm, firmware, flash_size, args.bootloader, args.partitions, args.otadata
     )
 
     print(f" - Flash Mode: {mock_args.flash_mode}")
