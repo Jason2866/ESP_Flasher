@@ -1,24 +1,23 @@
 [![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 
-# ESP-Flasher for Tasmota
+# Tasmota-ESP-Flasher for Tasmota greater version 12.5 (Safeboot partition scheme)
 
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
 
-ESP-Flasher is a utility app for ESP8266 / ESP32 and is designed to make flashing Tasmota on ESPs as simple as possible by:
+Tasmota-ESP-Flasher is an app for ESP8266 / ESP32 designed to make flashing Tasmota on ESPs as simple as possible by:
 
- * Having pre-built binaries for most operating systems.
- * Hiding all non-essential options for flashing. All necessary options for flashing
-   (bootloader, flash mode) are automatically extracted from the binary.
+ * Pre-built binaries for most used operating systems
+ * Hiding all non-essential options for flashing. All necessary options (bootloader, flash mode) are automatically set.
 
-The flashing process is done using the [esptool](https://github.com/espressif/esptool)
-library by espressif.
+The flashing process is done using [esptool](https://github.com/espressif/esptool) from espressif.
 
 ## Installation
 
-- Check the [releases section](https://github.com/Jason2866/ESP_Flasher/releases) for downloads for your platform. Just double-click it and it'll start.
+- Check the [releases section](https://github.com/Jason2866/ESP_Flasher/releases) for your OS.
+- Download and double-click and it'll start.
 
-- If you have Python installed you can install from PyPI: **`pip install esp-flasher`**.
+- The native Python version can be installed from PyPI: **`pip install esp-flasher`**.
   Start the GUI by `esp_flasher`. Alternatively, you can use the command line interface ( type `esp_flasher -h` for info)
 
 ## Build it yourself
@@ -31,9 +30,9 @@ If you want to build this application yourself you need to:
 - Start the GUI using `esp_flasher`. Alternatively, you can use the command line interface (
   type `esp_flasher -h` for info)
 
-### Mac OSX (compiled binary only for 10.15 and newer)
+### Mac OSX (compiled binary only for 11 and newer)
 
-Driver needed for Mac OSX Big Sur.
+Driver maybe needed for Mac OSx.
 
 Info: https://www.silabs.com/community/interface/forum.topic.html/vcp_driver_for_macosbigsur110x-krlP
 
