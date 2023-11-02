@@ -194,15 +194,17 @@ def format_partitions_path(path, model):
 
 
 def configure_write_flash_args(
-    info, firmware_path, flash_size, bootloader_path, partitions_path, otadata_path
+    info, factory_firm_path, firmware_path, flash_size, bootloader_path, partitions_path, otadata_path
 ):
     addr_filename = []
     firmware = open_downloadable_binary(firmware_path)
+    factory_firm = open_downloadable_binary(factory_firm_path)
     flash_mode, flash_freq = read_firmware_info(firmware)
     if isinstance(info, ESP32ChipInfo):
         ofs_partitions = 0x8000
         ofs_otadata = 0xe000
-        ofs_firmware = 0x10000
+        ofs_factory_firm = 0x10000
+        ofs_firmware = 0xe0000
 
         if "ESP32-C3" in info.model:
             model = "esp32c3"
@@ -234,6 +236,7 @@ def configure_write_flash_args(
         addr_filename.append((ofs_bootloader, bootloader))
         addr_filename.append((ofs_partitions, partitions))
         addr_filename.append((ofs_otadata, otadata))
+        addr_filename.append((ofs_factory_firm, factory_firm))
         addr_filename.append((ofs_firmware, firmware))
     else:
         addr_filename.append((0x0, firmware))
