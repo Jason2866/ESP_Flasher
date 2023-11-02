@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # Manually start a workflow
   push:
     branches:
-    - main
+    - safeboot
     paths-ignore:
     - '.github/**' # Ignore changes towards the .github directory
 
