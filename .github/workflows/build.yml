@@ -39,7 +39,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.9'
+          python-version: '3.8'
           architecture: 'x86'
       - name: Install requirements
         run: |
