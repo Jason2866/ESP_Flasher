@@ -1,7 +1,7 @@
 [![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 
-# Tasmota-ESP-Flasher for Tasmota greater version 12.5 (Safeboot partition scheme)
+# Tasmota-ESP-Flasher for Tasmota v13 and later (Safeboot partition scheme)
 
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
 
