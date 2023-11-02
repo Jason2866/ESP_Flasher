@@ -12,6 +12,7 @@ ESP32_DEFAULT_PARTITIONS = (
 )
 ESP32_DEFAULT_SAFEBOOT = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/safeboot/safeboot.$MODEL$.bin"
+)
 
 # https://stackoverflow.com/a/3809435/8924614
 HTTP_REGEX = re.compile(
