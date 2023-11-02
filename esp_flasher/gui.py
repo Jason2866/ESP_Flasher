@@ -281,9 +281,9 @@ class MainFrame(wx.Frame):
 class App(wx.App, wx.lib.mixins.inspection.InspectionMixin):
     def OnInit(self):
         wx.SystemOptions.SetOption("mac.window-plain-transition", 1)
-        self.SetAppName("Esp-flasher (based on PyFlasher)")
+        self.SetAppName("Tasmota-Esp-flasher (based on PyFlasher)")
 
-        frame = MainFrame(None, "Esp-flasher (based on PyFlasher)")
+        frame = MainFrame(None, "Tasmota-Esp-flasher (based on PyFlasher)")
         frame.Show()
 
         return True
