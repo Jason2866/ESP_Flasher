@@ -7,6 +7,7 @@ on:
     - safeboot
     paths-ignore:
     - '.github/**' # Ignore changes towards the .github directory
+    - '*.md'
 
 jobs:
   build-windows:
