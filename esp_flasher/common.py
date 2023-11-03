@@ -5,7 +5,7 @@ import esp_flasher.own_esptool as esptool
 
 from esp_flasher.const import (
     ESP32_DEFAULT_PARTITIONS,
-    ESP32_DEFAULT_SAFEBOOT,
+    ESP32_SAFEBOOT_SERVER,
     HTTP_REGEX,
 )
 from esp_flasher.helpers import prevent_print
@@ -190,7 +190,7 @@ def format_bootloader_path(path, model, flash_mode, flash_freq):
     return path.replace("$MODEL$", model).replace("$FLASH_MODE$", flash_mode).replace("$FLASH_FREQ$", flash_freq)
 
 
-def format_path(path, model):
+def format_partitions_path(path, model):
     return path.replace("$MODEL$", model)
 
 
@@ -208,21 +208,27 @@ def configure_write_flash_args(
 
         if "ESP32-C2" in info.model:
             model = "esp32c2"
+            safeboot = "tasmota32c2-safeboot.bin"
             ofs_bootloader = 0x0
         elif "ESP32-C3" in info.model:
             model = "esp32c3"
+            safeboot = "tasmota32c3-safeboot.bin"
             ofs_bootloader = 0x0
         elif "ESP32-C6" in info.model:
             model = "esp32c6"
+            safeboot = "tasmota32c6-safeboot.bin"
             ofs_bootloader = 0x0
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
+            safeboot = "tasmota32s3-safeboot.bin"
             ofs_bootloader = 0x0
         elif "ESP32-S2" in info.model:
             model = "esp32s2"
+            safeboot = "tasmota32s2-safeboot.bin"
             ofs_bootloader = 0x1000
         else:
             model = "esp32"
+            safeboot = "tasmota32solo1-safeboot.bin"
             ofs_bootloader = 0x1000
 
         if flash_freq in ("26m", "20m"):
@@ -234,9 +240,9 @@ def configure_write_flash_args(
         )
 
         if not partitions_path:
-            partitions_path = format_path(ESP32_DEFAULT_PARTITIONS, model)
+            partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
         if not factory_firm_path:
-            factory_firm_path = format_path(ESP32_DEFAULT_SAFEBOOT, model)
+            factory_firm_path = ESP32_SAFEBOOT_SERVER + safeboot
 
         partitions = open_downloadable_binary(partitions_path)
         factory_firm = open_downloadable_binary(factory_firm_path)

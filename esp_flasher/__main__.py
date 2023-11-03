@@ -21,7 +21,7 @@ from esp_flasher.common import (
 from esp_flasher.const import (
     ESP32_DEFAULT_BOOTLOADER_FORMAT,
     ESP32_DEFAULT_OTA_DATA,
-    ESP32_DEFAULT_SAFEBOOT,
+    ESP32_SAFEBOOT_SERVER
 )
 from esp_flasher.helpers import list_serial_ports
 

@@ -10,8 +10,8 @@ ESP32_DEFAULT_BOOTLOADER_FORMAT = (
 ESP32_DEFAULT_PARTITIONS = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/safeboot/partitions.$MODEL$.bin"
 )
-ESP32_DEFAULT_SAFEBOOT = (
-    "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/safeboot/safeboot.$MODEL$.bin"
+ESP32_SAFEBOOT_SERVER = (
+    "https://ota.tasmota.com/tasmota32/"
 )
 
 # https://stackoverflow.com/a/3809435/8924614
