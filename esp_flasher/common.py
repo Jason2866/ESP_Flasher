@@ -224,6 +224,7 @@ def configure_write_flash_args(
             ofs_bootloader = 0x0
             #flash_mode = {0: "qio", 1: "qout", 2: "dio", 3: "dout"}.get(flash_mode_raw)
             flash_freq = {0: "80m", 2: "20m"}.get(flash_freq_raw)
+            #print("flash Freq: ", flash_freq)
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
             safeboot = "tasmota32s3-safeboot.bin"

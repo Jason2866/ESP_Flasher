@@ -2280,20 +2280,6 @@ class ESP32S3ROM(ESP32ROM):
             self._setRTS(False)
 
 
-class ESP32S3BETA2ROM(ESP32S3ROM):
-    CHIP_NAME = "ESP32-S3(beta2)"
-    IMAGE_CHIP_ID = 4
-
-    CHIP_DETECT_MAGIC_VALUE = [0xeb004136]
-
-    EFUSE_BASE = 0x6001A000  # BLOCK0 read base address
-
-    def get_chip_description(self):
-        major_rev = self.get_major_chip_version()
-        minor_rev = self.get_minor_chip_version()
-        return "%s (revision v%d.%d)" % (self.CHIP_NAME, major_rev, minor_rev)
-
-
 class ESP32C3ROM(ESP32ROM):
     CHIP_NAME = "ESP32-C3"
     IMAGE_CHIP_ID = 5
@@ -2426,266 +2412,6 @@ class ESP32C3ROM(ESP32ROM):
         purposes = [self.get_key_block_purpose(b) for b in range(6)]
 
         return any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes)
-
-
-class ESP32H2ROM(ESP32ROM):
-    CHIP_NAME = "ESP32-H2"
-    IMAGE_CHIP_ID = 10
-
-    IROM_MAP_START = 0x42000000
-    IROM_MAP_END   = 0x42800000
-    DROM_MAP_START = 0x3c000000
-    DROM_MAP_END   = 0x3c800000
-
-    SPI_REG_BASE = 0x60002000
-    SPI_USR_OFFS    = 0x18
-    SPI_USR1_OFFS   = 0x1C
-    SPI_USR2_OFFS   = 0x20
-    SPI_MOSI_DLEN_OFFS = 0x24
-    SPI_MISO_DLEN_OFFS = 0x28
-    SPI_W0_OFFS = 0x58
-
-    BOOTLOADER_FLASH_OFFSET = 0x0
-
-    CHIP_DETECT_MAGIC_VALUE = [0xca26cc22]
-
-    UART_DATE_REG_ADDR = 0x60000000 + 0x7c
-
-    EFUSE_BASE = 0x6001A000
-    EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x044
-    MAC_EFUSE_REG  = EFUSE_BASE + 0x044
-
-    EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
-
-    EFUSE_PURPOSE_KEY0_REG = EFUSE_BASE + 0x34
-    EFUSE_PURPOSE_KEY0_SHIFT = 24
-    EFUSE_PURPOSE_KEY1_REG = EFUSE_BASE + 0x34
-    EFUSE_PURPOSE_KEY1_SHIFT = 28
-    EFUSE_PURPOSE_KEY2_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY2_SHIFT = 0
-    EFUSE_PURPOSE_KEY3_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY3_SHIFT = 4
-    EFUSE_PURPOSE_KEY4_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY4_SHIFT = 8
-    EFUSE_PURPOSE_KEY5_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY5_SHIFT = 12
-
-    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
-    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 20
-
-    PURPOSE_VAL_XTS_AES128_KEY = 4
-
-    GPIO_STRAP_REG = 0x3f404038
-
-    FLASH_ENCRYPTED_WRITE_ALIGN = 16
-
-    MEMORY_MAP = []
-
-    FLASH_FREQUENCY = {
-        '48m': 0xf,
-        '24m': 0x0,
-        '16m': 0x1,
-        '12m': 0x2,
-    }
-
-    # Returns old version format (ECO number). Use the new format get_chip_full_revision().
-    def get_chip_revision(self):
-        return 0
-
-    def get_pkg_version(self):
-        num_word = 4
-        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 0) & 0x07
-
-    def get_minor_chip_version(self):
-        num_word = 3
-        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 18) & 0x07
-
-    def get_major_chip_version(self):
-        num_word = 3
-        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 21) & 0x03
-
-    def get_chip_description(self):
-        chip_name = {
-            0: "ESP32-H2",
-        }.get(self.get_pkg_version(), "unknown ESP32-H2")
-        major_rev = self.get_major_chip_version()
-        minor_rev = self.get_minor_chip_version()
-        return "%s (revision v%d.%d)" % (chip_name, major_rev, minor_rev)
-
-    def get_chip_features(self):
-        return ["BLE/802.15.4"]
-
-    def get_crystal_freq(self):
-        return 32
-
-    def override_vddsdio(self, new_voltage):
-        raise NotImplementedInROMError("VDD_SDIO overrides are not supported for ESP32-H2")
-
-    def read_mac(self):
-        mac0 = self.read_reg(self.MAC_EFUSE_REG)
-        mac1 = self.read_reg(self.MAC_EFUSE_REG + 4)  # only bottom 16 bits are MAC
-        bitstring = struct.pack(">II", mac1, mac0)[2:]
-        try:
-            return tuple(ord(b) for b in bitstring)
-        except TypeError:  # Python 3, bitstring elements are already bytes
-            return tuple(bitstring)
-
-    def get_flash_crypt_config(self):
-        return None  # doesn't exist on ESP32-H2
-
-    def get_key_block_purpose(self, key_block):
-        if key_block < 0 or key_block > 5:
-            raise FatalError("Valid key block numbers must be in range 0-5")
-
-        reg, shift = [(self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT)][key_block]
-        return (self.read_reg(reg) >> shift) & 0xF
-
-    def is_flash_encryption_key_valid(self):
-        # Need to see an AES-128 key
-        purposes = [self.get_key_block_purpose(b) for b in range(6)]
-
-        return any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes)
-
-
-
-class ESP32C2ROM(ESP32C3ROM):
-    CHIP_NAME = "ESP32-C2"
-    IMAGE_CHIP_ID = 12
-
-    IROM_MAP_START = 0x42000000
-    IROM_MAP_END = 0x42400000
-    DROM_MAP_START = 0x3C000000
-    DROM_MAP_END = 0x3C400000
-
-    # Magic value for ESP32C2 ECO0 and ECO1 respectively
-    CHIP_DETECT_MAGIC_VALUE = [0x6F51306F, 0x7C41A06F]
-
-    EFUSE_BASE = 0x60008800
-    EFUSE_BLOCK2_ADDR = EFUSE_BASE + 0x040
-    MAC_EFUSE_REG = EFUSE_BASE + 0x040
-
-    EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x30
-    EFUSE_SECURE_BOOT_EN_MASK = 1 << 21
-
-    EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x30
-    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
-
-    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_BASE + 0x30
-    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 6
-
-    EFUSE_XTS_KEY_LENGTH_256_REG = EFUSE_BASE + 0x30
-    EFUSE_XTS_KEY_LENGTH_256 = 1 << 10
-
-    EFUSE_BLOCK_KEY0_REG = EFUSE_BASE + 0x60
-
-    EFUSE_RD_DIS_REG = EFUSE_BASE + 0x30
-    EFUSE_RD_DIS = 3
-
-    FLASH_FREQUENCY = {
-        "60m": 0xF,
-        "30m": 0x0,
-        "20m": 0x1,
-        "15m": 0x2,
-    }
-
-    MEMORY_MAP = [
-        [0x00000000, 0x00010000, "PADDING"],
-        [0x3C000000, 0x3C400000, "DROM"],
-        [0x3FCA0000, 0x3FCE0000, "DRAM"],
-        [0x3FC88000, 0x3FD00000, "BYTE_ACCESSIBLE"],
-        [0x3FF00000, 0x3FF50000, "DROM_MASK"],
-        [0x40000000, 0x40090000, "IROM_MASK"],
-        [0x42000000, 0x42400000, "IROM"],
-        [0x4037C000, 0x403C0000, "IRAM"],
-    ]
-
-    UF2_FAMILY_ID = 0x2B88D29C
-
-    def get_pkg_version(self):
-        num_word = 1
-        return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 22) & 0x07
-
-    def get_chip_description(self):
-        chip_name = {
-            0: "ESP32-C2",
-            1: "ESP32-C2",
-        }.get(self.get_pkg_version(), "unknown ESP32-C2")
-        major_rev = self.get_major_chip_version()
-        minor_rev = self.get_minor_chip_version()
-        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
-
-    def get_minor_chip_version(self):
-        num_word = 1
-        return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 16) & 0xF
-
-    def get_major_chip_version(self):
-        num_word = 1
-        return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 20) & 0x3
-
-    def get_crystal_freq(self):
-        # The crystal detection algorithm of ESP32/ESP8266 works for ESP32-C2 as well.
-        return ESPLoader.get_crystal_freq(self)
-
-    def change_baud(self, baud):
-        rom_with_26M_XTAL = not self.IS_STUB and self.get_crystal_freq() == 26
-        if rom_with_26M_XTAL:
-            # The code is copied over from ESPLoader.change_baud().
-            # Probably this is just a temporary solution until the next chip revision.
-
-            # The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate
-            # in order to trick the ROM code to set the correct baud rate for
-            # a 26 MHz XTAL.
-            false_rom_baud = baud * 40 // 26
-
-            print(f"Changing baud rate to {baud}")
-            self.command(
-                self.ESP_CHANGE_BAUDRATE, struct.pack("<II", false_rom_baud, 0)
-            )
-            print("Changed.")
-            self._set_port_baudrate(baud)
-            time.sleep(0.05)  # get rid of garbage sent during baud rate change
-            self.flush_input()
-        else:
-            ESPLoader.change_baud(self, baud)
-
-    def _post_connect(self):
-        # ESP32C2 ECO0 is no longer supported by the flasher stub
-        if not self.secure_download_mode and self.get_chip_revision() == 0:
-            self.stub_is_disabled = True
-            self.IS_STUB = False
-
-    """ Try to read (encryption key) and check if it is valid """
-
-    def is_flash_encryption_key_valid(self):
-        key_len_256 = (
-            self.read_reg(self.EFUSE_XTS_KEY_LENGTH_256_REG)
-            & self.EFUSE_XTS_KEY_LENGTH_256
-        )
-
-        word0 = self.read_reg(self.EFUSE_RD_DIS_REG) & self.EFUSE_RD_DIS
-        rd_disable = word0 == 3 if key_len_256 else word0 == 1
-
-        # reading of BLOCK3 is NOT ALLOWED so we assume valid key is programmed
-        if rd_disable:
-            return True
-        else:
-            # reading of BLOCK3 is ALLOWED so we will read and verify for non-zero.
-            # When chip has not generated AES/encryption key in BLOCK3,
-            # the contents will be readable and 0.
-            # If the flash encryption is enabled it is expected to have a valid
-            # non-zero key. We break out on first occurance of non-zero value
-            key_word = [0] * 7 if key_len_256 else [0] * 3
-            for i in range(len(key_word)):
-                key_word[i] = self.read_reg(self.EFUSE_BLOCK_KEY0_REG + i * 4)
-                # key is non-zero so break & return
-                if key_word[i] != 0:
-                    return True
-            return False
 
 
 class ESP32C6ROM(ESP32C3ROM):
@@ -2860,6 +2586,196 @@ class ESP32C6ROM(ESP32C3ROM):
         purposes = [self.get_key_block_purpose(b) for b in range(6)]
 
         return any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes)
+
+
+
+class ESP32H2ROM(ESP32C6ROM):
+    CHIP_NAME = "ESP32-H2"
+    IMAGE_CHIP_ID = 16
+
+    # Magic value for ESP32H2
+    CHIP_DETECT_MAGIC_VALUE = [0xD7B73E80]
+
+    DR_REG_LP_WDT_BASE = 0x600B1C00
+    RTC_CNTL_WDTCONFIG0_REG = DR_REG_LP_WDT_BASE + 0x0  # LP_WDT_RWDT_CONFIG0_REG
+    RTC_CNTL_WDTWPROTECT_REG = DR_REG_LP_WDT_BASE + 0x001C  # LP_WDT_RWDT_WPROTECT_REG
+
+    RTC_CNTL_SWD_CONF_REG = DR_REG_LP_WDT_BASE + 0x0020  # LP_WDT_SWD_CONFIG_REG
+    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 18
+    RTC_CNTL_SWD_WPROTECT_REG = DR_REG_LP_WDT_BASE + 0x0024  # LP_WDT_SWD_WPROTECT_REG
+    RTC_CNTL_SWD_WKEY = 0x50D83AA1  # LP_WDT_SWD_WKEY, same as WDT key in this case
+
+    FLASH_FREQUENCY = {
+        "48m": 0xF,
+        "24m": 0x0,
+        "16m": 0x1,
+        "12m": 0x2,
+    }
+
+    UF2_FAMILY_ID = 0x332726F6
+
+    def get_pkg_version(self):
+        num_word = 4
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 0) & 0x07
+
+    def get_minor_chip_version(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 18) & 0x07
+
+    def get_major_chip_version(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 21) & 0x03
+
+    def get_chip_description(self):
+        chip_name = {
+            0: "ESP32-H2",
+        }.get(self.get_pkg_version(), "unknown ESP32-H2")
+        major_rev = self.get_major_chip_version()
+        minor_rev = self.get_minor_chip_version()
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
+
+    def get_chip_features(self):
+        return ["BLE", "IEEE802.15.4"]
+
+    def get_crystal_freq(self):
+        # ESP32H2 XTAL is fixed to 32MHz
+        return 32
+
+
+
+class ESP32C2ROM(ESP32C3ROM):
+    CHIP_NAME = "ESP32-C2"
+    IMAGE_CHIP_ID = 12
+
+    IROM_MAP_START = 0x42000000
+    IROM_MAP_END = 0x42400000
+    DROM_MAP_START = 0x3C000000
+    DROM_MAP_END = 0x3C400000
+
+    # Magic value for ESP32C2 ECO0 and ECO1 respectively
+    CHIP_DETECT_MAGIC_VALUE = [0x6F51306F, 0x7C41A06F]
+
+    EFUSE_BASE = 0x60008800
+    EFUSE_BLOCK2_ADDR = EFUSE_BASE + 0x040
+    MAC_EFUSE_REG = EFUSE_BASE + 0x040
+
+    EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x30
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 21
+
+    EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x30
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
+
+    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_BASE + 0x30
+    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 6
+
+    EFUSE_XTS_KEY_LENGTH_256_REG = EFUSE_BASE + 0x30
+    EFUSE_XTS_KEY_LENGTH_256 = 1 << 10
+
+    EFUSE_BLOCK_KEY0_REG = EFUSE_BASE + 0x60
+
+    EFUSE_RD_DIS_REG = EFUSE_BASE + 0x30
+    EFUSE_RD_DIS = 3
+
+    FLASH_FREQUENCY = {
+        "60m": 0xF,
+        "30m": 0x0,
+        "20m": 0x1,
+        "15m": 0x2,
+    }
+
+    MEMORY_MAP = [
+        [0x00000000, 0x00010000, "PADDING"],
+        [0x3C000000, 0x3C400000, "DROM"],
+        [0x3FCA0000, 0x3FCE0000, "DRAM"],
+        [0x3FC88000, 0x3FD00000, "BYTE_ACCESSIBLE"],
+        [0x3FF00000, 0x3FF50000, "DROM_MASK"],
+        [0x40000000, 0x40090000, "IROM_MASK"],
+        [0x42000000, 0x42400000, "IROM"],
+        [0x4037C000, 0x403C0000, "IRAM"],
+    ]
+
+    UF2_FAMILY_ID = 0x2B88D29C
+
+    def get_pkg_version(self):
+        num_word = 1
+        return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 22) & 0x07
+
+    def get_chip_description(self):
+        chip_name = {
+            0: "ESP32-C2",
+            1: "ESP32-C2",
+        }.get(self.get_pkg_version(), "unknown ESP32-C2")
+        major_rev = self.get_major_chip_version()
+        minor_rev = self.get_minor_chip_version()
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
+
+    def get_minor_chip_version(self):
+        num_word = 1
+        return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 16) & 0xF
+
+    def get_major_chip_version(self):
+        num_word = 1
+        return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 20) & 0x3
+
+    def get_crystal_freq(self):
+        # The crystal detection algorithm of ESP32/ESP8266 works for ESP32-C2 as well.
+        return ESPLoader.get_crystal_freq(self)
+
+    def change_baud(self, baud):
+        rom_with_26M_XTAL = not self.IS_STUB and self.get_crystal_freq() == 26
+        if rom_with_26M_XTAL:
+            # The code is copied over from ESPLoader.change_baud().
+            # Probably this is just a temporary solution until the next chip revision.
+
+            # The ROM code thinks it uses a 40 MHz XTAL. Recompute the baud rate
+            # in order to trick the ROM code to set the correct baud rate for
+            # a 26 MHz XTAL.
+            false_rom_baud = baud * 40 // 26
+
+            print(f"Changing baud rate to {baud}")
+            self.command(
+                self.ESP_CHANGE_BAUDRATE, struct.pack("<II", false_rom_baud, 0)
+            )
+            print("Changed.")
+            self._set_port_baudrate(baud)
+            time.sleep(0.05)  # get rid of garbage sent during baud rate change
+            self.flush_input()
+        else:
+            ESPLoader.change_baud(self, baud)
+
+    def _post_connect(self):
+        # ESP32C2 ECO0 is no longer supported by the flasher stub
+        if not self.secure_download_mode and self.get_chip_revision() == 0:
+            self.stub_is_disabled = True
+            self.IS_STUB = False
+
+    """ Try to read (encryption key) and check if it is valid """
+
+    def is_flash_encryption_key_valid(self):
+        key_len_256 = (
+            self.read_reg(self.EFUSE_XTS_KEY_LENGTH_256_REG)
+            & self.EFUSE_XTS_KEY_LENGTH_256
+        )
+
+        word0 = self.read_reg(self.EFUSE_RD_DIS_REG) & self.EFUSE_RD_DIS
+        rd_disable = word0 == 3 if key_len_256 else word0 == 1
+
+        # reading of BLOCK3 is NOT ALLOWED so we assume valid key is programmed
+        if rd_disable:
+            return True
+        else:
+            # reading of BLOCK3 is ALLOWED so we will read and verify for non-zero.
+            # When chip has not generated AES/encryption key in BLOCK3,
+            # the contents will be readable and 0.
+            # If the flash encryption is enabled it is expected to have a valid
+            # non-zero key. We break out on first occurance of non-zero value
+            key_word = [0] * 7 if key_len_256 else [0] * 3
+            for i in range(len(key_word)):
+                key_word[i] = self.read_reg(self.EFUSE_BLOCK_KEY0_REG + i * 4)
+                # key is non-zero so break & return
+                if key_word[i] != 0:
+                    return True
+            return False
 
 
 
