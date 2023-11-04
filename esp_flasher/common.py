@@ -237,7 +237,7 @@ def configure_write_flash_args(
             safeboot = "tasmota32solo1-safeboot.bin"
             ofs_bootloader = 0x1000
 
-        if flash_freq in ("26m", "20m"):
+        if flash_freq in ("15", "20m", "26m", "30"):
             raise Esp_flasherError(
                 f"No bootloader available for flash frequency {flash_freq}"
             )
