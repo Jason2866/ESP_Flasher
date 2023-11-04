@@ -1827,31 +1827,31 @@ class ESP32S2ROM(ESP32ROM):
     CHIP_NAME = "ESP32-S2"
     IMAGE_CHIP_ID = 2
 
-    FPGA_SLOW_BOOT = False
-
     IROM_MAP_START = 0x40080000
-    IROM_MAP_END   = 0x40b80000
+    IROM_MAP_END = 0x40B80000
     DROM_MAP_START = 0x3F000000
-    DROM_MAP_END   = 0x3F3F0000
+    DROM_MAP_END = 0x3F3F0000
 
-    CHIP_DETECT_MAGIC_VALUE = [0x000007c6]
+    CHIP_DETECT_MAGIC_VALUE = [0x000007C6]
 
-    SPI_REG_BASE = 0x3f402000
-    SPI_USR_OFFS    = 0x18
-    SPI_USR1_OFFS   = 0x1c
-    SPI_USR2_OFFS   = 0x20
+    SPI_REG_BASE = 0x3F402000
+    SPI_USR_OFFS = 0x18
+    SPI_USR1_OFFS = 0x1C
+    SPI_USR2_OFFS = 0x20
     SPI_MOSI_DLEN_OFFS = 0x24
     SPI_MISO_DLEN_OFFS = 0x28
     SPI_W0_OFFS = 0x58
 
-    MAC_EFUSE_REG = 0x3f41A044  # ESP32-S2 has special block for MAC efuses
+    MAC_EFUSE_REG = 0x3F41A044  # ESP32-S2 has special block for MAC efuses
 
-    UART_CLKDIV_REG = 0x3f400014
+    UART_CLKDIV_REG = 0x3F400014
+
+    SUPPORTS_ENCRYPTED_FLASH = True
 
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
 
     # todo: use espefuse APIs to get this info
-    EFUSE_BASE = 0x3f41A000
+    EFUSE_BASE = 0x3F41A000
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
     EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x044
     EFUSE_BLOCK2_ADDR = EFUSE_BASE + 0x05C
@@ -1872,36 +1872,45 @@ class ESP32S2ROM(ESP32ROM):
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 19
 
+    EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x034
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
+
+    EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x038
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 20
+
+    EFUSE_RD_REPEAT_DATA3_REG = EFUSE_BASE + 0x3C
+    EFUSE_RD_REPEAT_DATA3_REG_FLASH_TYPE_MASK = 1 << 9
+
     PURPOSE_VAL_XTS_AES256_KEY_1 = 2
     PURPOSE_VAL_XTS_AES256_KEY_2 = 3
     PURPOSE_VAL_XTS_AES128_KEY = 4
 
-    UARTDEV_BUF_NO = 0x3ffffd14  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB = 2  # Value of the above variable indicating that USB is in use
+    UARTDEV_BUF_NO = 0x3FFFFD14  # Variable in ROM .bss which indicates the port in use
+    UARTDEV_BUF_NO_USB = 2  # Value of the above indicating that USB-OTG is in use
 
-    USB_RAM_BLOCK = 0x800  # Max block size USB CDC is used
+    USB_RAM_BLOCK = 0x800  # Max block size USB-OTG is used
 
-    GPIO_STRAP_REG = 0x3f404038
-    GPIO_STRAP_SPI_BOOT_MASK = 0x8   # Not download mode
-    RTC_CNTL_OPTION1_REG = 0x3f408128
+    GPIO_STRAP_REG = 0x3F404038
+    GPIO_STRAP_SPI_BOOT_MASK = 0x8  # Not download mode
+    RTC_CNTL_OPTION1_REG = 0x3F408128
     RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK = 0x1  # Is download mode forced over USB?
 
-    MEMORY_MAP = [[0x00000000, 0x00010000, "PADDING"],
-                  [0x3F000000, 0x3FF80000, "DROM"],
-                  [0x3F500000, 0x3FF80000, "EXTRAM_DATA"],
-                  [0x3FF9E000, 0x3FFA0000, "RTC_DRAM"],
-                  [0x3FF9E000, 0x40000000, "BYTE_ACCESSIBLE"],
-                  [0x3FF9E000, 0x40072000, "MEM_INTERNAL"],
-                  [0x3FFB0000, 0x40000000, "DRAM"],
-                  [0x40000000, 0x4001A100, "IROM_MASK"],
-                  [0x40020000, 0x40070000, "IRAM"],
-                  [0x40070000, 0x40072000, "RTC_IRAM"],
-                  [0x40080000, 0x40800000, "IROM"],
-                  [0x50000000, 0x50002000, "RTC_DATA"]]
+    MEMORY_MAP = [
+        [0x00000000, 0x00010000, "PADDING"],
+        [0x3F000000, 0x3FF80000, "DROM"],
+        [0x3F500000, 0x3FF80000, "EXTRAM_DATA"],
+        [0x3FF9E000, 0x3FFA0000, "RTC_DRAM"],
+        [0x3FF9E000, 0x40000000, "BYTE_ACCESSIBLE"],
+        [0x3FF9E000, 0x40072000, "MEM_INTERNAL"],
+        [0x3FFB0000, 0x40000000, "DRAM"],
+        [0x40000000, 0x4001A100, "IROM_MASK"],
+        [0x40020000, 0x40070000, "IRAM"],
+        [0x40070000, 0x40072000, "RTC_IRAM"],
+        [0x40080000, 0x40800000, "IROM"],
+        [0x50000000, 0x50002000, "RTC_DATA"],
+    ]
 
-    # Returns old version format (ECO number). Use the new format get_chip_full_revision().
-    def get_chip_revision(self):
-        return self.get_major_chip_version()
+    UF2_FAMILY_ID = 0xBFDD4EEE
 
     def get_pkg_version(self):
         num_word = 4
@@ -1922,9 +1931,15 @@ class ESP32S2ROM(ESP32ROM):
         num_word = 3
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 21) & 0x0F
 
+    def get_flash_cap(self):
+        return self.get_flash_version()
+
     def get_psram_version(self):
         num_word = 3
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 28) & 0x0F
+
+    def get_psram_cap(self):
+        return self.get_psram_version()
 
     def get_block2_version(self):
         # BLK_VERSION_MINOR
@@ -1938,11 +1953,13 @@ class ESP32S2ROM(ESP32ROM):
             2: "ESP32-S2FH4",
             102: "ESP32-S2FNR2",
             100: "ESP32-S2R2",
-        }.get(self.get_flash_version() + self.get_psram_version() * 100, "unknown ESP32-S2")
-
+        }.get(
+            self.get_flash_cap() + self.get_psram_cap() * 100,
+            "unknown ESP32-S2",
+        )
         major_rev = self.get_major_chip_version()
         minor_rev = self.get_minor_chip_version()
-        return "%s (revision v%d.%d)" % (chip_name, major_rev, minor_rev)
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
 
     def get_chip_features(self):
         features = ["WiFi"]
@@ -1954,14 +1971,14 @@ class ESP32S2ROM(ESP32ROM):
             0: "No Embedded Flash",
             1: "Embedded Flash 2MB",
             2: "Embedded Flash 4MB",
-        }.get(self.get_flash_version(), "Unknown Embedded Flash")
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
         features += [flash_version]
 
         psram_version = {
             0: "No Embedded PSRAM",
             1: "Embedded PSRAM 2MB",
             2: "Embedded PSRAM 4MB",
-        }.get(self.get_psram_version(), "Unknown Embedded PSRAM")
+        }.get(self.get_psram_cap(), "Unknown Embedded PSRAM")
         features += [psram_version]
 
         block2_version = {
@@ -1978,30 +1995,48 @@ class ESP32S2ROM(ESP32ROM):
         return 40
 
     def override_vddsdio(self, new_voltage):
-        raise NotImplementedInROMError("VDD_SDIO overrides are not supported for ESP32-S2")
+        raise NotImplementedInROMError(
+            "VDD_SDIO overrides are not supported for ESP32-S2"
+        )
 
-    def read_mac(self):
+    def read_mac(self, mac_type="BASE_MAC"):
+        """Read MAC from EFUSE region"""
+        if mac_type != "BASE_MAC":
+            return None
         mac0 = self.read_reg(self.MAC_EFUSE_REG)
         mac1 = self.read_reg(self.MAC_EFUSE_REG + 4)  # only bottom 16 bits are MAC
         bitstring = struct.pack(">II", mac1, mac0)[2:]
-        try:
-            return tuple(ord(b) for b in bitstring)
-        except TypeError:  # Python 3, bitstring elements are already bytes
-            return tuple(bitstring)
+        return tuple(bitstring)
+
+    def flash_type(self):
+        return (
+            1
+            if self.read_reg(self.EFUSE_RD_REPEAT_DATA3_REG)
+            & self.EFUSE_RD_REPEAT_DATA3_REG_FLASH_TYPE_MASK
+            else 0
+        )
 
     def get_flash_crypt_config(self):
         return None  # doesn't exist on ESP32-S2
+
+    def get_secure_boot_enabled(self):
+        return (
+            self.read_reg(self.EFUSE_SECURE_BOOT_EN_REG)
+            & self.EFUSE_SECURE_BOOT_EN_MASK
+        )
 
     def get_key_block_purpose(self, key_block):
         if key_block < 0 or key_block > 5:
             raise FatalError("Valid key block numbers must be in range 0-5")
 
-        reg, shift = [(self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT)][key_block]
+        reg, shift = [
+            (self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
+            (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
+            (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
+            (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
+            (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
+            (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT),
+        ][key_block]
         return (self.read_reg(reg) >> shift) & 0xF
 
     def is_flash_encryption_key_valid(self):
@@ -2011,8 +2046,9 @@ class ESP32S2ROM(ESP32ROM):
         if any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes):
             return True
 
-        return any(p == self.PURPOSE_VAL_XTS_AES256_KEY_1 for p in purposes) \
-            and any(p == self.PURPOSE_VAL_XTS_AES256_KEY_2 for p in purposes)
+        return any(p == self.PURPOSE_VAL_XTS_AES256_KEY_1 for p in purposes) and any(
+            p == self.PURPOSE_VAL_XTS_AES256_KEY_2 for p in purposes
+        )
 
     def uses_usb(self, _cache=[]):
         if self.secure_download_mode:
@@ -2032,15 +2068,23 @@ class ESP32S2ROM(ESP32ROM):
         """
         if os.getenv("ESPTOOL_TESTING") is not None:
             print("ESPTOOL_TESTING is set, ignoring strapping mode check")
-            # Esptool tests over USB CDC run with GPIO0 strapped low, don't complain in this case.
+            # Esptool tests over USB-OTG run with GPIO0 strapped low,
+            # don't complain in this case.
             return
         strap_reg = self.read_reg(self.GPIO_STRAP_REG)
         force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
-        if strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0 and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0:
-            print("WARNING: {} chip was placed into download mode using GPIO0.\n"
-                  "esptool.py can not exit the download mode over USB. "
-                  "To run the app, reset the chip manually.\n"
-                  "To suppress this note, set --after option to 'no_reset'.".format(self.get_chip_description()))
+        if (
+            strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0
+            and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
+        ):
+            print(
+                "WARNING: {} chip was placed into download mode using GPIO0.\n"
+                "esptool.py can not exit the download mode over USB. "
+                "To run the app, reset the chip manually.\n"
+                "To suppress this note, set --after option to 'no_reset'.".format(
+                    self.get_chip_description()
+                )
+            )
             raise SystemExit(1)
 
     def hard_reset(self):
