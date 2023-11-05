@@ -1,6 +1,6 @@
 import re
 
-__version__ = "1.5.0"
+__version__ = "2.0.0"
 
 ESP32_DEFAULT_OTA_DATA = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/C2_C6/"
