@@ -193,6 +193,9 @@ def format_bootloader_path(path, model, flash_mode, flash_freq):
 def format_partitions_path(path, model):
     return path.replace("$MODEL$", model)
 
+def bootloader_elf2_image(boot_elf):
+    bootloader_bin = esptool.elf2image(boot_elf)
+    return bootloader_bin
 
 def configure_write_flash_args(
     info, factory_firm_path, firmware_path, flash_size, bootloader_path, partitions_path, otadata_path
@@ -246,6 +249,9 @@ def configure_write_flash_args(
             format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
         )
 
+        boot_elf = ["--chip" "esp32-c6" "--flash_freq" "--flash_mode" "--flash_size" "boot.elf"]
+        boot_bin = bootloader_elf2_image(boot_elf)
+        print("boot_bin: ", boot_bin)
         if not partitions_path:
             partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
         if not factory_firm_path:
