@@ -1,6 +1,7 @@
 name: PyPi Publish
 
 on:
+  workflow_dispatch:  # Manually start Publishing
   push:
     tags:
       - "v*.*.*"
