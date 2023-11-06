@@ -2,8 +2,8 @@ name: PyPi Publish
 
 on:
   push:
-    branches:
-    - pypi_publish
+    tags:
+      - "v*.*.*"
 
 jobs:
 
