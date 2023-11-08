@@ -189,7 +189,7 @@ def run_esp_flasher(argv):
     try:
         esptool.elf2image(mock_args)
     except esptool.FatalError as err:
-        raise Esp_flasherError(f"Error while conerting elf to bin: {err}") from err
+        raise Esp_flasherError(f"Error while converting elf to bin: {err}") from err
 
     mock_args = configure_write_flash_args(
         info, chip, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
