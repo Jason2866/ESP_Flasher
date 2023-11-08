@@ -268,6 +268,7 @@ def configure_write_flash_args(
         pad_to_size = ""
         spi_connection = ""
 
+        cwd = os.getcwd()
         boot_elf_path = open_downloadable_binary(
            format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
         )
