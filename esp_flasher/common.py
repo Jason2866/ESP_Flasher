@@ -289,7 +289,7 @@ def configure_write_flash_args(
             with open(output, "rb") as fh:
                 bootloader = BytesIO(fh.read())
         except IOError as err:
-            print("No bin bootloader")
+            print("No local bootloader file, downloading")
             bootloader=""
             #bootloader = open_downloadable_binary("https://raw.githubusercontent.com/Jason2866/ESP_Flasher/C2_C6/bootloader/esp32/bin/bootloader_dio_80m.bin")
             #raise Esp_flasherError(f"Error opening bootloader file: {err}") from err
