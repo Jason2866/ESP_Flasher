@@ -1,5 +1,6 @@
 import io
 import struct
+from io import BytesIO
 
 import esp_flasher.own_esptool as esptool
 
@@ -198,7 +199,6 @@ def open_downloadable_binary(path):
     except IOError as err:
         raise Esp_flasherError(f"Error opening binary '{path}': {err}") from err
 
-
 def format_bootloader_path(path, model, flash_mode, flash_freq):
     return path.replace("$MODEL$", model).replace("$FLASH_MODE$", flash_mode).replace("$FLASH_FREQ$", flash_freq)
 
@@ -267,12 +267,33 @@ def configure_write_flash_args(
         flash_mmu_page_size = ""
         pad_to_size = ""
         spi_connection = ""
-        bootloader = open_downloadable_binary(
-            format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
-        )
 
-        input = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/bootloader_dio_80m.elf"
-        output = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/btlder_dio_80m.bin"
+        boot_elf_path = open_downloadable_binary(
+           format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
+        )
+        boot_elf_file = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/bootloader_dio_80m.elf"
+        input =  boot_elf_file
+        output = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/bootloader_dio_80m.bin"
+        with open(boot_elf_file, "wb") as f:
+            f.write(boot_elf_path.getbuffer())
+
+        try:
+            # pylint: disable=consider-using-with
+            open(boot_elf_file, "rb")
+        except IOError as err:
+            raise Esp_flasherError(f"Error opening bootloader file: {err}") from err
+
+        try:
+            # pylint: disable=consider-using-with
+            with open(output, "rb") as fh:
+                bootloader = BytesIO(fh.read())
+        except IOError as err:
+            print("No bin bootloader")
+            bootloader=""
+            #bootloader = open_downloadable_binary("https://raw.githubusercontent.com/Jason2866/ESP_Flasher/C2_C6/bootloader/esp32/bin/bootloader_dio_80m.bin")
+            #raise Esp_flasherError(f"Error opening bootloader file: {err}") from err
+
+
         if not partitions_path:
             partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
         if not factory_firm_path:

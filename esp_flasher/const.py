@@ -8,7 +8,7 @@ ESP32_DEFAULT_OTA_DATA = (
 )
 ESP32_DEFAULT_BOOTLOADER_FORMAT = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/C2_test/"
-    "bootloader/$MODEL$/bin/bootloader_$FLASH_MODE$_$FLASH_FREQ$.bin"
+    "bootloader/$MODEL$/bin/bootloader_$FLASH_MODE$_$FLASH_FREQ$.elf"
 )
 ESP32_DEFAULT_PARTITIONS = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/C2_test/"
