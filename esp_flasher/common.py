@@ -1,5 +1,7 @@
+import os
 import io
 import struct
+from os.path import join
 from io import BytesIO
 
 import esp_flasher.own_esptool as esptool
@@ -269,32 +271,27 @@ def configure_write_flash_args(
         spi_connection = ""
 
         cwd = os.getcwd()
-        boot_elf_path = open_downloadable_binary(
-           format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
-        )
-        boot_elf_file = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/bootloader_dio_80m.elf"
-        input =  boot_elf_file
-        output = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/bootloader_dio_80m.bin"
-        with open(boot_elf_file, "wb") as f:
-            f.write(boot_elf_path.getbuffer())
+        bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
+        boot_loader_file = join(cwd, "bootloader", model, "bin", bootloaderstring)
+        output = boot_loader_file.replace(".elf", ".bin")
 
         try:
-            # pylint: disable=consider-using-with
-            open(boot_elf_file, "rb")
-        except IOError as err:
-            raise Esp_flasherError(f"Error opening bootloader file: {err}") from err
+            open(boot_loader_file, "rb")    # check for local elf bootloader file
+        except IOError as err:              # download elf bootloader file
+            boot_elf_path = open_downloadable_binary(
+                format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
+            )
+            with open(boot_loader_file, "wb") as f:
+                f.write(boot_elf_path.getbuffer())  # save elf bootloader file local
 
         try:
-            # pylint: disable=consider-using-with
             with open(output, "rb") as fh:
                 bootloader = BytesIO(fh.read())
         except IOError as err:
-            print("No local bootloader file, downloading")
+            #print("No bin bootloader")  # Will be there in second call!
             bootloader=""
-            #bootloader = open_downloadable_binary("https://raw.githubusercontent.com/Jason2866/ESP_Flasher/C2_C6/bootloader/esp32/bin/bootloader_dio_80m.bin")
-            #raise Esp_flasherError(f"Error opening bootloader file: {err}") from err
 
-
+        input = boot_loader_file    # local downloaded elf bootloader file
         if not partitions_path:
             partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
         if not factory_firm_path:
