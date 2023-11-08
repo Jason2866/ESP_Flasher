@@ -16,8 +16,10 @@ class Esp_flasherError(Exception):
 
 
 class MockEsptoolArgs:
-    def __init__(self, flash_size, addr_filename, flash_mode, flash_freq):
+    def __init__(self, chip, flash_size, addr_filename, flash_mode, flash_freq, input, secure_pad, secure_pad_v2,
+        min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output):
         self.compress = True
+        self.chip = chip
         self.no_compress = False
         self.flash_size = flash_size
         self.addr_filename = addr_filename
@@ -28,7 +30,18 @@ class MockEsptoolArgs:
         self.erase_all = False
         self.encrypt = False
         self.encrypt_files = None
-
+        self.input = input
+        self.secure_pad = False
+        self.secure_pad_v2 = False
+        self.min_rev = 0
+        self.min_rev_full = 0
+        self.max_rev_full = 65535
+        self.elf_sha256_offset = ""
+        self.use_segments = "False"
+        self.flash_mmu_page_size = ""
+        self.pad_to_size = ""
+        self.spi_connection = ""
+        self.output = output
 
 class ChipInfo:
     def __init__(self, family, model, mac):
@@ -193,12 +206,10 @@ def format_bootloader_path(path, model, flash_mode, flash_freq):
 def format_partitions_path(path, model):
     return path.replace("$MODEL$", model)
 
-def bootloader_elf2_image(boot_elf):
-    bootloader_bin = esptool.elf2image(boot_elf)
-    return bootloader_bin
 
 def configure_write_flash_args(
-    info, factory_firm_path, firmware_path, flash_size, bootloader_path, partitions_path, otadata_path
+    info, chip, factory_firm_path, firmware_path, flash_size, bootloader_path, partitions_path, otadata_path, input, secure_pad, secure_pad_v2,
+    min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
 ):
     addr_filename = []
     firmware = open_downloadable_binary(firmware_path)
@@ -245,13 +256,23 @@ def configure_write_flash_args(
             raise Esp_flasherError(
                 f"No bootloader available for flash frequency {flash_freq}"
             )
+        chip = model
+        min_rev = 0
+        min_rev_full = 0
+        max_rev_full = 65535
+        secure_pad = "False"
+        secure_pad_v2 = "False"
+        elf_sha256_offset = ""
+        use_segments = "False"
+        flash_mmu_page_size = ""
+        pad_to_size = ""
+        spi_connection = ""
         bootloader = open_downloadable_binary(
             format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
         )
 
-        boot_elf = ["--chip" "esp32-c6" "--flash_freq" "--flash_mode" "--flash_size" "boot.elf"]
-        boot_bin = bootloader_elf2_image(boot_elf)
-        print("boot_bin: ", boot_bin)
+        input = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/bootloader_dio_80m.elf"
+        output = "/Volumes/T7-Mac/ESP_Flasher/bootloader/esp32/bin/btlder_dio_80m.bin"
         if not partitions_path:
             partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
         if not factory_firm_path:
@@ -268,7 +289,8 @@ def configure_write_flash_args(
         addr_filename.append((ofs_firmware, firmware))
     else:
         addr_filename.append((0x0, firmware))
-    return MockEsptoolArgs(flash_size, addr_filename, flash_mode, flash_freq)
+    return MockEsptoolArgs(chip, flash_size, addr_filename, flash_mode, flash_freq, input, secure_pad, secure_pad_v2,
+                           min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output)
 
 
 def detect_chip(port, force_esp8266=False, force_esp32=False):

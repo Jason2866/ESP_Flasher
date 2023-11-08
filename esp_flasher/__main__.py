@@ -48,6 +48,10 @@ def parse_args(argv):
         help="(ESP32x-only) The safeboot factory image to flash.",
     )
     parser.add_argument(
+        "--input",
+        help="(ESP32x-only) The bootloader elf file to flash.",
+    )
+    parser.add_argument(
         "--partitions",
         help="(ESP32x-only) The partitions to flash.",
     )
@@ -164,8 +168,22 @@ def run_esp_flasher(argv):
 
     print(f" - Flash Size: {flash_size}")
 
+    min_rev = 0
+    min_rev_full = 0
+    max_rev_full = 65535
+    secure_pad = "False"
+    secure_pad_v2 = "False"
+    elf_sha256_offset = ""
+    use_segments = ""
+    flash_mmu_page_size = ""
+    pad_to_size = ""
+    spi_connection = ""
+    output = ""
+
     mock_args = configure_write_flash_args(
-        info, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata
+        info, chip, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
+        args.input, secure_pad, secure_pad_v2, min_rev, min_rev_full, max_rev_full, elf_sha256_offset,
+        use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
     )
 
     print(f" - Flash Mode: {mock_args.flash_mode}")
@@ -175,6 +193,11 @@ def run_esp_flasher(argv):
         stub_chip.flash_set_parameters(esptool.flash_size_bytes(flash_size))
     except esptool.FatalError as err:
         raise Esp_flasherError(f"Error setting flash parameters: {err}") from err
+
+    try:
+        esptool.elf2image(mock_args)
+    except esptool.FatalError as err:
+        raise Esp_flasherError(f"Error while conerting elf to bin: {err}") from err
 
     if not args.no_erase:
         try:
