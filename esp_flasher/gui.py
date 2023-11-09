@@ -10,7 +10,7 @@ import wx.lib.inspection
 import wx.lib.mixins.inspection
 
 from esp_flasher.helpers import list_serial_ports
-
+from esp_flasher.const import __version__
 
 COLOR_RE = re.compile(r'(?:\033)(?:\[(.*?)[@-~]|\].*?(?:\007|\033\\))')
 COLORS = {
@@ -280,10 +280,11 @@ class MainFrame(wx.Frame):
 
 class App(wx.App, wx.lib.mixins.inspection.InspectionMixin):
     def OnInit(self):
+        app_name_ver = "Tasmota-Esp-Flasher " + __version__
         wx.SystemOptions.SetOption("mac.window-plain-transition", 1)
-        self.SetAppName("Tasmota-Esp-Flasher")
+        self.SetAppName(app_name_ver)
 
-        frame = MainFrame(None, "Tasmota-Esp-Flasher")
+        frame = MainFrame(None, app_name_ver)
         frame.Show()
 
         return True
