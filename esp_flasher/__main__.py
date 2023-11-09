@@ -197,8 +197,8 @@ def run_esp_flasher(argv):
         use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
     )
 
-    print(f" - Flash Mode: {mock_args.flash_mode}")
-    print(f" - Flash Frequency: {mock_args.flash_freq.upper()}Hz")
+    #print(f" - Flash Mode: {mock_args.flash_mode}")
+    #print(f" - Flash Frequency: {mock_args.flash_freq.upper()}Hz")
 
     try:
         stub_chip.flash_set_parameters(esptool.flash_size_bytes(flash_size))

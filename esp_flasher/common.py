@@ -166,8 +166,8 @@ def read_firmware_info(firmware):
             f"The firmware binary is invalid (magic byte={magic:02X}, should be {esptool.ESPLoader.ESP_IMAGE_MAGIC:02X})"
         )
     flash_freq_raw = flash_size_freq & 0x0F
-    flash_mode = flash_mode_raw
-    flash_freq = flash_freq_raw
+    flash_mode = {0: "qio", 1: "qout", 2: "dio", 3: "dout"}.get(flash_mode_raw)
+    flash_freq = {0: "40m", 1: "26m", 2: "20m", 0xF: "80m"}.get(flash_freq_raw)
     return flash_mode, flash_freq
 
 
@@ -215,9 +215,7 @@ def configure_write_flash_args(
 ):
     addr_filename = []
     firmware = open_downloadable_binary(firmware_path)
-    flash_mode_raw, flash_freq_raw = read_firmware_info(firmware)
-    flash_mode = {0: "qio", 1: "qout", 2: "dio", 3: "dout"}.get(flash_mode_raw)
-    flash_freq = {0: "40m", 1: "26m", 2: "20m", 0xF: "80m"}.get(flash_freq_raw)
+    flash_mode, flash_freq = read_firmware_info(firmware)
     if isinstance(info, ESP32ChipInfo):
         ofs_partitions = 0x8000
         ofs_otadata = 0xe000
@@ -228,7 +226,7 @@ def configure_write_flash_args(
             model = "esp32c2"
             safeboot = "tasmota32c2-safeboot.bin"
             ofs_bootloader = 0x0
-            flash_freq = {0: "30m", 1: "20m", 2: "15m", 0xF: "60m"}.get(flash_freq_raw)
+            flash_freq = "60m"
         elif "ESP32-C3" in info.model:
             model = "esp32c3"
             safeboot = "tasmota32c3-safeboot.bin"
@@ -237,7 +235,7 @@ def configure_write_flash_args(
             model = "esp32c6"
             safeboot = "tasmota32c6-safeboot.bin"
             ofs_bootloader = 0x0
-            flash_freq = {0: "80m", 2: "20m"}.get(flash_freq_raw)
+            flash_freq = "80m"
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
             safeboot = "tasmota32s3-safeboot.bin"
