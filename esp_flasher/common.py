@@ -3,6 +3,7 @@ import io
 import struct
 from os.path import join
 from io import BytesIO
+from platformdirs import *
 
 import esp_flasher.own_esptool as esptool
 
