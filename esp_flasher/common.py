@@ -3,7 +3,6 @@ import io
 import struct
 from os.path import join
 from io import BytesIO
-from platformdirs import *
 
 import esp_flasher.own_esptool as esptool
 
@@ -11,6 +10,7 @@ from esp_flasher.const import (
     ESP32_DEFAULT_PARTITIONS,
     ESP32_SAFEBOOT_SERVER,
     HTTP_REGEX,
+    __version__,
 )
 from esp_flasher.helpers import prevent_print
 
@@ -266,9 +266,10 @@ def configure_write_flash_args(
         pad_to_size = ""
         spi_connection = ""
 
-        cwd = platformdirs.user_data_path(appname="Esp_Flasher")
+        uwd = os.path.expanduser("~")
+        esp_flasher_ver = "ESP_Flasher_" + __version__
         bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
-        boot_loader_path = join(cwd, "bootloader", model, "bin")
+        boot_loader_path = join(uwd, esp_flasher_ver, "bootloader", model, "bin")
         boot_loader_file = join(boot_loader_path , bootloaderstring)
         if not os.path.exists(boot_loader_path):
             os.makedirs(boot_loader_path)
