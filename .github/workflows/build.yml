@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # Manually start a workflow
   push:
     branches:
-    - C2_C6
+    - C2_test
     paths-ignore:
     - '.github/**' # Ignore changes towards the .github directory
     - '*.md'
