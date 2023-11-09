@@ -267,7 +267,10 @@ def configure_write_flash_args(
 
         cwd = os.getcwd()
         bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
-        boot_loader_file = join(cwd, "bootloader", model, "bin", bootloaderstring)
+        boot_loader_path = join(cwd, "bootloader", model, "bin")
+        boot_loader_file = join(boot_loader_path , bootloaderstring)
+        if not os.path.exists(boot_loader_path):
+            os.makedirs(boot_loader_path)
         output = boot_loader_file.replace(".elf", ".bin")
 
         try:
