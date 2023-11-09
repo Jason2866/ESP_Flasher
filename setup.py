@@ -10,7 +10,7 @@ PROJECT_NAME = 'ESP_Flasher'
 PROJECT_PACKAGE_NAME = 'esp_flasher'
 PROJECT_LICENSE = 'MIT'
 PROJECT_AUTHOR = 'Jason2866'
-PROJECT_COPYRIGHT = '2021, Jason2866'
+PROJECT_COPYRIGHT = '2023, Jason2866'
 PROJECT_URL = 'https://github.com/Jason2866/ESP_Flasher'
 PROJECT_EMAIL = 'obermeier.johann@googlemail.com'
 
@@ -37,12 +37,12 @@ setup(
     url=GITHUB_URL,
     author=PROJECT_AUTHOR,
     author_email=PROJECT_EMAIL,
-    description="ESP8266/ESP32 firmware flasher for ESP",
+    description="ESP8266/ESP32 Tasmota firmware flasher for ESP",
     include_package_data=True,
     zip_safe=False,
     platforms='any',
     test_suite='tests',
-    python_requires='>=3.5,<4.0',
+    python_requires='>=3.8,<4.0',
     install_requires=REQUIRES,
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
