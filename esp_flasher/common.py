@@ -266,7 +266,7 @@ def configure_write_flash_args(
         pad_to_size = ""
         spi_connection = ""
 
-        cwd = os.getcwd()
+        cwd = platformdirs.user_data_path(appname="Esp_Flasher")
         bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
         boot_loader_path = join(cwd, "bootloader", model, "bin")
         boot_loader_file = join(boot_loader_path , bootloaderstring)
