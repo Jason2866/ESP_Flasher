@@ -142,7 +142,7 @@ def run_esp_flasher(argv):
     stub_chip = chip_run_stub(chip)
     flash_size = None
 
-    if args.upload_baud_rate != 115200:
+    if (args.upload_baud_rate != 115200) and ("ESP32" in info.family):
         try:
             stub_chip.change_baud(args.upload_baud_rate)
         except esptool.FatalError as err:
