@@ -35,7 +35,7 @@ def parse_args(argv):
     group.add_argument(
         "--upload-baud-rate",
         type=int,
-        default=460800,
+        default=1500000,
         help="Baud rate to upload (not for logging)",
     )
     parser.add_argument(
@@ -186,16 +186,17 @@ def run_esp_flasher(argv):
         use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
     )
 
-    try:
-        esptool.elf2image(mock_args)
-    except esptool.FatalError as err:
-        raise Esp_flasherError(f"Error while converting elf to bin: {err}") from err
+    if not "ESP8266" in info.family:
+        try:
+            esptool.elf2image(mock_args)
+        except esptool.FatalError as err:
+            raise Esp_flasherError(f"Error while converting elf to bin: {err}") from err
 
-    mock_args = configure_write_flash_args(
-        info, chip, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
-        args.input, secure_pad, secure_pad_v2, min_rev, min_rev_full, max_rev_full, elf_sha256_offset,
-        use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
-    )
+        mock_args = configure_write_flash_args(
+            info, chip, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
+            args.input, secure_pad, secure_pad_v2, min_rev, min_rev_full, max_rev_full, elf_sha256_offset,
+            use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
+        )
 
     #print(f" - Flash Mode: {mock_args.flash_mode}")
     #print(f" - Flash Frequency: {mock_args.flash_freq.upper()}Hz")
