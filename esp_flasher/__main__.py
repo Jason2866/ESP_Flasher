@@ -109,10 +109,6 @@ def run_esp_flasher(argv):
     args = parse_args(argv)
     port = select_port(args)
 
-    if "factory" in args.binary:
-        print("Flashing of factory image not supported, please use plain firmware image.")
-        return
-
     if args.show_logs:
         serial_port = serial.Serial(port, baudrate=115200)
         show_logs(serial_port)
@@ -172,6 +168,7 @@ def run_esp_flasher(argv):
 
     print(f" - Flash Size: {flash_size}")
 
+    flag_factory = ""
     min_rev = 0
     min_rev_full = 0
     max_rev_full = 65535
@@ -185,19 +182,18 @@ def run_esp_flasher(argv):
     output = ""
 
     mock_args = configure_write_flash_args(
-        info, chip, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
+        info, chip, flag_factory, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
         args.input, secure_pad, secure_pad_v2, min_rev, min_rev_full, max_rev_full, elf_sha256_offset,
         use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
     )
-
-    if not "ESP8266" in info.family:
+    if not "ESP8266" in info.family and "false" in flag_factory:
         try:
             esptool.elf2image(mock_args)
         except esptool.FatalError as err:
             raise Esp_flasherError(f"Error while converting elf to bin: {err}") from err
 
         mock_args = configure_write_flash_args(
-            info, chip, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
+            info, chip, flag_factory, args.safeboot, firmware, flash_size, args.bootloader, args.partitions, args.otadata,
             args.input, secure_pad, secure_pad_v2, min_rev, min_rev_full, max_rev_full, elf_sha256_offset,
             use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
         )
