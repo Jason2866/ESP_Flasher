@@ -24,7 +24,7 @@ class MockEsptoolArgs:
         min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output):
         self.compress = True
         self.chip = chip
-        self.flag_factory = ""
+        self.flag_factory = flag_factory
         self.no_compress = False
         self.flash_size = flash_size
         self.addr_filename = addr_filename
@@ -176,9 +176,9 @@ def read_firmware_info(firmware):
 
     magic, _, _, _, = struct.unpack("BBBB", header)
     if magic != esptool.ESPLoader.ESP_IMAGE_MAGIC:
-        flag_factory = "false"
+        flag_factory = False
     else:
-        flag_factory = "true"
+        flag_factory = True
 
     return flash_mode, flash_freq, flag_factory
 
@@ -228,9 +228,9 @@ def configure_write_flash_args(
     addr_filename = []
     firmware = open_downloadable_binary(firmware_path)
     flash_mode, flash_freq, flag_factory = read_firmware_info(firmware)
-    if "true" in flag_factory:
+    if flag_factory:
         print("Detected Factory Firmware")
-    if (isinstance(info, ESP32ChipInfo)) and ("false" in flag_factory):
+    if (isinstance(info, ESP32ChipInfo)) and not flag_factory:
         ofs_partitions = 0x8000
         ofs_otadata = 0xe000
         ofs_factory_firm = 0x10000
