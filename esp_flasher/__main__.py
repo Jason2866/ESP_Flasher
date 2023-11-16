@@ -109,6 +109,10 @@ def run_esp_flasher(argv):
     args = parse_args(argv)
     port = select_port(args)
 
+    if "factory" in args.binary:
+        print("Flashing of factory image not supported, please use plain firmware image.")
+        return
+
     if args.show_logs:
         serial_port = serial.Serial(port, baudrate=115200)
         show_logs(serial_port)
