@@ -168,7 +168,7 @@ def run_esp_flasher(argv):
 
     print(f" - Flash Size: {flash_size}")
 
-    flag_factory = ""
+    flag_factory = False
     min_rev = 0
     min_rev_full = 0
     max_rev_full = 65535
@@ -186,7 +186,7 @@ def run_esp_flasher(argv):
         args.input, secure_pad, secure_pad_v2, min_rev, min_rev_full, max_rev_full, elf_sha256_offset,
         use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output
     )
-    if (not "ESP8266" in info.family) and ("False" in mock_args.flag_factory):
+    if (not "ESP8266" in info.family) and (not mock_args.flag_factory):
         try:
             esptool.elf2image(mock_args)
         except esptool.FatalError as err:
