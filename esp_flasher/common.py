@@ -159,28 +159,30 @@ def detect_flash_size(stub_chip):
 
 
 def read_firmware_info(firmware):
+    firmware.seek(0x10000)
     header = firmware.read(4)
-    firmware.seek(0)
+    magic, _, _, _, = struct.unpack("BBBB", header)
+    if magic == esptool.ESPLoader.ESP_IMAGE_MAGIC:
+        flash_mode = ""
+        flash_freq = ""
+        flag_factory = "True"
+        return flash_mode, flash_freq, flag_factory
 
+    firmware.seek(0)
+    header = firmware.read(4)
     magic, _, flash_mode_raw, flash_size_freq = struct.unpack("BBBB", header)
+    if magic == esptool.ESPLoader.ESP_IMAGE_MAGIC:
+        flash_freq_raw = flash_size_freq & 0x0F
+        flash_mode = {0: "qio", 1: "qout", 2: "dio", 3: "dout"}.get(flash_mode_raw)
+        flash_freq = {0: "40m", 1: "26m", 2: "20m", 0xF: "80m"}.get(flash_freq_raw)
+        flag_factory = "False"
+        return flash_mode, flash_freq, flag_factory
+
     if magic != esptool.ESPLoader.ESP_IMAGE_MAGIC:
         raise Esp_flasherError(
             f"The firmware binary is invalid (magic byte={magic:02X}, should be {esptool.ESPLoader.ESP_IMAGE_MAGIC:02X})"
         )
-    flash_freq_raw = flash_size_freq & 0x0F
-    flash_mode = {0: "qio", 1: "qout", 2: "dio", 3: "dout"}.get(flash_mode_raw)
-    flash_freq = {0: "40m", 1: "26m", 2: "20m", 0xF: "80m"}.get(flash_freq_raw)
 
-    firmware.seek(0x10000)
-    header = firmware.read(4)
-
-    magic, _, _, _, = struct.unpack("BBBB", header)
-    if magic != esptool.ESPLoader.ESP_IMAGE_MAGIC:
-        flag_factory = False
-    else:
-        flag_factory = True
-
-    return flash_mode, flash_freq, flag_factory
 
 
 def open_downloadable_binary(path):
@@ -228,9 +230,10 @@ def configure_write_flash_args(
     addr_filename = []
     firmware = open_downloadable_binary(firmware_path)
     flash_mode, flash_freq, flag_factory = read_firmware_info(firmware)
-    if flag_factory:
+    print("Flag Factory: ", flag_factory)
+    if "True" in flag_factory:
         print("Detected Factory Firmware")
-    if (isinstance(info, ESP32ChipInfo)) and not flag_factory:
+    if (isinstance(info, ESP32ChipInfo)) and ("False" in flag_factory):
         ofs_partitions = 0x8000
         ofs_otadata = 0xe000
         ofs_factory_firm = 0x10000
