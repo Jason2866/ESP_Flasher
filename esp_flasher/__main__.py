@@ -32,6 +32,11 @@ def parse_args(argv):
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("--esp8266", action="store_true")
     group.add_argument("--esp32", action="store_true")
+    group.add_argument("--esp32s2", action="store_true")
+    group.add_argument("--esp32s3", action="store_true")
+    group.add_argument("--esp32c2", action="store_true")
+    group.add_argument("--esp32c3", action="store_true")
+    group.add_argument("--esp32c6", action="store_true")
     group.add_argument(
         "--upload-baud-rate",
         type=int,
