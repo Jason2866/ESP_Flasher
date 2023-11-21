@@ -159,7 +159,7 @@ def detect_flash_size(stub_chip):
 
 
 def read_firmware_info(firmware):
-    firmware.seek(0x10000)
+    firmware.seek(0x10000)  # Check for safeboot image
     header = firmware.read(4)
     magic, _, flash_mode_raw, flash_size_freq = struct.unpack("BBBB", header)
     if magic == esptool.ESPLoader.ESP_IMAGE_MAGIC:
@@ -169,7 +169,7 @@ def read_firmware_info(firmware):
         flag_factory = True
         return flash_mode, flash_freq, flag_factory
 
-    firmware.seek(0)
+    firmware.seek(0)  # Check for firmware image
     header = firmware.read(4)
     magic, _, flash_mode_raw, flash_size_freq = struct.unpack("BBBB", header)
     if magic == esptool.ESPLoader.ESP_IMAGE_MAGIC:
@@ -233,7 +233,7 @@ def configure_write_flash_args(
     flash_mode, flash_freq, flag_factory = read_firmware_info(firmware)
     if flag_factory:
         print("Detected factory firmware Image, flashing without changes")
-    if (isinstance(info, ESP32ChipInfo)):
+    if (isinstance(info, ESP32ChipInfo)):  # No esp8266 image, fetching and processing needed files
         ofs_partitions = 0x8000
         ofs_otadata = 0xe000
         ofs_factory_firm = 0x10000
@@ -243,7 +243,7 @@ def configure_write_flash_args(
             model = "esp32c2"
             safeboot = "tasmota32c2-safeboot.bin"
             ofs_bootloader = 0x0
-            flash_freq = "60m"
+            flash_freq = "60m"  # For Tasmota we use only fastest
         elif "ESP32-C3" in info.model:
             model = "esp32c3"
             safeboot = "tasmota32c3-safeboot.bin"
@@ -252,7 +252,7 @@ def configure_write_flash_args(
             model = "esp32c6"
             safeboot = "tasmota32c6-safeboot.bin"
             ofs_bootloader = 0x0
-            flash_freq = "80m"
+            flash_freq = "80m"  # For Tasmota we use only fastest
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
             safeboot = "tasmota32s3-safeboot.bin"
@@ -282,7 +282,7 @@ def configure_write_flash_args(
         pad_to_size = ""
         spi_connection = ""
 
-        if not flag_factory:
+        if not flag_factory:   # No factory image
             uwd = os.path.expanduser("~")
             esp_flasher_ver = "ESP_Flasher_" + __version__
             bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
@@ -316,16 +316,16 @@ def configure_write_flash_args(
             partitions = open_downloadable_binary(partitions_path)
             factory_firm = open_downloadable_binary(factory_firm_path)
             otadata = open_downloadable_binary(otadata_path)
-
+            # add all needed files since only firmware is provided
             addr_filename.append((ofs_bootloader, bootloader))
             addr_filename.append((ofs_partitions, partitions))
             addr_filename.append((ofs_otadata, otadata))
             addr_filename.append((ofs_factory_firm, factory_firm))
             addr_filename.append((ofs_firmware, firmware))
         else:
-            addr_filename.append((0x0, firmware))
+            addr_filename.append((0x0, firmware))  # esp32 factory image
     else:
-        addr_filename.append((0x0, firmware))
+        addr_filename.append((0x0, firmware))      # esp8266 image
     return MockEsptoolArgs(chip, flag_factory, flash_size, addr_filename, flash_mode, flash_freq, input, secure_pad, secure_pad_v2,
                            min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output)
 
