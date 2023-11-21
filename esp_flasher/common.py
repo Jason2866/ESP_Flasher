@@ -233,7 +233,7 @@ def configure_write_flash_args(
     flash_mode, flash_freq, flag_factory = read_firmware_info(firmware)
     if flag_factory:
         print("Detected factory firmware Image, flashing without changes")
-    if (isinstance(info, ESP32ChipInfo)) and not flag_factory:
+    if (isinstance(info, ESP32ChipInfo)):
         ofs_partitions = 0x8000
         ofs_otadata = 0xe000
         ofs_factory_firm = 0x10000
@@ -282,45 +282,48 @@ def configure_write_flash_args(
         pad_to_size = ""
         spi_connection = ""
 
-        uwd = os.path.expanduser("~")
-        esp_flasher_ver = "ESP_Flasher_" + __version__
-        bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
-        boot_loader_path = join(uwd, esp_flasher_ver, "bootloader", model, "bin")
-        boot_loader_file = join(boot_loader_path , bootloaderstring)
-        if not os.path.exists(boot_loader_path):
-            os.makedirs(boot_loader_path)
-        output = boot_loader_file.replace(".elf", ".bin")
+        if not flag_factory:
+            uwd = os.path.expanduser("~")
+            esp_flasher_ver = "ESP_Flasher_" + __version__
+            bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
+            boot_loader_path = join(uwd, esp_flasher_ver, "bootloader", model, "bin")
+            boot_loader_file = join(boot_loader_path , bootloaderstring)
+            if not os.path.exists(boot_loader_path):
+                os.makedirs(boot_loader_path)
+            output = boot_loader_file.replace(".elf", ".bin")
 
-        try:
-            open(boot_loader_file, "rb")    # check for local elf bootloader file
-        except IOError as err:              # download elf bootloader file
-            boot_elf_path = open_downloadable_binary(
-                format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
-            )
-            with open(boot_loader_file, "wb") as f:
-                f.write(boot_elf_path.getbuffer())  # save elf bootloader file local
+            try:
+                open(boot_loader_file, "rb")    # check for local elf bootloader file
+            except IOError as err:              # download elf bootloader file
+                boot_elf_path = open_downloadable_binary(
+                    format_bootloader_path(bootloader_path, model, flash_mode, flash_freq)
+                )
+                with open(boot_loader_file, "wb") as f:
+                    f.write(boot_elf_path.getbuffer())  # save elf bootloader file local
 
-        try:
-            with open(output, "rb") as fh:
-                bootloader = BytesIO(fh.read())
-        except IOError as err:
-            bootloader=""           # Will be there in second call!
+            try:
+                with open(output, "rb") as fh:
+                    bootloader = BytesIO(fh.read())
+            except IOError as err:
+                bootloader=""           # Will be there in second call!
 
-        input = boot_loader_file    # local downloaded elf bootloader file
-        if not partitions_path:
-            partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
-        if not factory_firm_path:
-            factory_firm_path = ESP32_SAFEBOOT_SERVER + safeboot
+            input = boot_loader_file    # local downloaded elf bootloader file
+            if not partitions_path:
+                partitions_path = format_partitions_path(ESP32_DEFAULT_PARTITIONS, model)
+            if not factory_firm_path:
+                factory_firm_path = ESP32_SAFEBOOT_SERVER + safeboot
 
-        partitions = open_downloadable_binary(partitions_path)
-        factory_firm = open_downloadable_binary(factory_firm_path)
-        otadata = open_downloadable_binary(otadata_path)
+            partitions = open_downloadable_binary(partitions_path)
+            factory_firm = open_downloadable_binary(factory_firm_path)
+            otadata = open_downloadable_binary(otadata_path)
 
-        addr_filename.append((ofs_bootloader, bootloader))
-        addr_filename.append((ofs_partitions, partitions))
-        addr_filename.append((ofs_otadata, otadata))
-        addr_filename.append((ofs_factory_firm, factory_firm))
-        addr_filename.append((ofs_firmware, firmware))
+            addr_filename.append((ofs_bootloader, bootloader))
+            addr_filename.append((ofs_partitions, partitions))
+            addr_filename.append((ofs_otadata, otadata))
+            addr_filename.append((ofs_factory_firm, factory_firm))
+            addr_filename.append((ofs_firmware, firmware))
+        else:
+            addr_filename.append((0x0, firmware))
     else:
         addr_filename.append((0x0, firmware))
     return MockEsptoolArgs(chip, flag_factory, flash_size, addr_filename, flash_mode, flash_freq, input, secure_pad, secure_pad_v2,
