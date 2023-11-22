@@ -3,8 +3,6 @@ name: PyPi Publish
 on:
   workflow_dispatch:  # Manually start Publishing
   push:
-    branches:
-      - factory
     tags:
       - "v*.*.*"
 
