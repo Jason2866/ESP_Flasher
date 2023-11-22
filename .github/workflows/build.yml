@@ -1,4 +1,4 @@
-name: Tasmota Esp Flasher 2.0.0
+name: Tasmota Esp Flasher 2.x.x
 
 on:
   workflow_dispatch:  # Manually start a workflow
