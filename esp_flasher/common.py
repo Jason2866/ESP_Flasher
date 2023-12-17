@@ -282,7 +282,7 @@ def configure_write_flash_args(
         pad_to_size = ""
         spi_connection = ""
 
-        if not flag_factory:   # No factory image
+        if (isinstance(info, ESP32ChipInfo)) and not flag_factory:   # esp32 and no factory image
             uwd = os.path.expanduser("~")
             esp_flasher_ver = "ESP_Flasher_" + __version__
             bootloaderstring = "bootloader_" + flash_mode + "_" + flash_freq + ".elf"
