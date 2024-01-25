@@ -2348,8 +2348,8 @@ class ESP32C3ROM(ESP32ROM):
 
     BOOTLOADER_FLASH_OFFSET = 0x0
 
-    # Magic value for ESP32C3 eco 1+2 and ESP32C3 eco3 respectivly
-    CHIP_DETECT_MAGIC_VALUE = [0x6921506f, 0x1b31506f]
+    # Magic value for ESP32C3 variants
+    CHIP_DETECT_MAGIC_VALUE = [0x6921506f, 0x1b31506f, 0x4881606f, 0x4361606f]
 
     UART_DATE_REG_ADDR = 0x60000000 + 0x7c
 
