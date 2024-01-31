@@ -14,9 +14,9 @@ jobs:
     runs-on: windows-2019
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
           architecture: 'x64'
@@ -27,7 +27,7 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: Windows
           path: dist/ESP-Flasher.exe
@@ -36,9 +36,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
      - name: Checkout
-       uses: actions/checkout@v3
+       uses: actions/checkout@v4
      - name: Install Python
-       uses: actions/setup-python@v3
+       uses: actions/setup-python@v5
        with:
          python-version: '3.9'
      - name: Install dependencies
@@ -59,7 +59,7 @@ jobs:
        run: gzip dist/ESP-Flasher
      - name: 'show gzip'
        run: ls dist
-     - uses: actions/upload-artifact@v3
+     - uses: actions/upload-artifact@v4
        with:
          name: Ubuntu
          path: dist/ESP-Flasher.gz
@@ -68,9 +68,9 @@ jobs:
     runs-on: macos-11
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
       - name: Install requirements
@@ -84,11 +84,40 @@ jobs:
         run: ls dist
       - name: Move app
         run: |
-          mv dist/ESP-Flasher.app dist/ESP-Flasher-dev-macOS.app
+          mv dist/ESP-Flasher.app dist/ESP-Flasher-macOS.app
       - name: 'Tar files'
         run: tar -cvf dist.tar dist/*
       - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macOS
+          path: dist.tar
+
+  build-macos-arm:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt -r requirements_build.txt
+          pip install -e .
+      - name: Run PyInstaller
+        run: |
+          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+      - name: See dist directory
+        run: ls dist
+      - name: Move app
+        run: |
+          mv dist/ESP-Flasher.app dist/ESP-Flasher-macOSarm.app
+      - name: 'Tar files'
+        run: tar -cvf dist.tar dist/*
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOSarm
           path: dist.tar
