@@ -4,10 +4,13 @@ on:
   workflow_dispatch:  # Manually start a workflow
   push:
     branches:
-    - factory
+      - factory
     paths-ignore:
-    - '.github/**' # Ignore changes towards the .github directory
-    - '*.md'
+      - '.github/**' # Ignore changes towards the .github directory
+      - '*.md'
+  pull_request:
+    branches:
+      - factory
 
 jobs:
   build-windows:
