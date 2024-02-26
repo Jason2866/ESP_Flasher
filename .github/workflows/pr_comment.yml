@@ -1,7 +1,7 @@
 name: Comment on pull request
 on:
   workflow_run:
-    workflows: [build]
+    workflows: [Tasmota Esp Flasher 2.x.x]
     types: [completed]
 jobs:
   pr_comment:
