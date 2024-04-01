@@ -125,7 +125,7 @@ def read_chip_info(chip):
         features = read_chip_property(chip.get_chip_features)
         num_cores = 2 if "Dual Core" in features else 1
         frequency = next((x for x in ("160MHz", "240MHz") if x in features), "80MHz")
-        has_bluetooth = "BT" in features or "BT 5" in features
+        has_bluetooth = "BLE" in features or "BT 5" in features
         has_embedded_flash = "Embedded Flash" in features
         has_factory_calibrated_adc = "VRef calibration in efuse" in features
         return ESP32ChipInfo(
