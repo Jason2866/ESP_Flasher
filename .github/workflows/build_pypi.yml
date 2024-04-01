@@ -12,9 +12,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
      - name: Checkout
-       uses: actions/checkout@v3
+       uses: actions/checkout@v4
      - name: Install Python
-       uses: actions/setup-python@v3
+       uses: actions/setup-python@v5
        with:
          python-version: '3.9'
      - name: Install dependencies
@@ -30,11 +30,11 @@ jobs:
        run: python setup.py sdist bdist_wheel
      - name: See dist directory
        run: ls dist
-     - uses: actions/upload-artifact@v2
+     - uses: actions/upload-artifact@v4
        with:
          name: sdist
          path: dist/esp_flasher-*.tar.gz
-     - uses: actions/upload-artifact@v2
+     - uses: actions/upload-artifact@v4
        with:
          name: bdist_wheel
          path: dist/esp_flasher-*.whl
