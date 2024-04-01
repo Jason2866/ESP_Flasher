@@ -1,6 +1,6 @@
 import re
 
-__version__ = "2.2.3"
+__version__ = "2.2.4"
 
 ESP32_DEFAULT_OTA_DATA = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/factory/"
