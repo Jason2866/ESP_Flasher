@@ -10,7 +10,8 @@ Tasmota-ESP-Flasher is an app for ESP8266 / ESP32 designed to make flashing Tasm
  * Pre-built binaries for most used operating systems
  * Support for Tasmota factory images 
  * Hiding all non-essential options for flashing
- * All necessary options (bootloader, flash mode, safeboot) are set automatically.
+ * All necessary options (bootloader, flash mode, safeboot) are set automatically
+ * Flashing is lightning fast
 
 The flashing process is done using [esptool](https://github.com/espressif/esptool) from espressif.
 
