@@ -22,6 +22,8 @@ The flashing process is done using [esptool](https://github.com/espressif/esptoo
 - The native Python version can be installed from PyPI: **`pip install esp-flasher`**.
   Start the GUI by `esp_flasher`. Alternatively, you can use the command line interface ( type `esp_flasher -h` for info)
 
+In the odd case of your antivirus going haywire over that application, it's a [false positive.](https://github.com/pyinstaller/pyinstaller/issues/3802)
+
 ## Build it yourself
 
 If you want to build this application yourself you need to:
