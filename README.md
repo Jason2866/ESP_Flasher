@@ -1,9 +1,11 @@
-[![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
+[![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 # Tasmota-ESP-Flasher for Tasmota v13 and later (Safeboot partition scheme)
 
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
+
+This project is a fork of [ESP_Flasher](https://github.com/Jason2866/ESP_Flasher).
 
 Tasmota-ESP-Flasher is an app for ESP8266 / ESP32 designed to make flashing Tasmota on ESPs as simple as possible by:
 
@@ -30,7 +32,7 @@ In the odd case of your antivirus going haywire over that application, it's a [f
 If you want to build this application yourself you need to:
 
 - Install Python 3.x
-- Install [wxPython 4.x](https://wxpython.org/) manually or run `pip3 install wxpython`
+- ~~Install [wxPython 4.x](https://wxpython.org/) manually or run `pip3 install wxpython`~~
 - Download this project and run `pip3 install -e .` in the project's root.
 - Start the GUI using `esp_flasher`. Alternatively, you can use the command line interface (
   type `esp_flasher -h` for info)
@@ -44,22 +46,21 @@ Info: https://www.silabs.com/community/interface/forum.topic.html/vcp_driver_for
 Driver: https://www.silabs.com/documents/public/software/Mac_OSX_VCP_Driver.zip
 
 
-## Linux Notes
+## Linux Notes (Fixed, using Qt5, not nessessary anymore)
 
-Installing wxpython for linux can be a bit challenging (especially when you don't want to install from source).
-You can use the following command to install a wxpython suitable with your OS and Python version:
+~~Installing wxpython for linux can be a bit challenging (especially when you don't want to install from source).
+You can use the following command to install a wxpython suitable with your OS and Python version:~~
 
 ```bash
 # Go to https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ and select the correct OS type
 # here, we assume ubuntu 20.04
-         sudo apt-get update
-         sudo apt install libgtk-3-dev libnotify-dev libsdl2-dev
-         pip3 install -U \
-          -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04 \
-          wxPython
+#        sudo apt-get update
+#        sudo apt install libgtk-3-dev libnotify-dev libsdl2-dev
+#        pip3 install -U \
+#         -f https://extras.wxpython.org/wxPython4/extras/linux/gtk3/ubuntu-20.04 \
+#         wxPython
 ```
 
 ## License
 
 [MIT](http://opensource.org/licenses/MIT) © Marcel Stör, Otto Winter, Johann Obermeier
-
