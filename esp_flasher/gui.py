@@ -1,6 +1,7 @@
 import re
 import sys
 import threading
+import os  # Added import
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QComboBox, 
@@ -24,7 +25,6 @@ COLORS = {
 }
 FORE_COLORS = {**COLORS, None: QColor('white')}
 BACK_COLORS = {**COLORS, None: QColor('black')}
-
 
 class RedirectText(QObject):
     text_written = pyqtSignal(str)
@@ -65,7 +65,6 @@ class RedirectText(QObject):
         self._out.insertPlainText(text)
         self._out.setTextCursor(cursor)
 
-
 class FlashingThread(threading.Thread):
     def __init__(self, firmware, port, show_logs=False):
         threading.Thread.__init__(self)
@@ -85,7 +84,6 @@ class FlashingThread(threading.Thread):
         except Exception as e:
             print("Unexpected error: {}".format(e))
             raise
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -187,13 +185,14 @@ class MainWindow(QMainWindow):
             worker = FlashingThread('dummy', self._port, show_logs=True)
             worker.start()
 
-
 def main():
+    # Set the environment variable to use Wayland
+    os.environ['QT_QPA_PLATFORM'] = 'wayland'  # Added this line
+    
     app = QApplication(sys.argv)
     main_window = MainWindow()
     main_window.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()
