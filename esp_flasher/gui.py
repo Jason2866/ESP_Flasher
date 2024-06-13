@@ -3,6 +3,7 @@ import sys
 import threading
 import os  
 import platform  
+import distro  # Added import
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QComboBox, 
@@ -43,19 +44,7 @@ class RedirectText(QObject):
         self.text_written.connect(self._append_text)
 
     def write(self, string):
-        for s in string:
-            if s == '\r':
-                current_value = self._out.toPlainText()
-                last_newline = current_value.rfind("\n")
-                self._out.moveCursor(QTextCursor.Start)
-                self._out.moveCursor(QTextCursor.Down, QTextCursor.MoveAnchor, last_newline + 1)
-                self._line = ''
-                continue
-            self._line += s
-            if s == '\n':
-                self._append_text(self._line)
-                self._line = ''
-                continue
+        self.text_written.emit(string)
 
     def flush(self):
         pass
@@ -94,6 +83,7 @@ class MainWindow(QMainWindow):
         self._port = None
 
         self.init_ui()
+        sys.stdout = RedirectText(self.console)  # Redirect stdout to console
 
     def init_ui(self):
         self.setWindowTitle(f"Tasmota-Esp-Flasher {__version__}")
@@ -192,8 +182,8 @@ def main():
     if os_name == 'Darwin':
         os.environ['QT_QPA_PLATFORM'] = 'cocoa'
     elif os_name == 'Linux':
-        distro = platform.linux_distribution()[0].lower()
-        if 'ubuntu' in distro or 'debian' in distro:
+        distro_name = distro.id().lower()
+        if 'ubuntu' in distro_name or 'debian' in distro_name:
             os.environ['QT_QPA_PLATFORM'] = 'wayland'
         else:
             os.environ['QT_QPA_PLATFORM'] = 'xcb'
