@@ -1,13 +1,13 @@
 import re
 import sys
 import threading
-import os  # Added import
-import platform  # Added import
+import os  
+import platform  
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QComboBox, 
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout)
-from PyQt5.QtGui import QColor, QTextCursor, QPalette, QColor  # Added QPalette and QColor
+from PyQt5.QtGui import QColor, QTextCursor, QPalette, QColor  
 from PyQt5.QtCore import pyqtSignal, QObject
 
 from esp_flasher.helpers import list_serial_ports
@@ -104,7 +104,7 @@ class MainWindow(QMainWindow):
 
         vbox = QVBoxLayout()
 
-        # Create Serial Port Group Box
+        
         port_group_box = QGroupBox("Serial Port")
         port_layout = QGridLayout()
         port_label = QLabel("Select Port:")
@@ -118,7 +118,7 @@ class MainWindow(QMainWindow):
         port_layout.addWidget(reload_button, 0, 2)
         port_group_box.setLayout(port_layout)
 
-        # Create Firmware Group Box
+        
         firmware_group_box = QGroupBox("Firmware")
         firmware_layout = QGridLayout()
         firmware_label = QLabel("Select Firmware:")
@@ -128,7 +128,7 @@ class MainWindow(QMainWindow):
         firmware_layout.addWidget(self.firmware_button, 0, 1)
         firmware_group_box.setLayout(firmware_layout)
 
-        # Create Actions Group Box
+        
         actions_group_box = QGroupBox("Actions")
         actions_layout = QHBoxLayout()
         self.flash_button = QPushButton("Flash ESP")
@@ -139,7 +139,7 @@ class MainWindow(QMainWindow):
         actions_layout.addWidget(self.logs_button)
         actions_group_box.setLayout(actions_layout)
 
-        # Console Output
+        
         console_group_box = QGroupBox("Console")
         console_layout = QVBoxLayout()
         self.console = QTextEdit()
@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
         console_layout.addWidget(self.console)
         console_group_box.setLayout(console_layout)
 
-        # Add all group boxes to the main layout
+        
         vbox.addWidget(port_group_box)
         vbox.addWidget(firmware_group_box)
         vbox.addWidget(actions_group_box)
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
             worker.start()
 
 def main():
-    # Set the appropriate environment variable based on the operating system
+    
     os_name = platform.system()
     if os_name == 'Darwin':
         os.environ['QT_QPA_PLATFORM'] = 'cocoa'
@@ -200,11 +200,11 @@ def main():
     elif os_name == 'Windows':
         os.environ['QT_QPA_PLATFORM'] = 'windows'
     else:
-        os.environ['QT_QPA_PLATFORM'] = 'offscreen'  # Default to a safe fallback
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'  
 
     app = QApplication(sys.argv)
 
-    # Set Dark Mode Palette
+    
     app.setStyle("Fusion")
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(53, 53, 53))
@@ -220,7 +220,7 @@ def main():
     palette.setColor(QPalette.Link, QColor(42, 130, 218))
     palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
     palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
-    app.setPalette(palette)  # Added these lines for dark mode
+    app.setPalette(palette)  
 
     main_window = MainWindow()
     main_window.show()
