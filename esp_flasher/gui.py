@@ -6,7 +6,7 @@ import os  # Added import
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QComboBox, 
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout)
-from PyQt5.QtGui import QColor, QTextCursor
+from PyQt5.QtGui import QColor, QTextCursor, QPalette, QColor  # Added QPalette and QColor
 from PyQt5.QtCore import pyqtSignal, QObject
 
 from esp_flasher.helpers import list_serial_ports
@@ -190,6 +190,25 @@ def main():
     os.environ['QT_QPA_PLATFORM'] = 'wayland'  # Added this line
     
     app = QApplication(sys.argv)
+
+    # Set Dark Mode Palette
+    app.setStyle("Fusion")
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor(53, 53, 53))
+    palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+    palette.setColor(QPalette.Base, QColor(35, 35, 35))
+    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
+    palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
+    palette.setColor(QPalette.Text, QColor(255, 255, 255))
+    palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+    palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+    palette.setColor(QPalette.Link, QColor(42, 130, 218))
+    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+    palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+    app.setPalette(palette)  # Added these lines for dark mode
+
     main_window = MainWindow()
     main_window.show()
     sys.exit(app.exec_())
