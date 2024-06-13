@@ -1,37 +1,39 @@
-# This GUI is a fork of https://github.com/marcelstoer/nodemcu-pyflasher
 import re
 import sys
 import threading
+import os  
+import platform  
+import distro  # Added import
 
-import wx
-import wx.adv
-from wx.lib.embeddedimage import PyEmbeddedImage
-import wx.lib.inspection
-import wx.lib.mixins.inspection
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QPushButton, QLabel, QComboBox, 
+                             QFileDialog, QTextEdit, QGroupBox, QGridLayout)
+from PyQt5.QtGui import QColor, QTextCursor, QPalette, QColor  
+from PyQt5.QtCore import pyqtSignal, QObject
 
 from esp_flasher.helpers import list_serial_ports
 from esp_flasher.const import __version__
 
 COLOR_RE = re.compile(r'(?:\033)(?:\[(.*?)[@-~]|\].*?(?:\007|\033\\))')
 COLORS = {
-    'black': wx.BLACK,
-    'red': wx.RED,
-    'green': wx.GREEN,
-    'yellow': wx.YELLOW,
-    'blue': wx.BLUE,
-    'magenta': wx.Colour(255, 0, 255),
-    'cyan': wx.CYAN,
-    'white': wx.WHITE,
+    'black': QColor('black'),
+    'red': QColor('red'),
+    'green': QColor('green'),
+    'yellow': QColor('yellow'),
+    'blue': QColor('blue'),
+    'magenta': QColor('magenta'),
+    'cyan': QColor('cyan'),
+    'white': QColor('white'),
 }
-FORE_COLORS = {**COLORS, None: wx.WHITE}
-BACK_COLORS = {**COLORS, None: wx.BLACK}
+FORE_COLORS = {**COLORS, None: QColor('white')}
+BACK_COLORS = {**COLORS, None: QColor('black')}
 
+class RedirectText(QObject):
+    text_written = pyqtSignal(str)
 
-# See discussion at http://stackoverflow.com/q/41101897/131929
-class RedirectText:
-    def __init__(self, text_ctrl):
-        self._out = text_ctrl
-        self._i = 0
+    def __init__(self, text_edit):
+        super().__init__()
+        self._out = text_edit
         self._line = ''
         self._bold = False
         self._italic = False
@@ -39,116 +41,24 @@ class RedirectText:
         self._foreground = None
         self._background = None
         self._secret = False
-
-    def _add_content(self, value):
-        attr = wx.TextAttr()
-        if self._bold:
-            attr.SetFontWeight(wx.FONTWEIGHT_BOLD)
-        attr.SetTextColour(FORE_COLORS[self._foreground])
-        attr.SetBackgroundColour(BACK_COLORS[self._background])
-        wx.CallAfter(self._out.SetDefaultStyle, attr)
-        wx.CallAfter(self._out.AppendText, value)
-
-    def _write_line(self):
-        pos = 0
-        while True:
-            match = COLOR_RE.search(self._line, pos)
-            if match is None:
-                break
-
-            j = match.start()
-            self._add_content(self._line[pos:j])
-            pos = match.end()
-
-            for code in match.group(1).split(';'):
-                code = int(code)
-                if code == 0:
-                    self._bold = False
-                    self._italic = False
-                    self._underline = False
-                    self._foreground = None
-                    self._background = None
-                    self._secret = False
-                elif code == 1:
-                    self._bold = True
-                elif code == 3:
-                    self._italic = True
-                elif code == 4:
-                    self._underline = True
-                elif code == 5:
-                    self._secret = True
-                elif code == 6:
-                    self._secret = False
-                elif code == 22:
-                    self._bold = False
-                elif code == 23:
-                    self._italic = False
-                elif code == 24:
-                    self._underline = False
-                elif code == 30:
-                    self._foreground = 'black'
-                elif code == 31:
-                    self._foreground = 'red'
-                elif code == 32:
-                    self._foreground = 'green'
-                elif code == 33:
-                    self._foreground = 'yellow'
-                elif code == 34:
-                    self._foreground = 'blue'
-                elif code == 35:
-                    self._foreground = 'magenta'
-                elif code == 36:
-                    self._foreground = 'cyan'
-                elif code == 37:
-                    self._foreground = 'white'
-                elif code == 39:
-                    self._foreground = None
-                elif code == 40:
-                    self._background = 'black'
-                elif code == 41:
-                    self._background = 'red'
-                elif code == 42:
-                    self._background = 'green'
-                elif code == 43:
-                    self._background = 'yellow'
-                elif code == 44:
-                    self._background = 'blue'
-                elif code == 45:
-                    self._background = 'magenta'
-                elif code == 46:
-                    self._background = 'cyan'
-                elif code == 47:
-                    self._background = 'white'
-                elif code == 49:
-                    self._background = None
-
-        self._add_content(self._line[pos:])
+        self.text_written.connect(self._append_text)
 
     def write(self, string):
-        for s in string:
-            if s == '\r':
-                current_value = self._out.GetValue()
-                last_newline = current_value.rfind("\n")
-                wx.CallAfter(self._out.Remove, last_newline + 1, len(current_value))
-                # self._line += '\n'
-                self._write_line()
-                self._line = ''
-                continue
-            self._line += s
-            if s == '\n':
-                self._write_line()
-                self._line = ''
-                continue
+        self.text_written.emit(string)
 
     def flush(self):
         pass
 
+    def _append_text(self, text):
+        cursor = self._out.textCursor()
+        self._out.moveCursor(QTextCursor.End)
+        self._out.insertPlainText(text)
+        self._out.setTextCursor(cursor)
 
 class FlashingThread(threading.Thread):
-    def __init__(self, parent, firmware, port, show_logs=False):
+    def __init__(self, firmware, port, show_logs=False):
         threading.Thread.__init__(self)
         self.daemon = True
-        self._parent = parent
         self._firmware = firmware
         self._port = port
         self._show_logs = show_logs
@@ -165,173 +75,146 @@ class FlashingThread(threading.Thread):
             print("Unexpected error: {}".format(e))
             raise
 
-
-class MainFrame(wx.Frame):
-    def __init__(self, parent, title):
-        wx.Frame.__init__(self, parent, -1, title, size=(725, 650),
-                          style=wx.DEFAULT_FRAME_STYLE | wx.NO_FULL_REPAINT_ON_RESIZE)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
 
         self._firmware = None
         self._port = None
 
-        self._init_ui()
+        self.init_ui()
+        sys.stdout = RedirectText(self.console)  # Redirect stdout to console
 
-        sys.stdout = RedirectText(self.console_ctrl)
+    def init_ui(self):
+        self.setWindowTitle(f"Tasmota-Esp-Flasher {__version__}")
+        self.setGeometry(100, 100, 800, 600)
 
-        self.SetMinSize((640, 480))
-        self.Centre(wx.BOTH)
-        self.Show(True)
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
 
-    def _init_ui(self):
-        def on_reload(event):
-            self.choice.SetItems(self._get_serial_ports())
+        vbox = QVBoxLayout()
 
-        def on_clicked(event):
-            self.console_ctrl.SetValue("")
-            worker = FlashingThread(self, self._firmware, self._port)
-            worker.start()
+        
+        port_group_box = QGroupBox("Serial Port")
+        port_layout = QGridLayout()
+        port_label = QLabel("Select Port:")
+        self.port_combobox = QComboBox()
+        self.reload_ports()
+        self.port_combobox.currentIndexChanged.connect(self.select_port)
+        reload_button = QPushButton("Reload")
+        reload_button.clicked.connect(self.reload_ports)
+        port_layout.addWidget(port_label, 0, 0)
+        port_layout.addWidget(self.port_combobox, 0, 1)
+        port_layout.addWidget(reload_button, 0, 2)
+        port_group_box.setLayout(port_layout)
 
-        def on_logs_clicked(event):
-            self.console_ctrl.SetValue("")
-            worker = FlashingThread(self, 'dummy', self._port, show_logs=True)
-            worker.start()
+        
+        firmware_group_box = QGroupBox("Firmware")
+        firmware_layout = QGridLayout()
+        firmware_label = QLabel("Select Firmware:")
+        self.firmware_button = QPushButton("Browse")
+        self.firmware_button.clicked.connect(self.pick_file)
+        firmware_layout.addWidget(firmware_label, 0, 0)
+        firmware_layout.addWidget(self.firmware_button, 0, 1)
+        firmware_group_box.setLayout(firmware_layout)
 
-        def on_select_port(event):
-            choice = event.GetEventObject()
-            self._port = choice.GetString(choice.GetSelection())
+        
+        actions_group_box = QGroupBox("Actions")
+        actions_layout = QHBoxLayout()
+        self.flash_button = QPushButton("Flash ESP")
+        self.flash_button.clicked.connect(self.flash_esp)
+        self.logs_button = QPushButton("View Logs")
+        self.logs_button.clicked.connect(self.view_logs)
+        actions_layout.addWidget(self.flash_button)
+        actions_layout.addWidget(self.logs_button)
+        actions_group_box.setLayout(actions_layout)
 
-        def on_pick_file(event):
-            self._firmware = event.GetPath().replace("'", "")
+        
+        console_group_box = QGroupBox("Console")
+        console_layout = QVBoxLayout()
+        self.console = QTextEdit()
+        self.console.setReadOnly(True)
+        console_layout.addWidget(self.console)
+        console_group_box.setLayout(console_layout)
 
-        panel = wx.Panel(self)
+        
+        vbox.addWidget(port_group_box)
+        vbox.addWidget(firmware_group_box)
+        vbox.addWidget(actions_group_box)
+        vbox.addWidget(console_group_box)
 
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        central_widget.setLayout(vbox)
 
-        fgs = wx.FlexGridSizer(7, 2, 10, 10)
-
-        self.choice = wx.Choice(panel, choices=self._get_serial_ports())
-        self.choice.Bind(wx.EVT_CHOICE, on_select_port)
-        bmp = Reload.GetBitmap()
-        reload_button = wx.BitmapButton(panel, id=wx.ID_ANY, bitmap=bmp,
-                                        size=(bmp.GetWidth() + 7, bmp.GetHeight() + 7))
-        reload_button.Bind(wx.EVT_BUTTON, on_reload)
-        reload_button.SetToolTip("Reload serial device list")
-
-        file_picker = wx.FilePickerCtrl(panel, style=wx.FLP_USE_TEXTCTRL)
-        file_picker.Bind(wx.EVT_FILEPICKER_CHANGED, on_pick_file)
-
-        serial_boxsizer = wx.BoxSizer(wx.HORIZONTAL)
-        serial_boxsizer.Add(self.choice, 1, wx.EXPAND)
-        serial_boxsizer.AddStretchSpacer(0)
-        serial_boxsizer.Add(reload_button, 0, wx.ALIGN_NOT, 20)
-
-        button = wx.Button(panel, -1, "Flash ESP")
-        button.Bind(wx.EVT_BUTTON, on_clicked)
-
-        logs_button = wx.Button(panel, -1, "View Logs")
-        logs_button.Bind(wx.EVT_BUTTON, on_logs_clicked)
-
-        self.console_ctrl = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL)
-        self.console_ctrl.SetFont(wx.Font((0, 13), wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL,
-                                          wx.FONTWEIGHT_NORMAL))
-        self.console_ctrl.SetBackgroundColour(wx.BLACK)
-        self.console_ctrl.SetForegroundColour(wx.WHITE)
-        self.console_ctrl.SetDefaultStyle(wx.TextAttr(wx.WHITE))
-
-        port_label = wx.StaticText(panel, label="Serial port")
-        file_label = wx.StaticText(panel, label="Firmware")
-
-        console_label = wx.StaticText(panel, label="Console")
-
-        fgs.AddMany([
-            # Port selection row
-            port_label, (serial_boxsizer, 1, wx.EXPAND),
-            # Firmware selection row (growable)
-            file_label, (file_picker, 1, wx.EXPAND),
-            # Flash ESP button
-            (wx.StaticText(panel, label="")), (button, 1, wx.EXPAND),
-            # View Logs button
-            (wx.StaticText(panel, label="")), (logs_button, 1, wx.EXPAND),
-            # Console View (growable)
-            (console_label, 1, wx.EXPAND), (self.console_ctrl, 1, wx.EXPAND),
-        ])
-        fgs.AddGrowableRow(4, 1)
-        fgs.AddGrowableCol(1, 1)
-        hbox.Add(fgs, proportion=2, flag=wx.ALL | wx.EXPAND, border=15)
-        panel.SetSizer(hbox)
-
-    def _get_serial_ports(self):
-        ports = []
-        for port, desc in list_serial_ports():
-            ports.append(port)
-        if not self._port and ports:
+    def reload_ports(self):
+        self.port_combobox.clear()
+        ports = [port for port, desc in list_serial_ports()]
+        if ports:
+            self.port_combobox.addItems(ports)
             self._port = ports[0]
-        if not ports:
-            ports.append("")
-        return ports
+        else:
+            self.port_combobox.addItem("")
 
-    # Menu methods
-    def _on_exit_app(self, event):
-        self.Close(True)
+    def select_port(self, index):
+        self._port = self.port_combobox.itemText(index)
 
-    def log_message(self, message):
-        self.console_ctrl.AppendText(message)
+    def pick_file(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Select Firmware File", "", "Binary Files (*.bin);;All Files (*)", options=options)
+        if file_name:
+            self._firmware = file_name
+            self.firmware_button.setText(file_name)
 
+    def flash_esp(self):
+        self.console.clear()
+        if self._firmware and self._port:
+            worker = FlashingThread(self._firmware, self._port)
+            worker.start()
 
-class App(wx.App, wx.lib.mixins.inspection.InspectionMixin):
-    def OnInit(self):
-        app_name_ver = "Tasmota-Esp-Flasher " + __version__
-        wx.SystemOptions.SetOption("mac.window-plain-transition", 1)
-        self.SetAppName(app_name_ver)
-
-        frame = MainFrame(None, app_name_ver)
-        frame.Show()
-
-        return True
-
-
-Exit = PyEmbeddedImage(
-    "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAAK/INwWK6QAAABl0"
-    "RVh0U29mdHdhcmUAQWRvYmUgSW1hZ2VSZWFkeXHJZTwAAAN1SURBVHjaYvz//z8DJQAggFhA"
-    "xEpGRgaQMX+B+A8DgwYLM1M+r4K8P4+8vMi/P38Y3j18+O7Fs+fbvv7+0w9Uc/kHVG070HKA"
-    "AGJBNg0omC5jZtynnpfHJeHkzPDmxQuGf6/eMIj+/yP+9MD+xFPrN8Reu3W3Gqi0D2IXAwNA"
-    "AIEN+A/hpWuEBMwwmj6TgUVEjOHTo0cM9y9dZfj76ycDCysrg4K5FYMUvyAL7+pVnYfOXwJp"
-    "6wIRAAHECAqDJYyMWpLmpmftN2/mYBEVZ3h38SLD9wcPGP6LioIN/7Z+PQM3UB3vv/8MXB/f"
-    "MSzdvv3vpecvzfr+/z8HEEBMYFMYGXM0iwrAmu+sXcvw4OxZhqenTjEwAv3P9OsXw+unTxne"
-    "6Osz3Ll3l+HvyzcMVlLSzMBwqgTpBQggsAG8MuKB4r9eM7zfv5PhHxMzg4qLCwPD0ycMDL9/"
-    "MzD+/cvw/8kTBgUbGwbB1DSGe1cuMbD8+8EgwMPjCtILEEDgMOCSkhT+t20Nw4v7nxkkNuxm"
-    "eLNmFYO0sCgDCwcHAwMzM4Pkl68MLzs7GGS6uhmOCwgxcD2+x8DLysID0gsQQGAD/gH99vPL"
-    "dwZGDjaG/0An/z19goHp/z+Gn9dvgoP4/7dPDD9OnGD4+/0bA5uCAsPPW8DA5eACxxxAAIEN"
-    "+PDuw/ufirJizE9fMzALCjD8efOO4dHObQx/d29k+PObgeHr268MQta2DCw8fAz/X75k+M/I"
-    "xPDh1+9vIL0AAQQOg9dPX2x7w8TDwPL2FcOvI8cYxFs7GFjFpRl+PP/K8O3NVwZuIREGpe5u"
-    "hp83rjF8u3iO4RsnO8OzHz8PgvQCBBA4GrsZGfUUtNXPWiuLsny59YxBch3Qdl4uhq/rNzP8"
-    "BwYin58PAysbG8MFLy+Gnw9uM5xkYPp38fNX22X//x8DCCAmqD8u3bh6s+Lssy8MrCLcDC/8"
-    "3Rl+LVvOwG1syMBrYcbwfetmhmsOdgy/795iuMXEwnDh89c2oJ7jIL0AAQR2wQRgXvgKNAfo"
-    "qRIlJfk2NR42Rj5gEmb5+4/h35+/DJ+/fmd4DUyNN4B+v/DlWwcwcTWzA9PXQqBegACCGwAK"
-    "ERD+zsBgwszOXirEwe7OzvCP5y/QCx/+/v/26vfv/R///O0GOvkII1AdKxCDDAAIIEZKszNA"
-    "gAEA1sFjF+2KokIAAAAASUVORK5CYII=")
-
-Reload = PyEmbeddedImage(
-    "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABGdBTUEAALGOfPtRkwAAACBj"
-    "SFJNAAB6JQAAgIMAAPn/AACA6AAAdTAAAOpgAAA6lwAAF2+XqZnUAAAABmJLR0QA/wD/AP+g"
-    "vaeTAAAACXBIWXMAAABIAAAASABGyWs+AAAACXZwQWcAAAAYAAAAGAB4TKWmAAACZUlEQVRI"
-    "x7XVT4iXRRgH8M/8Mv9tUFgRZiBESRIhbFAo8kJ0EYoOwtJBokvTxUtBQnUokIjAoCi6+HiR"
-    "CNKoU4GHOvQieygMJKRDEUiahC4UtGkb63TY+cnb6/rb3276vQwzzzPf5/9MKqW4kRj8n8s5"
-    "53U55y03xEDOeRu+xe5ReqtWQDzAC3gTa3D7KP20nBrknDfhMB7vHH+Dj3AWxyPitxUZyDnv"
-    "xsElPL6MT/BiRJwbaaBN6eamlH9yzmvxPp5bRibPYDIizg96pIM2pak2pSexGiLiEr7H3DIM"
-    "3IMP/hNBm9It+BDzmGp6oeWcd+BIvdzFRZzGvUOnOtg6qOTrcRxP4ZVmkbxFxDQm8WVPtDMi"
-    "tmIDPu7JJocpehnb8F1Tyo/XijsizmMX9teCwq1VNlvrdKFzZeOgTelOvFQPfurV5NE2pc09"
-    "I/MR8TqewAxu68hmMd1RPzXAw1hXD9b3nL4bJ9qUdi0SzbF699ee6K9ObU6swoMd4Y42pYmm"
-    "lNm6/91C33/RpvQG9jelzHeMnK4F7uK+ur49bNNzHeEdONSmNFH3f9R1gNdwrKZ0UeSc77fQ"
-    "CCfxFqSveQA/9HTn8DM2d9I3xBk83ZQy3SNPFqb4JjwTEX9S56BN6SimjI857GtKea+ST+Cx"
-    "6synETHssCuv6V5sd/UQXQur8VCb0tqmlEuYi4jPF1PsTvJGvFMjGfVPzOD5ppTPxvHkqseu"
-    "Teku7MQm7MEjHfFXeLYp5ey4uRz5XLcpHbAwhH/jVbzblHJ5TG4s/aPN4BT2NKWcXA7xuBFs"
-    "wS9NKRdXQr6kgeuBfwEbWdzTvan9igAAADV0RVh0Y29tbWVudABSZWZyZXNoIGZyb20gSWNv"
-    "biBHYWxsZXJ5IGh0dHA6Ly9pY29uZ2FsLmNvbS/RLzdIAAAAJXRFWHRkYXRlOmNyZWF0ZQAy"
-    "MDExLTA4LTIxVDE0OjAxOjU2LTA2OjAwdNJAnQAAACV0RVh0ZGF0ZTptb2RpZnkAMjAxMS0w"
-    "OC0yMVQxNDowMTo1Ni0wNjowMAWP+CEAAAAASUVORK5CYII=")
-
+    def view_logs(self):
+        self.console.clear()
+        if self._port:
+            worker = FlashingThread('dummy', self._port, show_logs=True)
+            worker.start()
 
 def main():
-    app = App(False)
-    app.MainLoop()
+    
+    os_name = platform.system()
+    if os_name == 'Darwin':
+        os.environ['QT_QPA_PLATFORM'] = 'cocoa'
+    elif os_name == 'Linux':
+        distro_name = distro.id().lower()
+        if 'ubuntu' in distro_name or 'debian' in distro_name:
+            os.environ['QT_QPA_PLATFORM'] = 'wayland'
+        else:
+            os.environ['QT_QPA_PLATFORM'] = 'xcb'
+    elif os_name == 'Windows':
+        os.environ['QT_QPA_PLATFORM'] = 'windows'
+    else:
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'  
+
+    app = QApplication(sys.argv)
+
+    
+    app.setStyle("Fusion")
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor(53, 53, 53))
+    palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+    palette.setColor(QPalette.Base, QColor(35, 35, 35))
+    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
+    palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
+    palette.setColor(QPalette.Text, QColor(255, 255, 255))
+    palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+    palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+    palette.setColor(QPalette.Link, QColor(42, 130, 218))
+    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+    palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+    app.setPalette(palette)  
+
+    main_window = MainWindow()
+    main_window.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
