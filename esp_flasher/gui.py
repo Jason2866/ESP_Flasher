@@ -2,6 +2,7 @@ import re
 import sys
 import threading
 import os  # Added import
+import platform  # Added import
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QComboBox, 
@@ -186,9 +187,21 @@ class MainWindow(QMainWindow):
             worker.start()
 
 def main():
-    # Set the environment variable to use Wayland
-    os.environ['QT_QPA_PLATFORM'] = 'wayland'  # Added this line
-    
+    # Set the appropriate environment variable based on the operating system
+    os_name = platform.system()
+    if os_name == 'Darwin':
+        os.environ['QT_QPA_PLATFORM'] = 'cocoa'
+    elif os_name == 'Linux':
+        distro = platform.linux_distribution()[0].lower()
+        if 'ubuntu' in distro or 'debian' in distro:
+            os.environ['QT_QPA_PLATFORM'] = 'wayland'
+        else:
+            os.environ['QT_QPA_PLATFORM'] = 'xcb'
+    elif os_name == 'Windows':
+        os.environ['QT_QPA_PLATFORM'] = 'windows'
+    else:
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'  # Default to a safe fallback
+
     app = QApplication(sys.argv)
 
     # Set Dark Mode Palette
