@@ -330,9 +330,22 @@ def configure_write_flash_args(
                            min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output)
 
 
-def detect_chip(port, force_esp8266=False, force_esp32=False):
-    if force_esp8266 or force_esp32:
-        klass = esptool.ESP32ROM if force_esp32 else esptool.ESP8266ROM
+def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=False, force_esp32s3=False, force_esp32c2=False, force_esp32c3=False, force_esp32c6=False):
+    if force_esp8266 or force_esp32 or force_esp32s2 or force_esp32s3 or force_esp32c2 or force_esp32c3 or force_esp32c6:
+        if force_esp8266:
+            klass = esptool.ESP8266ROM
+        elif force_esp32:
+            klass = esptool.ESP32ROM
+        elif force_esp32s2:
+            klass = esptool.ESP32S2ROM
+        elif force_esp32s3:
+            klass = esptool.ESP32S3ROM
+        elif force_esp32c2:
+            klass = esptool.ESP32C2ROM
+        elif force_esp32c3:
+            klass = esptool.ESP32C3ROM
+        elif force_esp32c6:
+            klass = esptool.ESP32C6ROM
         chip = klass(port)
     else:
         try:
