@@ -345,7 +345,9 @@ def detect_chip(port, force_esp8266=False, force_esp32=False):
             raise Esp_flasherError(msg) from err
 
     try:
-        chip.connect()
+        # connect(mode='default_reset', attempts=DEFAULT_CONNECT_ATTEMPTS (7), detecting=False, warnings=True)
+        # no_reset is used to stay in bootloader -> fix for S2 CDC flashing
+        chip.connect('no_reset',7,False,False)
     except esptool.FatalError as err:
         raise Esp_flasherError(f"Error connecting to ESP: {err}") from err
 
