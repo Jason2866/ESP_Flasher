@@ -389,38 +389,17 @@ class ESPLoader(object):
         detect_port.connect(connect_mode, connect_attempts, detecting=True)
         try:
             print('Detecting chip type...', end='')
-            res = detect_port.check_command('get security info', ESPLoader.ESP_GET_SECURITY_INFO, b'')
-            res = struct.unpack("<IBBBBBBBBI", res[:16])  # 4b flags, 1b flash_crypt_cnt, 7*1b key_purposes, 4b chip_id
-            chip_id = res[9]  # 2/4 status bytes invariant
+            chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
 
-            for cls in [ESP32S3ROM, ESP32C3ROM, ESP32C6ROM, ESP32H2ROM, ESP32C2ROM]:
-                if chip_id == cls.IMAGE_CHIP_ID:
+            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM,
+                        ESP32C3ROM, ESP32C6ROM, ESP32C2ROM, ESP32H2ROM]:
+                if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                     inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
                     inst._post_connect()
-                    try:
-                        inst.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)  # Dummy read to check Secure Download mode
-                    except UnsupportedCommandError:
-                        inst.secure_download_mode = True
-        except (UnsupportedCommandError, struct.error, FatalError) as e:
-            # UnsupportedCmdErr: ESP8266/ESP32 ROM | struct.err: ESP32-S2 | FatalErr: ESP8266/ESP32 STUB
-            print(" Unsupported detection protocol, switching and trying again...")
-            try:
-                # ESP32/ESP8266 are reset after an unsupported command, need to connect again (not needed on ESP32-S2)
-                if not isinstance(e, struct.error):
-                    detect_port.connect(connect_mode, connect_attempts, detecting=True, warnings=False)
-                print('Detecting chip type...', end='')
-                sys.stdout.flush()
-                chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
-
-                for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM,
-                            ESP32C3ROM, ESP32C6ROM, ESP32C2ROM, ESP32H2ROM]:
-                    if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
-                        inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
-                        inst._post_connect()
-                        inst.check_chip_id()
-            except UnsupportedCommandError:
-                raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
-                                 "autodetection will not work. Need to manually specify the chip.")
+                    inst.check_chip_id()
+        except UnsupportedCommandError:
+            raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
+                             "autodetection will not work. Need to manually specify the chip.")
         finally:
             if inst is not None:
                 print(' %s' % inst.CHIP_NAME, end='')
