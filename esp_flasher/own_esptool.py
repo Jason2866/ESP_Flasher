@@ -2559,6 +2559,10 @@ class ESP32C6ROM(ESP32C3ROM):
 
     UF2_FAMILY_ID = 0x540DDF62
 
+        # Returns old version format (ECO number). Use the new format get_chip_full_revision().
+    def get_chip_revision(self):
+        return self.get_major_chip_version()
+
     def get_pkg_version(self):
         num_word = 3
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 24) & 0x07
@@ -2665,6 +2669,10 @@ class ESP32H2ROM(ESP32C6ROM):
 
     UF2_FAMILY_ID = 0x332726F6
 
+    # Returns old version format (ECO number). Use the new format get_chip_full_revision().
+    def get_chip_revision(self):
+        return self.get_major_chip_version()
+
     def get_pkg_version(self):
         num_word = 4
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 0) & 0x07
@@ -2746,6 +2754,10 @@ class ESP32C2ROM(ESP32C3ROM):
     ]
 
     UF2_FAMILY_ID = 0x2B88D29C
+
+    # Returns old version format (ECO number). Use the new format get_chip_full_revision().
+    def get_chip_revision(self):
+        return self.get_major_chip_version()
 
     def get_pkg_version(self):
         num_word = 1
