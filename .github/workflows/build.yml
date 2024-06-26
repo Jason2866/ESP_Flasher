@@ -57,13 +57,11 @@ jobs:
      - name: Run PyInstaller
        run: |
          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher/__main__.py
-     - name: See dist directory
-       run: ls dist
+     - name: Move app
+       run: |
+         mv dist/ESP-Flasher ESP-Flasher
      - name: 'Tar files'
-       #run: gzip dist/ESP-Flasher
-       run: tar -cvf Ubuntu.tar dist/*
-     - name: 'show dist after Tar'
-       run: ls dist
+       run: tar -cvf Ubuntu.tar ESP-Flasher
      - uses: jason2866/upload-artifact@v2.0.3
        with:
          name: Ubuntu
@@ -85,13 +83,11 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
-      - name: See dist directory
-        run: ls dist
       - name: Move app
         run: |
-          mv dist/ESP-Flasher.app dist/ESP-Flasher-macOS.app
+          mv dist/ESP-Flasher.app ESP-Flasher-macOS.app
       - name: 'Tar files'
-        run: tar -cvf macOS.tar dist/*
+        run: tar -cvf macOS.tar ESP-Flasher-macOS.app
       - name: 'Upload Artifact'
         uses: jason2866/upload-artifact@v2.0.3
         with:
@@ -114,13 +110,11 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
-      - name: See dist directory
-        run: ls dist
       - name: Move app
         run: |
-          mv dist/ESP-Flasher.app dist/ESP-Flasher-macOSarm.app
+          mv dist/ESP-Flasher.app ESP-Flasher-macOSarm.app
       - name: 'Tar files'
-        run: tar -cvf macOSarm.tar dist/*
+        run: tar -cvf macOSarm.tar ESP-Flasher-macOSarm.app
       - name: 'Upload Artifact'
         uses: jason2866/upload-artifact@v2.0.3
         with:
