@@ -145,17 +145,17 @@ jobs:
               macOS
               macOSarm
             path: |
-              ./ESP-Flasher.exe
-              ./Ubuntu-ESP-Flasher.gz
-              ./macOS-ESP-Flasher.tar
-              ./macOSarm-ESP-Flasher.tar
+              ESP-Flasher.exe
+              Ubuntu-ESP-Flasher.gz
+              macOS-ESP-Flasher.tar
+              macOSarm-ESP-Flasher.tar
         - name: Release
           uses: jason2866/action-gh-release@v1.3
           with:
             prerelease: false
             files: |
-              *.gz
-              *.exe
-              *.tar
+              /home/runner/work/ESP_Flasher/ESP_Flasher/*.gz
+              /home/runner/work/ESP_Flasher/ESP_Flasher/*.exe
+              /home/runner/work/ESP_Flasher/ESP_Flasher/*.tar
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
