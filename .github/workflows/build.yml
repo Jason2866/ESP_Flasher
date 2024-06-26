@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # Manually start a workflow
   push:
     tags:
-      - "*.*.*"
+      - "v*.*.*"
     branches:
       - factory
     paths-ignore:
