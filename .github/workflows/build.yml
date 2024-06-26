@@ -149,6 +149,9 @@ jobs:
               Ubuntu-ESP-Flasher.gz
               macOS-ESP-Flasher.tar
               macOSarm-ESP-Flasher.tar
+        - name: Display downloaded artifact files
+          run: |
+            ls -R ./
         - name: Release
           uses: jason2866/action-gh-release@v1.3
           with:
