@@ -137,13 +137,25 @@ jobs:
           with:
             ref: factory
         - name: Download built binaries artifacts
-          uses: actions/download-artifact@master
+          uses: jason2866/download-artifact@v3.0.4
+          with:
+            name: |
+              Windows
+              Ubuntu
+              macOS
+              macOSarm
+            path: |
+              ESP-Flasher.exe
+              Ubuntu-ESP-Flasher.gz
+              macOS-ESP-Flasher.tar
+              macOSarm-ESP-Flasher.tar
         - name: Release
           uses: jason2866/action-gh-release@v1.3
           with:
             prerelease: false
             files: |
-              *.zip
+              *.gz
               *.exe
+              *.tar
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
