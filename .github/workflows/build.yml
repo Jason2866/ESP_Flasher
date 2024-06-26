@@ -3,6 +3,8 @@ name: Tasmota Esp Flasher
 on:
   workflow_dispatch:  # Manually start a workflow
   push:
+    tags:
+      - "*.*.*"
     branches:
       - factory
     paths-ignore:
