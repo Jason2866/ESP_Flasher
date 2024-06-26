@@ -134,13 +134,16 @@ jobs:
       steps:
         - name: Checkout repository
           uses: actions/checkout@v4
-        - name: Download built binaries
+          with:
+            ref: factory
+        - name: Download built binaries artifacts
           uses: actions/download-artifact@master
         - name: Release
           uses: jason2866/action-gh-release@v1.3
           with:
             prerelease: false
             files: |
-              *.*
+              *.zip
+              *.exe
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
