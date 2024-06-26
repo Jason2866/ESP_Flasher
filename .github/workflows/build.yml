@@ -60,13 +60,14 @@ jobs:
      - name: See dist directory
        run: ls dist
      - name: 'Tar files'
-       run: gzip dist/ESP-Flasher
-     - name: 'show gzip'
+       #run: gzip dist/ESP-Flasher
+       run: tar -cvf Ubuntu.tar dist/*
+     - name: 'show dist after Tar'
        run: ls dist
      - uses: jason2866/upload-artifact@v2.0.3
        with:
          name: Ubuntu
-         path: dist/ESP-Flasher.gz
+         path: Ubuntu.tar
 
   build-macos:
     runs-on: macos-12
@@ -90,12 +91,12 @@ jobs:
         run: |
           mv dist/ESP-Flasher.app dist/ESP-Flasher-macOS.app
       - name: 'Tar files'
-        run: tar -cvf dist.tar dist/*
+        run: tar -cvf macOS.tar dist/*
       - name: 'Upload Artifact'
         uses: jason2866/upload-artifact@v2.0.3
         with:
           name: macOS
-          path: dist.tar
+          path: macOS.tar
 
   build-macos-arm:
     runs-on: macos-14
@@ -119,12 +120,12 @@ jobs:
         run: |
           mv dist/ESP-Flasher.app dist/ESP-Flasher-macOSarm.app
       - name: 'Tar files'
-        run: tar -cvf dist.tar dist/*
+        run: tar -cvf macOSarm.tar dist/*
       - name: 'Upload Artifact'
         uses: jason2866/upload-artifact@v2.0.3
         with:
           name: macOSarm
-          path: dist.tar
+          path: macOSarm.tar
 
   release:
       name: Upload binaries to release section
