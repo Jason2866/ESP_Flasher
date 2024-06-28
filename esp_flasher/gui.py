@@ -146,7 +146,7 @@ class MainWindow(QMainWindow):
         ports = get_port_list()
         if ports:
             self.port_combobox.addItems(ports)
-            self._port = ports
+            self._port = ports[0]
         else:
             self.port_combobox.addItem("")
 
