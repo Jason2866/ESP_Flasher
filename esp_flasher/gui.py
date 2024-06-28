@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtGui import QColor, QTextCursor, QPalette, QColor
 from PyQt5.QtCore import pyqtSignal, QObject
 
-from esp_flasher.helpers import list_serial_ports
+from esp_flasher.own_esptool import get_port_list
 from esp_flasher.const import __version__
 
 COLOR_RE = re.compile(r'(?:\033)(?:\[(.*?)[@-~]|\].*?(?:\007|\033\\))')
@@ -143,10 +143,10 @@ class MainWindow(QMainWindow):
 
     def reload_ports(self):
         self.port_combobox.clear()
-        ports = [port for port, desc in list_serial_ports()]
+        ports = get_port_list()
         if ports:
             self.port_combobox.addItems(ports)
-            self._port = ports[0]
+            self._port = ports
         else:
             self.port_combobox.addItem("")
 

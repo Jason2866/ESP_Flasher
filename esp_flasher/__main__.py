@@ -6,6 +6,8 @@ import sys
 import time
 
 import esp_flasher.own_esptool as esptool
+from esp_flasher.own_esptool import get_port_list
+
 import serial
 
 from esp_flasher import const
@@ -23,8 +25,6 @@ from esp_flasher.const import (
     ESP32_DEFAULT_OTA_DATA,
     ESP32_SAFEBOOT_SERVER
 )
-from esp_flasher.helpers import list_serial_ports
-
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(prog=f"esp_flasher {const.__version__}")
@@ -78,17 +78,17 @@ def select_port(args):
     if args.port is not None:
         print(f"Using '{args.port}' as serial port.")
         return args.port
-    ports = list_serial_ports()
+    ports = get_port_list()
     if not ports:
         raise Esp_flasherError("No serial port found!")
     if len(ports) != 1:
         print("Found more than one serial port:")
-        for port, desc in ports:
-            print(f" * {port} ({desc})")
+        for port in ports:
+            print(f" * {port}")
         print("Please choose one with the --port argument.")
         raise Esp_flasherError
-    print(f"Auto-detected serial port: {ports[0][0]}")
-    return ports[0][0]
+    print(f"Auto-detected serial port: {ports}")
+    return ports
 
 
 def show_logs(serial_port):
