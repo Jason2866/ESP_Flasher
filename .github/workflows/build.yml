@@ -57,6 +57,9 @@ jobs:
        run: |
          pip install -r requirements.txt -r requirements_build.txt
          pip install -e .
+     - name: Check if the installed versions can run
+       run: |
+         esp_flasher -h
      - name: Run PyInstaller
        run: |
          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher/__main__.py
@@ -83,6 +86,9 @@ jobs:
         run: |
           pip install -r requirements.txt -r requirements_build.txt
           pip install -e .
+      - name: Check if the installed versions can run
+        run: |
+          esp_flasher -h
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
@@ -110,6 +116,9 @@ jobs:
         run: |
           pip install -r requirements.txt -r requirements_build.txt
           pip install -e .
+      - name: Check if the installed versions can run
+        run: |
+          esp_flasher -h
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
