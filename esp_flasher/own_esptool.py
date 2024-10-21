@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from __future__ import division, print_function
+from typing import Dict
 
 import argparse
 import base64
