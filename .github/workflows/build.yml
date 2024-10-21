@@ -103,7 +103,7 @@ jobs:
       - name: Test binary
         shell: bash
         run: |
-          dist/ESP-Flasher.app -h
+          dist/ESP-Flasher -h
       - name: Move app
         run: |
           mv dist/ESP-Flasher.app ESP-Flasher-macOS.app
@@ -137,7 +137,7 @@ jobs:
       - name: Test binary
         shell: bash
         run: |
-          dist/ESP-Flasher.app -h 
+          dist/ESP-Flasher -h 
       - name: Move app
         run: |
           mv dist/ESP-Flasher.app ESP-Flasher-macOSarm.app
