@@ -2359,28 +2359,32 @@ class ESP32C3ROM(ESP32ROM):
     FPGA_SLOW_BOOT = False
 
     IROM_MAP_START = 0x42000000
-    IROM_MAP_END   = 0x42800000
-    DROM_MAP_START = 0x3c000000
-    DROM_MAP_END   = 0x3c800000
+    IROM_MAP_END = 0x42800000
+    DROM_MAP_START = 0x3C000000
+    DROM_MAP_END = 0x3C800000
 
     SPI_REG_BASE = 0x60002000
-    SPI_USR_OFFS    = 0x18
-    SPI_USR1_OFFS   = 0x1C
-    SPI_USR2_OFFS   = 0x20
+    SPI_USR_OFFS = 0x18
+    SPI_USR1_OFFS = 0x1C
+    SPI_USR2_OFFS = 0x20
     SPI_MOSI_DLEN_OFFS = 0x24
     SPI_MISO_DLEN_OFFS = 0x28
     SPI_W0_OFFS = 0x58
 
+    SPI_ADDR_REG_MSB = False
+
     BOOTLOADER_FLASH_OFFSET = 0x0
 
     # Magic values for ESP32-C3 eco 1+2, eco 3, eco 6, and eco 7 respectively
-    CHIP_DETECT_MAGIC_VALUE = [0x6921506f, 0x1b31506f, 0x4881606f, 0x4361606f]
+    CHIP_DETECT_MAGIC_VALUE = [0x6921506F, 0x1B31506F, 0x4881606F, 0x4361606F]
 
-    UART_DATE_REG_ADDR = 0x60000000 + 0x7c
+    UART_DATE_REG_ADDR = 0x60000000 + 0x7C
+
+    UART_CLKDIV_REG = 0x60000014
 
     EFUSE_BASE = 0x60008800
     EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x044
-    MAC_EFUSE_REG  = EFUSE_BASE + 0x044
+    MAC_EFUSE_REG = EFUSE_BASE + 0x044
 
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
 
@@ -2400,23 +2404,63 @@ class ESP32C3ROM(ESP32ROM):
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 20
 
+    EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x034
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
+
+    EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x038
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 20
+
     PURPOSE_VAL_XTS_AES128_KEY = 4
 
     GPIO_STRAP_REG = 0x3f404038
 
+    SUPPORTS_ENCRYPTED_FLASH = True
+
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
 
-    MEMORY_MAP = [[0x00000000, 0x00010000, "PADDING"],
-                  [0x3C000000, 0x3C800000, "DROM"],
-                  [0x3FC80000, 0x3FCE0000, "DRAM"],
-                  [0x3FC88000, 0x3FD00000, "BYTE_ACCESSIBLE"],
-                  [0x3FF00000, 0x3FF20000, "DROM_MASK"],
-                  [0x40000000, 0x40060000, "IROM_MASK"],
-                  [0x42000000, 0x42800000, "IROM"],
-                  [0x4037C000, 0x403E0000, "IRAM"],
-                  [0x50000000, 0x50002000, "RTC_IRAM"],
-                  [0x50000000, 0x50002000, "RTC_DRAM"],
-                  [0x600FE000, 0x60100000, "MEM_INTERNAL2"]]
+    UARTDEV_BUF_NO = 0x3FCDF07C  # Variable in ROM .bss which indicates the port in use
+    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 3  # The above var when USB-JTAG/Serial is used
+
+    RTCCNTL_BASE_REG = 0x60008000
+    RTC_CNTL_SWD_CONF_REG = RTCCNTL_BASE_REG + 0x00AC
+    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 31
+    RTC_CNTL_SWD_WPROTECT_REG = RTCCNTL_BASE_REG + 0x00B0
+    RTC_CNTL_SWD_WKEY = 0x8F1D312A
+
+    RTC_CNTL_WDTCONFIG0_REG = RTCCNTL_BASE_REG + 0x0090
+    RTC_CNTL_WDTCONFIG1_REG = RTCCNTL_BASE_REG + 0x0094
+    RTC_CNTL_WDTWPROTECT_REG = RTCCNTL_BASE_REG + 0x00A8
+    RTC_CNTL_WDT_WKEY = 0x50D83AA1
+
+    MEMORY_MAP = [
+        [0x00000000, 0x00010000, "PADDING"],
+        [0x3C000000, 0x3C800000, "DROM"],
+        [0x3FC80000, 0x3FCE0000, "DRAM"],
+        [0x3FC88000, 0x3FD00000, "BYTE_ACCESSIBLE"],
+        [0x3FF00000, 0x3FF20000, "DROM_MASK"],
+        [0x40000000, 0x40060000, "IROM_MASK"],
+        [0x42000000, 0x42800000, "IROM"],
+        [0x4037C000, 0x403E0000, "IRAM"],
+        [0x50000000, 0x50002000, "RTC_IRAM"],
+        [0x50000000, 0x50002000, "RTC_DRAM"],
+        [0x600FE000, 0x60100000, "MEM_INTERNAL2"],
+    ]
+
+    UF2_FAMILY_ID = 0xD42BA06C
+
+    EFUSE_MAX_KEY = 5
+    KEY_PURPOSES: Dict[int, str] = {
+        0: "USER/EMPTY",
+        1: "RESERVED",
+        4: "XTS_AES_128_KEY",
+        5: "HMAC_DOWN_ALL",
+        6: "HMAC_DOWN_JTAG",
+        7: "HMAC_DOWN_DIGITAL_SIGNATURE",
+        8: "HMAC_UP",
+        9: "SECURE_BOOT_DIGEST0",
+        10: "SECURE_BOOT_DIGEST1",
+        11: "SECURE_BOOT_DIGEST2",
+    }
 
     # Returns old version format (ECO number). Use the new format get_chip_full_revision().
     def get_chip_revision(self):
@@ -2437,53 +2481,144 @@ class ESP32C3ROM(ESP32ROM):
         num_word = 5
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 24) & 0x03
 
+    def get_flash_cap(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 27) & 0x07
+
+    def get_flash_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 0) & 0x07
+        return {1: "XMC", 2: "GD", 3: "FM", 4: "TT", 5: "ZBIT"}.get(vendor_id, "")
+
     def get_chip_description(self):
         chip_name = {
-            0: "ESP32-C3",
+            0: "ESP32-C3 (QFN32)",
+            1: "ESP8685 (QFN28)",
+            2: "ESP32-C3 AZ (QFN32)",
+            3: "ESP8686 (QFN24)",
         }.get(self.get_pkg_version(), "unknown ESP32-C3")
         major_rev = self.get_major_chip_version()
         minor_rev = self.get_minor_chip_version()
-        return "%s (revision v%d.%d)" % (chip_name, major_rev, minor_rev)
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
 
     def get_chip_features(self):
-        return ["Wi-Fi", "BLE"]
+        features = ["WiFi", "BLE"]
+
+        flash = {
+            0: None,
+            1: "Embedded Flash 4MB",
+            2: "Embedded Flash 2MB",
+            3: "Embedded Flash 1MB",
+            4: "Embedded Flash 8MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+        if flash is not None:
+            features += [flash + f" ({self.get_flash_vendor()})"]
+        return features
 
     def get_crystal_freq(self):
         # ESP32C3 XTAL is fixed to 40MHz
         return 40
 
-    def override_vddsdio(self, new_voltage):
-        raise NotImplementedInROMError("VDD_SDIO overrides are not supported for ESP32-C3")
+    def get_flash_voltage(self):
+        pass  # not supported on ESP32-C3
 
-    def read_mac(self):
+    def override_vddsdio(self, new_voltage):
+        raise NotImplementedInROMError(
+            "VDD_SDIO overrides are not supported for ESP32-C3"
+        )
+
+    def read_mac(self, mac_type="BASE_MAC"):
+        """Read MAC from EFUSE region"""
+        if mac_type != "BASE_MAC":
+            return None
         mac0 = self.read_reg(self.MAC_EFUSE_REG)
         mac1 = self.read_reg(self.MAC_EFUSE_REG + 4)  # only bottom 16 bits are MAC
         bitstring = struct.pack(">II", mac1, mac0)[2:]
-        try:
-            return tuple(ord(b) for b in bitstring)
-        except TypeError:  # Python 3, bitstring elements are already bytes
-            return tuple(bitstring)
+        return tuple(bitstring)
 
     def get_flash_crypt_config(self):
         return None  # doesn't exist on ESP32-C3
 
-    def get_key_block_purpose(self, key_block):
-        if key_block < 0 or key_block > 5:
-            raise FatalError("Valid key block numbers must be in range 0-5")
+    def get_secure_boot_enabled(self):
+        return (
+            self.read_reg(self.EFUSE_SECURE_BOOT_EN_REG)
+            & self.EFUSE_SECURE_BOOT_EN_MASK
+        )
 
-        reg, shift = [(self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
-                      (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT)][key_block]
+    def get_key_block_purpose(self, key_block):
+        if key_block < 0 or key_block > self.EFUSE_MAX_KEY:
+            raise FatalError(
+                f"Valid key block numbers must be in range 0-{self.EFUSE_MAX_KEY}"
+            )
+
+        reg, shift = [
+            (self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
+            (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
+            (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
+            (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
+            (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
+            (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT),
+        ][key_block]
         return (self.read_reg(reg) >> shift) & 0xF
 
     def is_flash_encryption_key_valid(self):
         # Need to see an AES-128 key
-        purposes = [self.get_key_block_purpose(b) for b in range(6)]
+        purposes = [
+            self.get_key_block_purpose(b) for b in range(self.EFUSE_MAX_KEY + 1)
+        ]
 
         return any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes)
+
+    def uses_usb_jtag_serial(self, _cache=[]):
+        """
+        Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used
+        """
+        if self.secure_download_mode:
+            return False  # can't detect USB-JTAG/Serial in secure download mode
+        if not _cache:
+            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
+            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL)
+        return _cache[0]
+
+    def disable_watchdogs(self):
+        # When USB-JTAG/Serial is used, the RTC WDT and SWD watchdog are not reset
+        # and can then reset the board during flashing. Disable or autofeed them.
+        if self.uses_usb_jtag_serial():
+            # Disable RTC WDT
+            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)
+            self.write_reg(self.RTC_CNTL_WDTCONFIG0_REG, 0)
+            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)
+
+            # Automatically feed SWD
+            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
+            self.write_reg(
+                self.RTC_CNTL_SWD_CONF_REG,
+                self.read_reg(self.RTC_CNTL_SWD_CONF_REG)
+                | self.RTC_CNTL_SWD_AUTO_FEED_EN,
+            )
+            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
+
+    def _post_connect(self):
+        if not self.sync_stub_detected:  # Don't run if stub is reused
+            self.disable_watchdogs()
+
+    def hard_reset(self):
+        if self.uses_usb_jtag_serial():
+            self.rtc_wdt_reset()
+        else:
+            print('Hard resetting via RTS pin...')
+            self._setRTS(True)  # EN->LOW
+            time.sleep(0.1)
+            self._setRTS(False)
+
+    def rtc_wdt_reset(self):
+        print("Hard resetting with RTC WDT...")
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)  # unlock
+        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 5000)  # set WDT timeout
+        self.write_reg(
+            self.RTC_CNTL_WDTCONFIG0_REG, (1 << 31) | (5 << 28) | (1 << 8) | 2
+        )  # enable WDT
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
 
 
 class ESP32C6ROM(ESP32C3ROM):
