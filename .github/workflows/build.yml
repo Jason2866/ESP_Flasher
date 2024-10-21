@@ -35,6 +35,10 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
+      - name: Test binary
+        shell: bash
+        run: |
+          dist/ESP-Flasher.exe -h
       - uses: jason2866/upload-artifact@v2.0.3
         with:
           name: Windows
@@ -63,6 +67,10 @@ jobs:
      - name: Run PyInstaller
        run: |
          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher/__main__.py
+     - name: Test binary
+       shell: bash
+       run: |
+         dist/ESP-Flasher -h 
      - name: Move app
        run: |
          mv dist/ESP-Flasher ESP-Flasher
@@ -92,6 +100,10 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+      - name: Test binary
+        shell: bash
+        run: |
+          dist/ESP-Flasher.app -h
       - name: Move app
         run: |
           mv dist/ESP-Flasher.app ESP-Flasher-macOS.app
@@ -122,6 +134,10 @@ jobs:
       - name: Run PyInstaller
         run: |
           python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+      - name: Test binary
+        shell: bash
+        run: |
+          dist/ESP-Flasher.app -h 
       - name: Move app
         run: |
           mv dist/ESP-Flasher.app ESP-Flasher-macOSarm.app
