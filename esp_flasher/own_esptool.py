@@ -1870,9 +1870,15 @@ class ESP32S2ROM(ESP32ROM):
     USB_RAM_BLOCK = 0x800  # Max block size USB-OTG is used
 
     GPIO_STRAP_REG = 0x3F404038
-    GPIO_STRAP_SPI_BOOT_MASK = 0x8  # Not download mode
+    GPIO_STRAP_SPI_BOOT_MASK = 1 << 3  # Not download mode
     RTC_CNTL_OPTION1_REG = 0x3F408128
     RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK = 0x1  # Is download mode forced over USB?
+
+    RTCCNTL_BASE_REG = 0x3F408000
+    RTC_CNTL_WDTCONFIG0_REG = RTCCNTL_BASE_REG + 0x0094
+    RTC_CNTL_WDTCONFIG1_REG = RTCCNTL_BASE_REG + 0x0098
+    RTC_CNTL_WDTWPROTECT_REG = RTCCNTL_BASE_REG + 0x00AC
+    RTC_CNTL_WDT_WKEY = 0x50D83AA1
 
     MEMORY_MAP = [
         [0x00000000, 0x00010000, "PADDING"],
@@ -2045,34 +2051,26 @@ class ESP32S2ROM(ESP32ROM):
         if self.uses_usb():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
-    def _check_if_can_reset(self):
-        """
-        Check the strapping register to see if we can reset out of download mode.
-        """
-        if os.getenv("ESPTOOL_TESTING") is not None:
-            print("ESPTOOL_TESTING is set, ignoring strapping mode check")
-            # Esptool tests over USB-OTG run with GPIO0 strapped low,
-            # don't complain in this case.
-            return
-        strap_reg = self.read_reg(self.GPIO_STRAP_REG)
-        force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
-        if (
-            strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0
-            and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
-        ):
-            print(
-                "WARNING: {} chip was placed into download mode using GPIO0.\n"
-                "esptool.py can not exit the download mode over USB. "
-                "To run the app, reset the chip manually.\n"
-                "To suppress this note, set --after option to 'no_reset'.".format(
-                    self.get_chip_description()
-                )
-            )
-            raise SystemExit(1)
+    def rtc_wdt_reset(self):
+        print("Hard resetting with RTC WDT...")
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)  # unlock
+        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 5000)  # set WDT timeout
+        self.write_reg(
+            self.RTC_CNTL_WDTCONFIG0_REG, (1 << 31) | (5 << 28) | (1 << 8) | 2
+        )  # enable WDT
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
 
     def hard_reset(self):
         if self.uses_usb():
-            self._check_if_can_reset()
+            # Check the strapping register to see if we can perform RTC WDT reset
+            strap_reg = self.read_reg(self.GPIO_STRAP_REG)
+            force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
+            if (
+                strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
+                and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
+            ):
+                self.rtc_wdt_reset()
+                return
 
         print('Hard resetting via RTS pin...')
         self._setRTS(True)  # EN->LOW
