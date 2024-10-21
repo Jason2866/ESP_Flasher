@@ -2091,32 +2091,37 @@ class ESP32S3ROM(ESP32ROM):
 
     CHIP_DETECT_MAGIC_VALUE = [0x9]
 
-    BOOTLOADER_FLASH_OFFSET = 0x0
-
     FPGA_SLOW_BOOT = False
 
     IROM_MAP_START = 0x42000000
-    IROM_MAP_END   = 0x44000000
-    DROM_MAP_START = 0x3c000000
-    DROM_MAP_END   = 0x3e000000
+    IROM_MAP_END = 0x44000000
+    DROM_MAP_START = 0x3C000000
+    DROM_MAP_END = 0x3E000000
 
     UART_DATE_REG_ADDR = 0x60000080
 
     SPI_REG_BASE = 0x60002000
-    SPI_USR_OFFS    = 0x18
-    SPI_USR1_OFFS   = 0x1c
-    SPI_USR2_OFFS   = 0x20
+    SPI_USR_OFFS = 0x18
+    SPI_USR1_OFFS = 0x1C
+    SPI_USR2_OFFS = 0x20
     SPI_MOSI_DLEN_OFFS = 0x24
     SPI_MISO_DLEN_OFFS = 0x28
     SPI_W0_OFFS = 0x58
+
+    SPI_ADDR_REG_MSB = False
+
+    BOOTLOADER_FLASH_OFFSET = 0x0
+
+    SUPPORTS_ENCRYPTED_FLASH = True
 
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
 
     # todo: use espefuse APIs to get this info
     EFUSE_BASE = 0x60007000  # BLOCK0 read base address
-    MAC_EFUSE_REG = EFUSE_BASE + 0x044
     EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x44
     EFUSE_BLOCK2_ADDR = EFUSE_BASE + 0x5C
+    MAC_EFUSE_REG = EFUSE_BASE + 0x044
+
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
 
     EFUSE_PURPOSE_KEY0_REG = EFUSE_BASE + 0x34
@@ -2135,17 +2140,38 @@ class ESP32S3ROM(ESP32ROM):
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 20
 
+    EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x034
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
+
+    EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x038
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 20
+
+    EFUSE_RD_REPEAT_DATA3_REG = EFUSE_BASE + 0x3C
+    EFUSE_RD_REPEAT_DATA3_REG_FLASH_TYPE_MASK = 1 << 9
+
     PURPOSE_VAL_XTS_AES256_KEY_1 = 2
     PURPOSE_VAL_XTS_AES256_KEY_2 = 3
     PURPOSE_VAL_XTS_AES128_KEY = 4
 
-    UARTDEV_BUF_NO = 0x3fcef14c  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB = 3  # Value of the above variable indicating that USB is in use
+    UARTDEV_BUF_NO = 0x3FCEF14C  # Variable in ROM .bss which indicates the port in use
+    UARTDEV_BUF_NO_USB = 3  # The above var when USB-OTG is used
+    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 4  # The above var when USB-JTAG/Serial is used
 
-    USB_RAM_BLOCK = 0x800  # Max block size USB CDC is used
+    RTCCNTL_BASE_REG = 0x60008000
+    RTC_CNTL_SWD_CONF_REG = RTCCNTL_BASE_REG + 0x00B4
+    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 31
+    RTC_CNTL_SWD_WPROTECT_REG = RTCCNTL_BASE_REG + 0x00B8
+    RTC_CNTL_SWD_WKEY = 0x8F1D312A
+
+    RTC_CNTL_WDTCONFIG0_REG = RTCCNTL_BASE_REG + 0x0098
+    RTC_CNTL_WDTCONFIG1_REG = RTCCNTL_BASE_REG + 0x009C
+    RTC_CNTL_WDTWPROTECT_REG = RTCCNTL_BASE_REG + 0x00B0
+    RTC_CNTL_WDT_WKEY = 0x50D83AA1
+
+    USB_RAM_BLOCK = 0x800  # Max block size USB-OTG is used
 
     GPIO_STRAP_REG = 0x60004038
-    GPIO_STRAP_SPI_BOOT_MASK = 0x8   # Not download mode
+    GPIO_STRAP_SPI_BOOT_MASK = 1 << 3  # Not download mode
     RTC_CNTL_OPTION1_REG = 0x6000812C
     RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK = 0x1  # Is download mode forced over USB?
 
@@ -2268,33 +2294,51 @@ class ESP32S3ROM(ESP32ROM):
             _cache.append(buf_no == self.UARTDEV_BUF_NO_USB)
         return _cache[0]
 
+    def uses_usb_jtag_serial(self, _cache=[]):
+        """
+        Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used
+        """
+        if self.secure_download_mode:
+            return False  # can't detect USB-JTAG/Serial in secure download mode
+        if not _cache:
+            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
+            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL)
+        return _cache[0]
+
     def _post_connect(self):
         if self.uses_usb():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
-    def _check_if_can_reset(self):
-        """
-        Check the strapping register to see if we can reset out of download mode.
-        """
-        if os.getenv("ESPTOOL_TESTING") is not None:
-            print("ESPTOOL_TESTING is set, ignoring strapping mode check")
-            # Esptool tests over USB CDC run with GPIO0 strapped low, don't complain in this case.
-            return
-        strap_reg = self.read_reg(self.GPIO_STRAP_REG)
-        force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
-        if strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0 and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0:
-            print("WARNING: {} chip was placed into download mode using GPIO0.\n"
-                  "esptool.py can not exit the download mode over USB. "
-                  "To run the app, reset the chip manually.\n"
-                  "To suppress this note, set --after option to 'no_reset'.".format(self.get_chip_description()))
-            raise SystemExit(1)
+    def rtc_wdt_reset(self):
+        print("Hard resetting with RTC WDT...")
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)  # unlock
+        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 5000)  # set WDT timeout
+        self.write_reg(
+            self.RTC_CNTL_WDTCONFIG0_REG, (1 << 31) | (5 << 28) | (1 << 8) | 2
+        )  # enable WDT
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
 
     def hard_reset(self):
-        if self.uses_usb():
-            self._check_if_can_reset()
-        # issue https://github.com/espressif/arduino-esp32/issues/6762#issuecomment-1829942230
-        # Clear "Force Download Boot" flag, otherwise we keep resetting to boot mode
-        self.write_reg(self.RTC_CNTL_OPTION1_REG, 0, self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK)
+        try:
+            # Clear force download boot mode to avoid the chip being stuck in download mode after reset
+            # workaround for issue: https://github.com/espressif/arduino-esp32/issues/6762
+            self.write_reg(
+                self.RTC_CNTL_OPTION1_REG, 0, self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK
+            )
+        except Exception:
+            # Skip if response was not valid and proceed to reset; e.g. when monitoring while resetting
+            pass
+        uses_usb_otg = self.uses_usb()
+        if uses_usb_otg or self.uses_usb_jtag_serial():
+            # Check the strapping register to see if we can perform RTC WDT reset
+            strap_reg = self.read_reg(self.GPIO_STRAP_REG)
+            force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
+            if (
+                strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
+                and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
+            ):
+                self.rtc_wdt_reset()
+                return
 
         print('Hard resetting via RTS pin...')
         self._setRTS(True)  # EN->LOW
