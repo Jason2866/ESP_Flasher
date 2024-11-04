@@ -390,11 +390,11 @@ class ESPLoader(object):
         detect_port.connect(connect_mode, connect_attempts, detecting=True)
 
         def check_if_stub(instance):
-        print(f" {instance.CHIP_NAME}", end="")
-        if detect_port.sync_stub_detected:
-            instance = instance.STUB_CLASS(instance)
-            instance.sync_stub_detected = True
-        return instance
+            print(f" {instance.CHIP_NAME}", end="")
+            if detect_port.sync_stub_detected:
+                instance = instance.STUB_CLASS(instance)
+                instance.sync_stub_detected = True
+            return instance
 
         try:
             print('Detecting chip type...', end='')
