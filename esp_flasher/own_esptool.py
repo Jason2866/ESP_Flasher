@@ -388,6 +388,14 @@ class ESPLoader(object):
         if detect_port.serial_port.startswith("rfc2217:"):
             detect_port.USES_RFC2217 = True
         detect_port.connect(connect_mode, connect_attempts, detecting=True)
+
+        def check_if_stub(instance):
+        print(f" {instance.CHIP_NAME}", end="")
+        if detect_port.sync_stub_detected:
+            instance = instance.STUB_CLASS(instance)
+            instance.sync_stub_detected = True
+        return instance
+
         try:
             print('Detecting chip type...', end='')
             chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
@@ -396,19 +404,15 @@ class ESPLoader(object):
                         ESP32C3ROM, ESP32C6ROM, ESP32C2ROM, ESP32H2ROM]:
                 if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                     inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
+                    inst = check_if_stub(inst)
                     inst._post_connect()
                     inst.check_chip_id()
         except UnsupportedCommandError:
             raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
                              "autodetection will not work. Need to manually specify the chip.")
-        finally:
-            if inst is not None:
-                print(' %s' % inst.CHIP_NAME, end='')
-                if detect_port.sync_stub_detected:
-                    inst = inst.STUB_CLASS(inst)
-                    inst.sync_stub_detected = True
-                print('')  # end line
-                return inst
+        if inst is not None:
+            return inst
+
         raise FatalError("Unexpected CHIP magic value 0x%08x. Failed to autodetect chip type." % (chip_magic_value))
 
     """ Read a SLIP packet from the serial port """
