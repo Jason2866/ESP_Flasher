@@ -2816,7 +2816,10 @@ class ESP32C6ROM(ESP32C3ROM):
     def hard_reset(self):
         # Bug in the USB-Serial/JTAG controller can cause the port to disappear
         # if the chip is reset with RTC WDT, do a classic reset
-        ESPLoader.hard_reset(self)
+        print('Hard resetting via RTS pin...')
+        self._setRTS(True)  # EN->LOW
+        time.sleep(0.1)
+        self._setRTS(False)
 
 
 class ESP32H2ROM(ESP32C6ROM):
