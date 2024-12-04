@@ -2691,6 +2691,7 @@ class ESP32C6ROM(ESP32C3ROM):
 
     DR_REG_LP_WDT_BASE = 0x600B1C00
     RTC_CNTL_WDTCONFIG0_REG = DR_REG_LP_WDT_BASE + 0x0  # LP_WDT_RWDT_CONFIG0_REG
+    RTC_CNTL_WDTCONFIG1_REG = DR_REG_LP_WDT_BASE + 0x0004  # LP_WDT_RWDT_CONFIG1_REG
     RTC_CNTL_WDTWPROTECT_REG = DR_REG_LP_WDT_BASE + 0x0018  # LP_WDT_RWDT_WPROTECT_REG
 
     RTC_CNTL_SWD_CONF_REG = DR_REG_LP_WDT_BASE + 0x001C  # LP_WDT_SWD_CONFIG_REG
@@ -2720,7 +2721,7 @@ class ESP32C6ROM(ESP32C3ROM):
 
     UF2_FAMILY_ID = 0x540DDF62
 
-        # Returns old version format (ECO number). Use the new format get_chip_full_revision().
+    # Returns old version format (ECO number). Use the new format get_chip_full_revision().
     def get_chip_revision(self):
         return self.get_major_chip_version()
 
@@ -2803,6 +2804,19 @@ class ESP32C6ROM(ESP32C3ROM):
 
         return any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes)
 
+    def check_spi_connection(self, spi_connection):
+        if not set(spi_connection).issubset(set(range(0, 31))):
+            raise FatalError("SPI Pin numbers must be in the range 0-30.")
+        if any([v for v in spi_connection if v in [12, 13]]):
+            print(
+                "WARNING: GPIO pins 12 and 13 are used by USB-Serial/JTAG, "
+                "consider using other pins for SPI flash connection."
+            )
+
+    def hard_reset(self):
+        # Bug in the USB-Serial/JTAG controller can cause the port to disappear
+        # if the chip is reset with RTC WDT, do a classic reset
+        ESPLoader.hard_reset(self)
 
 
 class ESP32H2ROM(ESP32C6ROM):
