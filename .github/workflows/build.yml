@@ -39,13 +39,13 @@ jobs:
         shell: bash
         run: |
           dist/ESP-Flasher.exe -h
-      - uses: jason2866/upload-artifact@v2.0.3
+      - uses: actions/upload-artifact@v4
         with:
           name: Windows
           path: dist/ESP-Flasher.exe
 
   build-ubuntu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
      - name: Checkout
        uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
          mv dist/ESP-Flasher ESP-Flasher
      - name: 'Tar files'
        run: tar -cvf Ubuntu.tar ESP-Flasher
-     - uses: jason2866/upload-artifact@v2.0.3
+     - uses: actions/upload-artifact@v4
        with:
          name: Ubuntu
          path: Ubuntu.tar
@@ -110,7 +110,7 @@ jobs:
       - name: 'Tar files'
         run: tar -cvf macOS.tar ESP-Flasher-macOS.app
       - name: 'Upload Artifact'
-        uses: jason2866/upload-artifact@v2.0.3
+        uses: actions/upload-artifact@v4
         with:
           name: macOS
           path: macOS.tar
@@ -144,7 +144,7 @@ jobs:
       - name: 'Tar files'
         run: tar -cvf macOSarm.tar ESP-Flasher-macOSarm.app
       - name: 'Upload Artifact'
-        uses: jason2866/upload-artifact@v2.0.3
+        uses: actions/upload-artifact@v4
         with:
           name: macOSarm
           path: macOSarm.tar
@@ -160,18 +160,10 @@ jobs:
           with:
             ref: factory
         - name: Download built binaries artifacts
-          uses: jason2866/download-artifact@v3.0.4
+          uses: actions/download-artifact@v4
           with:
-            name: |
-              Windows
-              Ubuntu
-              macOS
-              macOSarm
-            path: |
-              binary
-              binary
-              binary
-              binary
+            path: binary
+            merge-multiple: true
         - name: Display downloaded artifact files
           run: |
             ls -R ./
