@@ -45,3 +45,6 @@ Driver: https://www.silabs.com/documents/public/software/Mac_OSX_VCP_Driver.zip
 ## License
 
 [MIT](http://opensource.org/licenses/MIT) © Otto Winter, Michael Kandziora, Johann Obermeier
+
+### Powered by
+[![CLion logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/CLion.svg)](https://jb.gg/OpenSourceSupport)
