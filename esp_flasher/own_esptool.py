@@ -58,7 +58,7 @@ except Exception:
         raise
 
 
-__version__ = "3.4.1"
+__version__ = "3.5.0"
 
 MAX_UINT32 = 0xffffffff
 MAX_UINT24 = 0xffffff
@@ -2830,6 +2830,8 @@ class ESP32C5ROM(ESP32C6ROM):
 
     BOOTLOADER_FLASH_OFFSET = 0x2000
 
+    #CHIP_DETECT_MAGIC_VALUE = []
+
     EFUSE_BASE = 0x600B4800
     EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x044
     MAC_EFUSE_REG = EFUSE_BASE + 0x044
@@ -3041,6 +3043,8 @@ class ESP32P4ROM(ESP32ROM):
     DROM_MAP_END = 0x4C000000
 
     BOOTLOADER_FLASH_OFFSET = 0x2000  # First 2 sectors are reserved for FE purposes
+
+    CHIP_DETECT_MAGIC_VALUE = [0x0, 0x0ADDBAD0]
 
     UART_DATE_REG_ADDR = 0x500CA000 + 0x8C
 
