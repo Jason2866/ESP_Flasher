@@ -2946,38 +2946,38 @@ class ESP32C5ROM(ESP32C6ROM):
             self.read_reg(self.PCR_SYSCLK_CONF_REG) & self.PCR_SYSCLK_XTAL_FREQ_V
         ) >> self.PCR_SYSCLK_XTAL_FREQ_S
 
-    def hard_reset(self):
-        ESPLoader.hard_reset(self, self.uses_usb_jtag_serial())
+    def uses_usb_jtag_serial(self, _cache=[]):
+        """
+        Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used
+        """
+        if self.secure_download_mode:
+            return False  # can't detect USB-JTAG/Serial in secure download mode
+        if not _cache:
+            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
+            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL)
+        return _cache[0]
 
-    def change_baud(self, baud):
-        if not self.IS_STUB:
-            crystal_freq_rom_expect = self.get_crystal_freq_rom_expect()
-            crystal_freq_detect = self.get_crystal_freq()
-            print(
-                f"ROM expects crystal freq: {crystal_freq_rom_expect} MHz, "
-                f"detected {crystal_freq_detect} MHz."
-            )
-            baud_rate = baud
-            # If detect the XTAL is 48MHz, but the ROM code expects it to be 40MHz
-            if crystal_freq_detect == 48 and crystal_freq_rom_expect == 40:
-                baud_rate = baud * 40 // 48
-            # If detect the XTAL is 40MHz, but the ROM code expects it to be 48MHz
-            elif crystal_freq_detect == 40 and crystal_freq_rom_expect == 48:
-                baud_rate = baud * 48 // 40
-            else:
-                ESPLoader.change_baud(self, baud_rate)
-                return
+    def disable_watchdogs(self):
+        # When USB-JTAG/Serial is used, the RTC WDT and SWD watchdog are not reset
+        # and can then reset the board during flashing. Disable or autofeed them.
+        if self.uses_usb_jtag_serial():
+            # Disable RTC WDT
+            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)
+            self.write_reg(self.RTC_CNTL_WDTCONFIG0_REG, 0)
+            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)
 
-            print(f"Changing baud rate to {baud_rate}...")
-            self.command(
-                self.ESP_CMDS["CHANGE_BAUDRATE"], struct.pack("<II", baud_rate, 0)
+            # Automatically feed SWD
+            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
+            self.write_reg(
+                self.RTC_CNTL_SWD_CONF_REG,
+                self.read_reg(self.RTC_CNTL_SWD_CONF_REG)
+                | self.RTC_CNTL_SWD_AUTO_FEED_EN,
             )
-            print("Changed.")
-            self._set_port_baudrate(baud)
-            time.sleep(0.05)  # get rid of garbage sent during baud rate change
-            self.flush_input()
-        else:
-            ESPLoader.change_baud(self, baud)
+            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
+
+    def _post_connect(self):
+        if not self.sync_stub_detected:  # Don't run if stub is reused
+            self.disable_watchdogs()
 
     def check_spi_connection(self, spi_connection):
         if not set(spi_connection).issubset(set(range(0, 29))):
@@ -3225,49 +3225,6 @@ class ESP32P4ROM(ESP32ROM):
         return any(p == self.PURPOSE_VAL_XTS_AES256_KEY_1 for p in purposes) and any(
             p == self.PURPOSE_VAL_XTS_AES256_KEY_2 for p in purposes
         )
-
-    def change_baud(self, baud):
-        ESPLoader.change_baud(self, baud)
-
-    def _post_connect(self):
-        if self.uses_usb_otg():
-            self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
-        if not self.sync_stub_detected:  # Don't run if stub is reused
-            self.disable_watchdogs()
-
-    def uses_usb_otg(self):
-        """
-        Check the UARTDEV_BUF_NO register to see if USB-OTG console is being used
-        """
-        if self.secure_download_mode:
-            return False  # can't detect native USB in secure download mode
-        return self.get_uart_no() == self.UARTDEV_BUF_NO_USB_OTG
-
-    def uses_usb_jtag_serial(self):
-        """
-        Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used
-        """
-        if self.secure_download_mode:
-            return False  # can't detect USB-JTAG/Serial in secure download mode
-        return self.get_uart_no() == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL
-
-    def disable_watchdogs(self):
-        # When USB-JTAG/Serial is used, the RTC WDT and SWD watchdog are not reset
-        # and can then reset the board during flashing. Disable them.
-        if self.uses_usb_jtag_serial():
-            # Disable RTC WDT
-            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
-            self.write_reg(self.RTC_CNTL_WDTCONFIG0_REG, 0)
-            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)
-
-            # Automatically feed SWD
-            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
-            self.write_reg(
-                self.RTC_CNTL_SWD_CONF_REG,
-                self.read_reg(self.RTC_CNTL_SWD_CONF_REG)
-                | self.RTC_CNTL_SWD_AUTO_FEED_EN,
-            )
-            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
 
     def check_spi_connection(self, spi_connection):
         if not set(spi_connection).issubset(set(range(0, 55))):
