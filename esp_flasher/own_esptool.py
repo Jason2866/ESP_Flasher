@@ -2953,7 +2953,7 @@ class ESP32C5ROM(ESP32C6ROM):
         if not self.IS_STUB:
             crystal_freq_rom_expect = self.get_crystal_freq_rom_expect()
             crystal_freq_detect = self.get_crystal_freq()
-            log.print(
+            print(
                 f"ROM expects crystal freq: {crystal_freq_rom_expect} MHz, "
                 f"detected {crystal_freq_detect} MHz."
             )
@@ -2968,11 +2968,11 @@ class ESP32C5ROM(ESP32C6ROM):
                 ESPLoader.change_baud(self, baud_rate)
                 return
 
-            log.print(f"Changing baud rate to {baud_rate}...")
+            print(f"Changing baud rate to {baud_rate}...")
             self.command(
                 self.ESP_CMDS["CHANGE_BAUDRATE"], struct.pack("<II", baud_rate, 0)
             )
-            log.print("Changed.")
+            print("Changed.")
             self._set_port_baudrate(baud)
             time.sleep(0.05)  # get rid of garbage sent during baud rate change
             self.flush_input()
@@ -2983,15 +2983,53 @@ class ESP32C5ROM(ESP32C6ROM):
         if not set(spi_connection).issubset(set(range(0, 29))):
             raise FatalError("SPI Pin numbers must be in the range 0-28.")
         if any([v for v in spi_connection if v in [13, 14]]):
-            log.warning(
+            print(
                 "GPIO pins 13 and 14 are used by USB-Serial/JTAG, "
                 "consider using other pins for SPI flash connection."
             )
 
-    def watchdog_reset(self):
-        # Watchdog reset disabled in parent (ESP32-C6) ROM, re-enable it
-        ESP32C3ROM.watchdog_reset(self)
+    def rtc_wdt_reset(self):
+        print("Hard resetting with RTC WDT...")
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)  # unlock
+        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 5000)  # set WDT timeout
+        self.write_reg(
+            self.RTC_CNTL_WDTCONFIG0_REG, (1 << 31) | (5 << 28) | (1 << 8) | 2
+        )  # enable WDT
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
+        time.sleep(0.5)  # wait for reset to take effect
 
+    def hard_reset(self):
+        try:
+            # Clear force download boot mode to avoid the chip being stuck in download mode after reset
+            # workaround for issue: https://github.com/espressif/arduino-esp32/issues/6762
+            self.write_reg(
+                self.RTC_CNTL_OPTION1_REG, 0, self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK
+            )
+        except Exception:
+            # Skip if response was not valid and proceed to reset; e.g. when monitoring while resetting
+            pass
+        uses_usb_otg = self.uses_usb()
+        if uses_usb_otg or self.uses_usb_jtag_serial():
+            # Check the strapping register to see if we can perform RTC WDT reset
+            strap_reg = self.read_reg(self.GPIO_STRAP_REG)
+            force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
+            if (
+                strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
+                and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
+            ):
+                self.rtc_wdt_reset()
+                return
+
+        print('Hard resetting via RTS pin...')
+        self._setRTS(True)  # EN->LOW
+        if self.uses_usb():
+            # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
+            time.sleep(0.2)
+            self._setRTS(False)
+            time.sleep(0.2)
+        else:
+            time.sleep(0.1)
+            self._setRTS(False)
 
 class ESP32P4ROM(ESP32ROM):
     CHIP_NAME = "ESP32-P4"
@@ -3235,26 +3273,53 @@ class ESP32P4ROM(ESP32ROM):
         if not set(spi_connection).issubset(set(range(0, 55))):
             raise FatalError("SPI Pin numbers must be in the range 0-54.")
         if any([v for v in spi_connection if v in [24, 25]]):
-            log.warning(
+            print(
                 "GPIO pins 24 and 25 are used by USB-Serial/JTAG, "
                 "consider using other pins for SPI flash connection."
             )
 
-    def watchdog_reset(self):
-        log.print("Hard resetting with a watchdog...")
+    def rtc_wdt_reset(self):
+        print("Hard resetting with RTC WDT...")
         self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)  # unlock
-        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 2000)  # set WDT timeout
+        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 5000)  # set WDT timeout
         self.write_reg(
             self.RTC_CNTL_WDTCONFIG0_REG, (1 << 31) | (5 << 28) | (1 << 8) | 2
         )  # enable WDT
         self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
-        sleep(0.5)  # wait for reset to take effect
+        time.sleep(0.5)  # wait for reset to take effect
 
     def hard_reset(self):
-        if self.uses_usb_otg():
-            self.watchdog_reset()
+        try:
+            # Clear force download boot mode to avoid the chip being stuck in download mode after reset
+            # workaround for issue: https://github.com/espressif/arduino-esp32/issues/6762
+            self.write_reg(
+                self.RTC_CNTL_OPTION1_REG, 0, self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK
+            )
+        except Exception:
+            # Skip if response was not valid and proceed to reset; e.g. when monitoring while resetting
+            pass
+        uses_usb_otg = self.uses_usb()
+        if uses_usb_otg or self.uses_usb_jtag_serial():
+            # Check the strapping register to see if we can perform RTC WDT reset
+            strap_reg = self.read_reg(self.GPIO_STRAP_REG)
+            force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
+            if (
+                strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
+                and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
+            ):
+                self.rtc_wdt_reset()
+                return
+
+        print('Hard resetting via RTS pin...')
+        self._setRTS(True)  # EN->LOW
+        if self.uses_usb():
+            # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
+            time.sleep(0.2)
+            self._setRTS(False)
+            time.sleep(0.2)
         else:
-            ESPLoader.hard_reset(self)
+            time.sleep(0.1)
+            self._setRTS(False)
 
 
 class ESP32H2ROM(ESP32C6ROM):
