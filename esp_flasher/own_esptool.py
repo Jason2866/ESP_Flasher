@@ -76,7 +76,7 @@ DEFAULT_SERIAL_WRITE_TIMEOUT = 10     # timeout for serial port write
 DEFAULT_CONNECT_ATTEMPTS = 7          # default number of times to try connection
 WRITE_BLOCK_ATTEMPTS = 3              # number of times to try writing a data block
 
-SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32c3', 'esp32c6', 'esp32h2', 'esp32c2']
+SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32c2', 'esp32c3', 'esp32c5', 'esp32c6', 'esp32h2', 'esp32p4']
 
 
 def timeout_per_mb(seconds_per_mb, size_bytes):
@@ -93,7 +93,9 @@ def _chip_to_rom_loader(chip):
         'esp32': ESP32ROM,
         'esp32s2': ESP32S2ROM,
         'esp32s3': ESP32S3ROM,
+        'esp32p4': ESP32P4ROM,
         'esp32c3': ESP32C3ROM,
+        'esp32c5': ESP32C5ROM,
         'esp32c6': ESP32C6ROM,
         'esp32h2': ESP32H2ROM,
         'esp32c2': ESP32C2ROM,
@@ -400,8 +402,8 @@ class ESPLoader(object):
             print('Detecting chip type...', end='')
             chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
 
-            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM,
-                        ESP32C3ROM, ESP32C6ROM, ESP32C2ROM, ESP32H2ROM]:
+            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM, ESP32P4ROM, 
+                        ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C2ROM, ESP32H2ROM]:
                 if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                     inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
                     inst = check_if_stub(inst)
@@ -685,8 +687,8 @@ class ESPLoader(object):
                 chip_magic_value = self.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
                 if chip_magic_value not in self.CHIP_DETECT_MAGIC_VALUE:
                     actually = None
-                    for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM,
-                                ESP32C3ROM, ESP32H2ROM, ESP32C2ROM, ESP32C6ROM]:
+                    for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM, ESP32P4ROM,
+                                ESP32C3ROM, ESP32H2ROM, ESP32C2ROM, ESP32C5ROM, ESP32C6ROM]:
                         if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                             actually = cls
                             break
@@ -794,8 +796,8 @@ class ESPLoader(object):
             timeout = timeout_per_mb(ERASE_REGION_TIMEOUT_PER_MB, size)  # ROM performs the erase up front
 
         params = struct.pack('<IIII', erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
-        if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM,
-                             ESP32C6ROM, ESP32H2ROM, ESP32C2ROM)) and not self.IS_STUB:
+        if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM, ESP32C5ROM,
+                             ESP32C6ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4ROM,)) and not self.IS_STUB:
             params += struct.pack('<I', 1 if begin_rom_encrypted else 0)
         self.check_command("enter Flash download mode", self.ESP_FLASH_BEGIN,
                            params, timeout=timeout)
@@ -826,7 +828,7 @@ class ESPLoader(object):
 
     def flash_encrypt_block(self, data, seq, timeout=DEFAULT_TIMEOUT):
         """Encrypt, write block to flash, retry if fail"""
-        if isinstance(self, (ESP32S2ROM, ESP32C3ROM, ESP32S3ROM, ESP32H2ROM, ESP32C2ROM)) and not self.IS_STUB:
+        if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4ROM)) and not self.IS_STUB:
             # ROM support performs the encrypted writes via the normal write command,
             # triggered by flash_begin(begin_rom_encrypted=True)
             return self.flash_block(data, seq, timeout)
@@ -949,8 +951,8 @@ class ESPLoader(object):
             timeout = timeout_per_mb(ERASE_REGION_TIMEOUT_PER_MB, write_size)  # ROM performs the erase up front
         print("Compressed %d bytes to %d..." % (size, compsize))
         params = struct.pack('<IIII', write_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
-        if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM,
-                             ESP32C6ROM, ESP32H2ROM, ESP32C2ROM)) and not self.IS_STUB:
+        if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM,ESP32C5ROM,
+                             ESP32C6ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4ROM,)) and not self.IS_STUB:
             params += struct.pack('<I', 0)  # extra param is to enter encrypted flash mode via ROM (not supported currently)
         self.check_command("enter compressed flash mode", self.ESP_FLASH_DEFL_BEGIN, params, timeout=timeout)
         if size != 0 and not self.IS_STUB:
@@ -2821,6 +2823,11 @@ class ESP32C6ROM(ESP32C3ROM):
         time.sleep(0.1)
         self._setRTS(False)
 
+class ESP32C5ROM(ESP32C6ROM):
+    CHIP_NAME = "ESP32-C5"
+
+class ESP32P4ROM(ESP32C5ROM):
+    CHIP_NAME = "ESP32-P4"
 
 class ESP32H2ROM(ESP32C6ROM):
     CHIP_NAME = "ESP32-H2"
@@ -3199,12 +3206,16 @@ def LoadFirmwareImage(chip, filename):
             return ESP32S3FirmwareImage(f)
         elif chip == 'esp32c3':
             return ESP32C3FirmwareImage(f)
+        elif chip == 'esp32c5':
+            return ESP32C5FirmwareImage(f)
         elif chip == 'esp32c6':
             return ESP32C6FirmwareImage(f)
         elif chip == 'esp32h2':
             return ESP32H2FirmwareImage(f)
         elif chip == 'esp32c2':
             return ESP32C2FirmwareImage(f)
+        elif chip == 'esp32p4':
+            return ESP32P4FirmwareImage(f)
         else:  # Otherwise, ESP8266 so look at magic to determine the image type
             magic = ord(f.read(1))
             f.seek(0)
@@ -3966,6 +3977,23 @@ class ESP32C3FirmwareImage(ESP32FirmwareImage):
 ESP32C3ROM.BOOTLOADER_IMAGE = ESP32C3FirmwareImage
 
 
+class ESP32C5FirmwareImage(ESP32FirmwareImage):
+    """ESP32C5 Firmware Image almost exactly the same as ESP32FirmwareImage"""
+
+    ROM_LOADER = ESP32C5ROM
+
+    def set_mmu_page_size(self, size):
+        if size not in [8192, 16384, 32768, 65536]:
+            raise FatalError(
+                "{} bytes is not a valid ESP32-C5 page size, "
+                "select from 64KB, 32KB, 16KB, 8KB.".format(size)
+            )
+        self.IROM_ALIGN = size
+
+
+ESP32C5ROM.BOOTLOADER_IMAGE = ESP32C5FirmwareImage
+
+
 class ESP32C6FirmwareImage(ESP32FirmwareImage):
     """ESP32C6 Firmware Image almost exactly the same as ESP32FirmwareImage"""
 
@@ -3981,6 +4009,23 @@ class ESP32C6FirmwareImage(ESP32FirmwareImage):
 
 
 ESP32C6ROM.BOOTLOADER_IMAGE = ESP32C6FirmwareImage
+
+
+class ESP32P4FirmwareImage(ESP32FirmwareImage):
+    """ESP32P4 Firmware Image almost exactly the same as ESP32FirmwareImage"""
+
+    ROM_LOADER = ESP32P4ROM
+
+    def set_mmu_page_size(self, size):
+        if size not in [8192, 16384, 32768, 65536]:
+            raise FatalError(
+                "{} bytes is not a valid ESP32-P4 page size, "
+                "select from 64KB, 32KB, 16KB, 8KB.".format(size)
+            )
+        self.IROM_ALIGN = size
+
+
+ESP32P4ROM.BOOTLOADER_IMAGE = ESP32P4FirmwareImage
 
 
 class ESP32H2FirmwareImage(ESP32C6FirmwareImage):
@@ -4739,6 +4784,10 @@ def elf2image(args):
         image = ESP32C3FirmwareImage()
         if args.secure_pad_v2:
             image.secure_pad = '2'
+    elif args.chip == 'esp32c5':
+        image = ESP32C5FirmwareImage()
+        if args.secure_pad_v2:
+            image.secure_pad = '2'
     elif args.chip == 'esp32c6':
         image = ESP32C6FirmwareImage()
         if args.secure_pad_v2:
@@ -4749,6 +4798,10 @@ def elf2image(args):
             image.secure_pad = '2'
     elif args.chip == 'esp32c2':
         image = ESP32C2FirmwareImage()
+        if args.secure_pad_v2:
+            image.secure_pad = '2'
+    elif args.chip == 'esp32p4':
+        image = ESP32P4FirmwareImage()
         if args.secure_pad_v2:
             image.secure_pad = '2'
     elif args.version == '1':  # ESP8266
