@@ -352,10 +352,10 @@ def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=Fals
             klass = esptool.ESP32C2ROM
         elif force_esp32c3:
             klass = esptool.ESP32C3ROM
-        elif force_esp32c6:
-            klass = esptool.ESP32C6ROM
         elif force_esp32c5:
             klass = esptool.ESP32C5ROM
+        elif force_esp32c6:
+            klass = esptool.ESP32C6ROM
         elif force_esp32p4:
             klass = esptool.ESP32P4ROM
         chip = klass(port)
