@@ -2816,8 +2816,6 @@ class ESP32C6ROM(ESP32C3ROM):
             )
 
     def hard_reset(self):
-        # Bug in the USB-Serial/JTAG controller can cause the port to disappear
-        # if the chip is reset with RTC WDT, do a classic reset
         print('Hard resetting via RTS pin...')
         self._setRTS(True)  # EN->LOW
         time.sleep(0.1)
@@ -2870,6 +2868,8 @@ class ESP32C5ROM(ESP32C6ROM):
     PCR_SYSCLK_XTAL_FREQ_S = 24
 
     UARTDEV_BUF_NO = 0x4085F51C  # Variable in ROM .bss which indicates the port in use
+    UARTDEV_BUF_NO_USB = 3  # The above var when USB-OTG is used
+    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 4  # The above var when USB-JTAG/Serial is used
 
     FLASH_FREQUENCY = {
         "80m": 0xF,
@@ -2947,6 +2947,14 @@ class ESP32C5ROM(ESP32C6ROM):
         return (
             self.read_reg(self.PCR_SYSCLK_CONF_REG) & self.PCR_SYSCLK_XTAL_FREQ_V
         ) >> self.PCR_SYSCLK_XTAL_FREQ_S
+
+    def uses_usb(self, _cache=[]):
+        if self.secure_download_mode:
+            return False  # can't detect native USB in secure download mode
+        if not _cache:
+            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
+            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB)
+        return _cache[0]
 
     def uses_usb_jtag_serial(self, _cache=[]):
         """
@@ -3032,6 +3040,7 @@ class ESP32C5ROM(ESP32C6ROM):
         else:
             time.sleep(0.1)
             self._setRTS(False)
+
 
 class ESP32P4ROM(ESP32ROM):
     CHIP_NAME = "ESP32-P4"
@@ -6024,7 +6033,7 @@ def get_port_list():
         port_list = [
             port
             for port in port_list
-            if not port.endswith(("Bluetooth-Incoming-Port", "wlan-debug"))
+            if not port.endswith(("Bluetooth-Incoming-Port", "wlan-debug", "debug-console"))
         ]
     return port_list
 
