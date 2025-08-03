@@ -243,6 +243,7 @@ def run_esp_flasher(argv):
 
 import os
 import shutil
+import subprocess
 def get_venv_python():
     """
     Check if its startet in a venv and use the venv to start as admin
@@ -272,7 +273,9 @@ def elevate_and_relaunch():
     """
     python_exe = get_venv_python()
     args = [python_exe] + sys.argv
+    #cwd = os.getcwd()
 
+    
     if sys.platform == 'win32':
         import ctypes
         params = " ".join(f'"{arg}"' for arg in args[1:])
@@ -282,14 +285,17 @@ def elevate_and_relaunch():
         sys.exit(0)
 
     elif sys.platform == 'darwin':
-        cmd = f'do shell script "{python_exe}" {" ".join(args[1:])}" with administrator privileges'
+        cmd = f'do shell script "cd \\"{cwd}\\"; {python_exe} {" ".join(args[1:])}" with administrator privileges'
         subprocess.call(['osascript', '-e', cmd])
 
     else:
-        if shutil.which('pkexec'):
-            launcher = ['pkexec', python_exe] + sys.argv
-        else:
-            launcher = ['sudo', python_exe] + sys.argv
+        ## 'sudo' und 'pkexec' übernehmen das Arbeitsverzeichnis nicht immer!
+        #if shutil.which('pkexec'):
+        #    launcher = ['pkexec', 'env', f'PWD={cwd}', python_exe] + sys.argv
+        #else:
+        #    # sudo mit -E überträgt alle env-vars (inkl. PWD, falls gesetzt)
+        #    launcher = ['sudo', '-E', python_exe] + sys.argv
+        launcher = ['sudo', '-E', python_exe] + sys.argv #Passes all env vars, with pkexec was XDR_RUNTIME_DIR, XDG_SESSION_TYPE, .. not set properly
         os.execvp(launcher[0], launcher)
 
 def ensure_admin():
