@@ -178,8 +178,6 @@ def get_qt_platform_for_linux():
     session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
     wayland_display = os.environ.get('WAYLAND_DISPLAY', '')
     
-    print(session_type)
-    print(wayland_display)
     # Prefer wayland if we're in a wayland session and wayland display is available
     if session_type == 'wayland' and wayland_display:
         #os.environ['XDG_RUNTIME_DIR'] = "/run/user/1000"
