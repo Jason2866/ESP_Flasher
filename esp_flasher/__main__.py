@@ -249,12 +249,12 @@ def get_venv_python():
     Check if its startet in a venv and use the venv to start as admin
     """
     venv = os.environ.get("VIRTUAL_ENV")
-
-    if sys.platform == 'win32':
-        return os.path.join(venv, "Scripts", "python3")
-    else:
-        # For Linux / MacOS
-        return os.path.join(venv, "bin", "python3")
+    if venv:
+        if sys.platform == 'win32':
+            return os.path.join(venv, "Scripts", "python3")
+        else:
+            # For Linux / MacOS
+            return os.path.join(venv, "bin", "python3")
     
     #Fallback
     return sys.executable
