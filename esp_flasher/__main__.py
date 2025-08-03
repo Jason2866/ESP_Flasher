@@ -242,7 +242,7 @@ def run_esp_flasher(argv):
 
 
 import os
-import shutil
+#import shutil
 import subprocess
 def get_venv_python():
     """
