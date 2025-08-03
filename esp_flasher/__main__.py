@@ -249,8 +249,14 @@ def get_venv_python():
     Check if its startet in a venv and use the venv to start as admin
     """
     venv = os.environ.get("VIRTUAL_ENV")
-    if venv:
+
+    if sys.platform == 'win32':
+        return os.path.join(venv, "Scripts", "python3")
+    else:
+        # For Linux / MacOS
         return os.path.join(venv, "bin", "python3")
+    
+    #Fallback
     return sys.executable
 
 def is_admin():
@@ -261,7 +267,7 @@ def is_admin():
         try:
             import ctypes
             return ctypes.windll.shell32.IsUserAdmin() #true when UAC_Admin
-        except:
+        except (ImportError, AttributeError, OSError):
             return False
     else:
         # For Linux / MacOS
@@ -273,7 +279,7 @@ def elevate_and_relaunch():
     """
     python_exe = get_venv_python()
     args = [python_exe] + sys.argv
-    #cwd = os.getcwd()
+    cwd = os.getcwd()
 
     
     if sys.platform == 'win32':
@@ -289,13 +295,15 @@ def elevate_and_relaunch():
         subprocess.call(['osascript', '-e', cmd])
 
     else:
-        ## 'sudo' und 'pkexec' übernehmen das Arbeitsverzeichnis nicht immer!
-        #if shutil.which('pkexec'):
-        #    launcher = ['pkexec', 'env', f'PWD={cwd}', python_exe] + sys.argv
-        #else:
-        #    # sudo mit -E überträgt alle env-vars (inkl. PWD, falls gesetzt)
-        #    launcher = ['sudo', '-E', python_exe] + sys.argv
-        launcher = ['sudo', '-E', python_exe] + sys.argv #Passes all env vars, with pkexec was XDR_RUNTIME_DIR, XDG_SESSION_TYPE, .. not set properly
+        ### 'sudo' und 'pkexec' übernehmen das Arbeitsverzeichnis nicht immer!
+        ##if shutil.which('pkexec'):
+        ##    launcher = ['pkexec', 'env', f'PWD={cwd}', python_exe] + sys.argv
+        ##else:
+        ##    # sudo mit -E überträgt alle env-vars (inkl. PWD, falls gesetzt)
+        ##    launcher = ['sudo', '-E', python_exe] + sys.argv
+        
+        # Use sudo with -E to preserve environment variables
+        launcher = ['sudo', '-E', python_exe] + sys.argv #Pass all env vars, with pkexec was XDR_RUNTIME_DIR, XDG_SESSION_TYPE, .. not set properly
         os.execvp(launcher[0], launcher)
 
 def ensure_admin():
