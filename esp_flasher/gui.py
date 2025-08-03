@@ -172,22 +172,43 @@ class MainWindow(QMainWindow):
             worker = FlashingThread('dummy', self._port, show_logs=True)
             worker.start()
 
+def get_qt_platform_for_linux():
+    """Detect the best Qt platform for Linux based on session type and available plugins."""
+    # Check if we're in a Wayland session
+    session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
+    wayland_display = os.environ.get('WAYLAND_DISPLAY', '')
+    
+    print(session_type)
+    print(wayland_display)
+    # Prefer wayland if we're in a wayland session and wayland display is available
+    if session_type == 'wayland' and wayland_display:
+        #os.environ['XDG_RUNTIME_DIR'] = "/run/user/1000"
+        return 'wayland'
+    
+    # Check if we're explicitly in an X11 session
+    if session_type == 'x11' or os.environ.get('DISPLAY'):
+        return 'xcb'
+    
+    # Fallback to xcb for unknown cases (most compatible)
+    return 'wayland'
+
+def set_qt_qpa_platform_if_not_set():
+    """Set QT_QPA_PLATFORM based on session detection, but only if not already set."""
+    if 'QT_QPA_PLATFORM' not in os.environ:
+        os_name = platform.system()
+        if os_name == 'Darwin':
+            os.environ['QT_QPA_PLATFORM'] = 'cocoa'
+        elif os_name == 'Linux':
+            os.environ['QT_QPA_PLATFORM'] = get_qt_platform_for_linux()
+        elif os_name == 'Windows':
+            os.environ['QT_QPA_PLATFORM'] = 'windows'
+        else:
+            os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+
+
 def main():
 
-    os_name = platform.system()
-    if os_name == 'Darwin':
-        os.environ['QT_QPA_PLATFORM'] = 'cocoa'
-    elif os_name == 'Linux':
-        distro_name = distro.id().lower()
-        if 'ubuntu' in distro_name or 'debian' in distro_name:
-            os.environ['QT_QPA_PLATFORM'] = 'wayland'
-        else:
-            os.environ['QT_QPA_PLATFORM'] = 'xcb'
-    elif os_name == 'Windows':
-        os.environ['QT_QPA_PLATFORM'] = 'windows'
-    else:
-        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-
+    set_qt_qpa_platform_if_not_set()
     app = QApplication(sys.argv)
 
     app.setStyle("Fusion")
