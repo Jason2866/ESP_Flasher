@@ -313,9 +313,8 @@ def ensure_admin():
 def main():
     try:
         if len(sys.argv) <= 1:
-            from esp_flasher import gui
-
             ensure_admin()
+            from esp_flasher import gui
 
             return gui.main() or 0
         return run_esp_flasher(sys.argv) or 0
