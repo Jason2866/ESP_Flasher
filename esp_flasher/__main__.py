@@ -241,10 +241,67 @@ def run_esp_flasher(argv):
     show_logs(stub_chip._port)
 
 
+import os
+import shutil
+def get_venv_python():
+    """
+    Check if its startet in a venv and use the venv to start as admin
+    """
+    venv = os.environ.get("VIRTUAL_ENV")
+    if venv:
+        return os.path.join(venv, "bin", "python3")
+    return sys.executable
+
+def is_admin():
+    """
+    Check for admin rights (nessessary on linux)
+    """
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            return ctypes.windll.shell32.IsUserAdmin() #true when UAC_Admin
+        except:
+            return False
+    else:
+        # For Linux / MacOS
+        return os.geteuid() == 0
+
+def elevate_and_relaunch():
+    """
+    Run with admin rights.
+    """
+    python_exe = get_venv_python()
+    args = [python_exe] + sys.argv
+
+    if sys.platform == 'win32':
+        import ctypes
+        params = " ".join(f'"{arg}"' for arg in args[1:])
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", python_exe, params, None, 1
+        )
+        sys.exit(0)
+
+    elif sys.platform == 'darwin':
+        cmd = f'do shell script "{python_exe}" {" ".join(args[1:])}" with administrator privileges'
+        subprocess.call(['osascript', '-e', cmd])
+
+    else:
+        if shutil.which('pkexec'):
+            launcher = ['pkexec', python_exe] + sys.argv
+        else:
+            launcher = ['sudo', python_exe] + sys.argv
+        os.execvp(launcher[0], launcher)
+
+def ensure_admin():
+    if not is_admin():
+        elevate_and_relaunch()
+
 def main():
     try:
         if len(sys.argv) <= 1:
             from esp_flasher import gui
+
+            ensure_admin()
 
             return gui.main() or 0
         return run_esp_flasher(sys.argv) or 0
