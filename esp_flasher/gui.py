@@ -186,7 +186,7 @@ def get_qt_platform_for_linux():
     if session_type == 'x11' or os.environ.get('DISPLAY'):
         return 'xcb'
     
-    # Fallback to xcb for unknown cases (most compatible)
+    # Fallback to wayland for unknown cases
     return 'wayland'
 
 def set_qt_qpa_platform_if_not_set():
