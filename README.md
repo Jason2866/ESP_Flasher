@@ -23,10 +23,16 @@ The flashing process is done using [esptool](https://github.com/espressif/esptoo
 - The native Python version can be installed from PyPI: **`pip install esp-flasher`**.
   Start the GUI by `esp_flasher`. Alternatively, you can use the command line interface ( type `esp_flasher -h` for info)
 
-In the odd case of your antivirus going haywire over that application, it's a [false positive.](https://github.com/pyinstaller/pyinstaller/issues/3802)
+- Only Linux:
+```bash
+sudo usermod -a -G dialout $(whoami)
+```
+after the command has fired and a relogin the Flasher can access the serial ports and flash away
 
 ## Documentation
 [Tasmota ESP Flasher Wiki](https://deepwiki.com/Jason2866/ESP_Flasher)
+
+In the odd case of your antivirus going haywire over that application, it's a [false positive.](https://github.com/pyinstaller/pyinstaller/issues/3802)
 
 ## Build it yourself
 
