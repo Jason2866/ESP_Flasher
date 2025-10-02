@@ -82,7 +82,7 @@ jobs:
          path: Ubuntu.tar
 
   build-macos:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -116,7 +116,7 @@ jobs:
           path: macOS.tar
 
   build-macos-arm:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
