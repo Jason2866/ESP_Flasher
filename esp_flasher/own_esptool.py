@@ -398,8 +398,33 @@ class ESPLoader(object):
                 instance.sync_stub_detected = True
             return instance
 
+        # First, try to detect chip using get_chip_id (ESP32-C3 and later)
+        # This works even in Secure Download Mode
         try:
             print('Detecting chip type...', end='')
+            chip_id = detect_port.get_chip_id()
+            
+            # Try to match chip_id with IMAGE_CHIP_ID
+            for cls in [ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C2ROM, ESP32H2ROM, 
+                        ESP32S3ROM, ESP32P4ROM, ESP32S2ROM, ESP32ROM]:
+                if hasattr(cls, 'IMAGE_CHIP_ID') and chip_id == cls.IMAGE_CHIP_ID:
+                    inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
+                    inst = check_if_stub(inst)
+                    inst._post_connect()
+                    inst.check_chip_id()
+                    return inst
+            
+            # If chip_id doesn't match any known chip, fall through to magic value detection
+            print(f" Unknown chip ID {chip_id}, trying magic value detection...")
+        except (UnsupportedCommandError, NotImplementedInROMError, FatalError):
+            # get_chip_id not supported (ESP8266, ESP32, ESP32-S2) or failed
+            # Fall back to magic value detection
+            pass
+
+        # Fall back to magic value detection for older chips or if get_chip_id failed
+        try:
+            if inst is None:
+                print('Detecting chip type...', end='')
             chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
 
             for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM, ESP32P4ROM, 
@@ -409,9 +434,11 @@ class ESPLoader(object):
                     inst = check_if_stub(inst)
                     inst._post_connect()
                     inst.check_chip_id()
+                    return inst
         except UnsupportedCommandError:
             raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
                              "autodetection will not work. Need to manually specify the chip.")
+        
         if inst is not None:
             return inst
 
@@ -1339,6 +1366,7 @@ class ESP8266ROM(ESPLoader):
     """
     CHIP_NAME = "ESP8266"
     IS_STUB = False
+    IMAGE_CHIP_ID = -1  # ESP8266 doesn't support get_chip_id, but we set this for consistency
 
     CHIP_DETECT_MAGIC_VALUE = [0xfff0c101]
 
