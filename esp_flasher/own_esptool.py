@@ -2906,6 +2906,8 @@ class ESP32C6ROM(ESP32C3ROM):
             )
 
     def hard_reset(self):
+        # Bug in the USB-Serial/JTAG controller can cause the port to disappear
+        # if watchdog reset happens, use standard reset on ESP32-C6
         print('Hard resetting via RTS pin...')
         self._setRTS(True)  # EN->LOW
         time.sleep(0.1)
@@ -3099,30 +3101,11 @@ class ESP32C5ROM(ESP32C6ROM):
         time.sleep(0.5)  # wait for reset to take effect
 
     def hard_reset(self):
-        try:
-            # Clear force download boot mode to avoid the chip being stuck in download mode after reset
-            # workaround for issue: https://github.com/espressif/arduino-esp32/issues/6762
-            self.write_reg(
-                self.RTC_CNTL_OPTION1_REG, 0, self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK
-            )
-        except Exception:
-            # Skip if response was not valid and proceed to reset; e.g. when monitoring while resetting
-            pass
-        uses_usb_otg = self.uses_usb()
-        if uses_usb_otg or self.uses_usb_jtag_serial():
-            # Check the strapping register to see if we can perform RTC WDT reset
-            strap_reg = self.read_reg(self.GPIO_STRAP_REG)
-            force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
-            if (
-                strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
-                and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
-            ):
-                self.rtc_wdt_reset()
-                return
-
+        # Use standard reset with USB-JTAG-Serial support
+        uses_usb_jtag = self.uses_usb_jtag_serial()
         print('Hard resetting via RTS pin...')
         self._setRTS(True)  # EN->LOW
-        if self.uses_usb():
+        if uses_usb_jtag:
             # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
             time.sleep(0.2)
             self._setRTS(False)
@@ -3349,35 +3332,11 @@ class ESP32P4ROM(ESP32ROM):
         time.sleep(0.5)  # wait for reset to take effect
 
     def hard_reset(self):
-        try:
-            # Clear force download boot mode to avoid the chip being stuck in download mode after reset
-            # workaround for issue: https://github.com/espressif/arduino-esp32/issues/6762
-            self.write_reg(
-                self.RTC_CNTL_OPTION1_REG, 0, self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK
-            )
-        except Exception:
-            # Skip if response was not valid and proceed to reset; e.g. when monitoring while resetting
-            pass
-        uses_usb_otg = self.uses_usb()
-        if uses_usb_otg or self.uses_usb_jtag_serial():
-            # Check the strapping register to see if we can perform RTC WDT reset
-            strap_reg = self.read_reg(self.GPIO_STRAP_REG)
-            force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
-            if (
-                strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
-                and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
-            ):
-                self.rtc_wdt_reset()
-                return
-
-        print('Hard resetting via RTS pin...')
-        self._setRTS(True)  # EN->LOW
         if self.uses_usb():
-            # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
-            time.sleep(0.2)
-            self._setRTS(False)
-            time.sleep(0.2)
+            self.rtc_wdt_reset()
         else:
+            print('Hard resetting via RTS pin...')
+            self._setRTS(True)  # EN->LOW
             time.sleep(0.1)
             self._setRTS(False)
 
