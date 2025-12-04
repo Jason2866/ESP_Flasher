@@ -2275,10 +2275,60 @@ class ESP32S3ROM(ESP32ROM):
     def get_chip_description(self):
         major_rev = self.get_major_chip_version()
         minor_rev = self.get_minor_chip_version()
-        return "%s (revision v%d.%d)" % (self.CHIP_NAME, major_rev, minor_rev)
+        pkg_version = self.get_pkg_version()
+
+        chip_name = {
+            0: "ESP32-S3 (QFN56)",
+            1: "ESP32-S3-PICO-1 (LGA56)",
+        }.get(pkg_version, "Unknown ESP32-S3")
+
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
+
+    def get_flash_cap(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 27) & 0x07
+
+    def get_flash_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 0) & 0x07
+        return {1: "XMC", 2: "GD", 3: "FM", 4: "TT", 5: "BY"}.get(vendor_id, "")
+
+    def get_psram_cap(self):
+        num_word = 4
+        psram_cap = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 3) & 0x03
+        num_word = 5
+        psram_cap_hi_bit = (
+            self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 19
+        ) & 0x01
+        return (psram_cap_hi_bit << 2) | psram_cap
+
+    def get_psram_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 7) & 0x03
+        return {1: "AP_3v3", 2: "AP_1v8"}.get(vendor_id, "")
 
     def get_chip_features(self):
-        return ["WiFi", "BLE"]
+        features = ["Wi-Fi", "BT 5 (LE)", "Dual Core + LP Core", "240MHz"]
+
+        flash = {
+            0: None,
+            1: "Embedded Flash 8MB",
+            2: "Embedded Flash 4MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+        if flash is not None:
+            features += [flash + f" ({self.get_flash_vendor()})"]
+
+        psram = {
+            0: None,
+            1: "Embedded PSRAM 8MB",
+            2: "Embedded PSRAM 2MB",
+            3: "Embedded PSRAM 16MB",
+            4: "Embedded PSRAM 4MB",
+        }.get(self.get_psram_cap(), "Unknown Embedded PSRAM")
+        if psram is not None:
+            features += [psram + f" ({self.get_psram_vendor()})"]
+
+        return features
 
     def get_crystal_freq(self):
         # ESP32S3 XTAL is fixed to 40MHz
@@ -2537,7 +2587,7 @@ class ESP32C3ROM(ESP32ROM):
         return f"{chip_name} (revision v{major_rev}.{minor_rev})"
 
     def get_chip_features(self):
-        features = ["WiFi", "BLE"]
+        features = ["Wi-Fi", "BT 5 (LE)", "Single Core", "160MHz"]
 
         flash = {
             0: None,
@@ -2777,7 +2827,19 @@ class ESP32C6ROM(ESP32C3ROM):
         return f"{chip_name} (revision v{major_rev}.{minor_rev})"
 
     def get_chip_features(self):
-        return ["WiFi 6", "BT 5", "IEEE802.15.4"]
+        flash_version = {
+            1: "Embedded Flash 4MB",
+            2: "Embedded Flash 8MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+
+        return [
+            "Wi-Fi 6",
+            "BT 5 (LE)",
+            "IEEE802.15.4",
+            "Single Core + LP Core",
+            "160MHz",
+            flash_version,
+        ]
 
     def get_crystal_freq(self):
         # ESP32C6 XTAL is fixed to 40MHz
@@ -3370,7 +3432,7 @@ class ESP32H2ROM(ESP32C6ROM):
         return f"{chip_name} (revision v{major_rev}.{minor_rev})"
 
     def get_chip_features(self):
-        return ["BT 5", "IEEE802.15.4"]
+        return ["BT 5 (LE)", "IEEE802.15.4", "Single Core", "96MHz"]
 
     def get_crystal_freq(self):
         # ESP32H2 XTAL is fixed to 32MHz
@@ -3449,7 +3511,17 @@ class ESP32C2ROM(ESP32C3ROM):
         return f"{chip_name} (revision v{major_rev}.{minor_rev})"
 
     def get_chip_features(self):
-        return ["Wi-Fi", "BLE"]
+        features = ["Wi-Fi", "BT 5 (LE)", "Single Core", "120MHz"]
+
+        flash = {
+            0: None,
+            1: "Embedded Flash 4MB",
+            2: "Embedded Flash 2MB",
+            3: "Embedded Flash 1MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+        if flash is not None:
+            features += [flash + f" ({self.get_flash_vendor()})"]
+        return features
 
     def get_minor_chip_version(self):
         num_word = 1
@@ -3458,6 +3530,15 @@ class ESP32C2ROM(ESP32C3ROM):
     def get_major_chip_version(self):
         num_word = 1
         return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 20) & 0x3
+
+    def get_flash_cap(self):
+        num_word = 7
+        return (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 29) & 0x7
+
+    def get_flash_vendor(self):
+        num_word = 7
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK2_ADDR + (4 * num_word)) >> 24) & 0x7
+        return {1: "XMC", 2: "GD", 3: "FM", 4: "TT", 5: "ZBIT"}.get(vendor_id, "")
 
     def get_crystal_freq(self):
         # The crystal detection algorithm of ESP32/ESP8266 works for ESP32-C2 as well.
