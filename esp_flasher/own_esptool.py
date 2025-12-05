@@ -927,6 +927,7 @@ class ESPLoader(object):
             "api_version": None if esp32s2 else res[10],
         }
 
+    @esp32s3_or_newer_function_only
     def get_chip_id(self):
         """Get chip ID using ESP_GET_SECURITY_INFO command.
         Supported by ESP32-C3 and later chips (including ESP32-C5, ESP32-C6, ESP32-C61, etc.)
