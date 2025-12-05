@@ -408,17 +408,28 @@ class ESPLoader(object):
             chip_id = detect_port.get_chip_id()
             
             # Chips that don't support get_chip_id()
-            unsupported_chips = [ESP8266ROM, ESP32ROM, ESP32S2ROM]
+            unsupported_chips = ['esp8266', 'esp32', 'esp32s2']
             
-            # Check all chip classes
-            for cls in [ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM, ESP32C2ROM, ESP32H2ROM, 
-                        ESP32S3ROM, ESP32P4ROM, ESP32S2ROM, ESP32ROM, ESP8266ROM]:
-                if cls not in unsupported_chips and chip_id == cls.IMAGE_CHIP_ID:
-                    inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
-                    inst = check_if_stub(inst)
-                    inst._post_connect()
-                    inst.check_chip_id()
-                    return inst
+            # Create reverse mapping from IMAGE_CHIP_ID to chip name dynamically
+            # Get all chip names from _chip_to_rom_loader, excluding unsupported ones
+            chip_map = {}
+            for name in SUPPORTED_CHIPS:
+                if name not in unsupported_chips:
+                    try:
+                        cls = _chip_to_rom_loader(name)
+                        if hasattr(cls, 'IMAGE_CHIP_ID'):
+                            chip_map[cls.IMAGE_CHIP_ID] = name
+                    except KeyError:
+                        pass
+            
+            chip_name = chip_map.get(chip_id)
+            if chip_name:
+                cls = _chip_to_rom_loader(chip_name)
+                inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
+                inst = check_if_stub(inst)
+                inst._post_connect()
+                inst.check_chip_id()
+                return inst
             
             # If chip_id doesn't match any known chip, fall through to magic value detection
             print(f" Unknown chip ID {chip_id}, trying magic value detection...")
