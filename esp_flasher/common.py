@@ -119,15 +119,38 @@ def read_chip_property(func, *args, **kwargs):
 
 
 def read_chip_info(chip):
+    """
+    Read chip information using MCU-specific methods from own_esptool.py
+    Each chip class (ESP32ROM, ESP32S2ROM, ESP32C3ROM, etc.) implements:
+    - get_chip_description(): Returns chip name with revision (e.g. "ESP32-C61 (revision v0.1)")
+    - get_chip_features(): Returns list of features (e.g. ["Wi-Fi 6", "BT 5 (LE)", "Single Core", "160MHz"])
+    """
     mac = ":".join(f"{x:02X}" for x in read_chip_property(chip.read_mac))
+    
     if isinstance(chip, esptool.ESP32ROM):
+        # Use MCU-specific methods for accurate chip information
         model = read_chip_property(chip.get_chip_description)
         features = read_chip_property(chip.get_chip_features)
-        num_cores = 2 if "Dual Core" in features else 1
-        frequency = next((x for x in ("160MHz", "240MHz") if x in features), "80MHz")
-        has_bluetooth = "BLE" in features or "BT" in features or "BT 5" in features
-        has_embedded_flash = "Embedded Flash" in features
-        has_factory_calibrated_adc = "VRef calibration in efuse" in features
+        
+        # Parse features list to extract chip information
+        # Core count detection: supports "Single Core", "Dual Core", "Dual Core + LP Core", "Single Core + LP Core"
+        if any("Dual Core" in f for f in features):
+            num_cores = 2
+        else:
+            num_cores = 1
+        
+        # Frequency detection: supports 80MHz, 120MHz, 160MHz, 240MHz, 400MHz
+        frequency = next((x for x in ("400MHz", "240MHz", "160MHz", "120MHz", "80MHz") if x in features), "80MHz")
+        
+        # Bluetooth detection: supports "BT", "BLE", "BT 5", "BT 5 (LE)"
+        has_bluetooth = any(bt in str(f) for f in features for bt in ["BLE", "BT"])
+        
+        # Embedded flash detection: checks for "Embedded Flash" in any feature string
+        has_embedded_flash = any("Embedded Flash" in str(f) for f in features)
+        
+        # Factory calibrated ADC: specific to some ESP32 variants
+        has_factory_calibrated_adc = any("VRef calibration in efuse" in str(f) for f in features)
+        
         return ESP32ChipInfo(
             model,
             mac,
@@ -137,10 +160,13 @@ def read_chip_info(chip):
             has_embedded_flash,
             has_factory_calibrated_adc,
         )
+    
     if isinstance(chip, esptool.ESP8266ROM):
+        # Use MCU-specific methods for ESP8266
         model = read_chip_property(chip.get_chip_description)
         chip_id = read_chip_property(chip.chip_id)
         return ESP8266ChipInfo(model, mac, chip_id)
+    
     raise Esp_flasherError(f"Unknown chip type {type(chip)}")
 
 
