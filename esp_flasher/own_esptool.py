@@ -3398,7 +3398,20 @@ class ESP32P4ROM(ESP32ROM):
     def get_chip_full_revision(self):
         return self.get_major_chip_version() * 100 + self.get_minor_chip_version()
 
+    def uses_usb(self, _cache=[]):
+        """Check if USB-OTG or USB-JTAG/Serial is being used"""
+        if self.secure_download_mode:
+            return False  # can't detect native USB in secure download mode
+        if not _cache:
+            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
+            _cache.append(buf_no in [self.UARTDEV_BUF_NO_USB_OTG, self.UARTDEV_BUF_NO_USB_JTAG_SERIAL])
+        return _cache[0]
+
     def _post_connect(self):
+        # Set USB RAM block if USB is being used
+        if self.uses_usb():
+            self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
+        
         # ESP32-P4 revision detection: use ESP32P4RC1ROM stub for revisions < 3.0
         if not self.secure_download_mode:
             revision = self.get_chip_full_revision()
@@ -3887,6 +3900,14 @@ class ESP32P4StubLoader(ESP32P4ROM):
         self._port = rom_loader._port
         self._trace_enabled = rom_loader._trace_enabled
         self.flush_input()  # resets _slip_reader
+        
+        # Cache USB status from ROM loader
+        self._uses_usb = rom_loader.uses_usb()
+        if self._uses_usb:
+            self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
+    
+    def uses_usb(self):
+        return self._uses_usb
 
 
 ESP32P4ROM.STUB_CLASS = ESP32P4StubLoader
@@ -3904,6 +3925,14 @@ class ESP32P4RC1StubLoader(ESP32P4RC1ROM):
         self._port = rom_loader._port
         self._trace_enabled = rom_loader._trace_enabled
         self.flush_input()  # resets _slip_reader
+        
+        # Cache USB status from ROM loader
+        self._uses_usb = rom_loader.uses_usb()
+        if self._uses_usb:
+            self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
+    
+    def uses_usb(self):
+        return self._uses_usb
 
 
 ESP32P4RC1ROM.STUB_CLASS = ESP32P4RC1StubLoader
