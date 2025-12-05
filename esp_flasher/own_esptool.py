@@ -3395,6 +3395,19 @@ class ESP32P4ROM(ESP32ROM):
     def get_chip_features(self):
         return ["Dual Core + LP Core", "400MHz"]
 
+    def get_chip_full_revision(self):
+        return self.get_major_chip_version() * 100 + self.get_minor_chip_version()
+
+    def _post_connect(self):
+        # ESP32-P4 revision detection: use ESP32P4RC1ROM stub for revisions < 3.0
+        if not self.secure_download_mode:
+            revision = self.get_chip_full_revision()
+            if revision < 300:
+                # Use ESP32P4RC1ROM stub code and stub class for revisions below 3.0
+                self.STUB_CODE = ESP32P4RC1ROM.STUB_CODE
+                self.STUB_CLASS = ESP32P4RC1ROM.STUB_CLASS
+                print(f"Detected ESP32-P4 revision {revision // 100}.{revision % 100}, using RC1 stub")
+
     def get_crystal_freq(self):
         # ESP32P4 XTAL is fixed to 40MHz
         return 40
@@ -3479,6 +3492,15 @@ class ESP32P4ROM(ESP32ROM):
             self._setRTS(True)  # EN->LOW
             time.sleep(0.1)
             self._setRTS(False)
+
+
+class ESP32P4RC1ROM(ESP32P4ROM):
+    """ESP32-P4 RC1 ROM class for revisions < 3.0"""
+    
+    def _post_connect(self):
+        # Override parent's _post_connect to prevent switching stub code
+        # This class already uses the correct RC1 stub code
+        pass
 
 
 class ESP32H2ROM(ESP32C6ROM):
@@ -3868,6 +3890,23 @@ class ESP32P4StubLoader(ESP32P4ROM):
 
 
 ESP32P4ROM.STUB_CLASS = ESP32P4StubLoader
+
+
+class ESP32P4RC1StubLoader(ESP32P4RC1ROM):
+    """Access class for ESP32P4 RC1 stub loader, runs on top of ROM."""
+
+    FLASH_WRITE_SIZE = 0x4000  # matches MAX_WRITE_BLOCK in stub_loader.c
+    STATUS_BYTES_LENGTH = 2  # same as ESP8266, different to ESP32 ROM
+    IS_STUB = True
+
+    def __init__(self, rom_loader):
+        self.secure_download_mode = rom_loader.secure_download_mode
+        self._port = rom_loader._port
+        self._trace_enabled = rom_loader._trace_enabled
+        self.flush_input()  # resets _slip_reader
+
+
+ESP32P4RC1ROM.STUB_CLASS = ESP32P4RC1StubLoader
 
 
 class ESP32H2StubLoader(ESP32H2ROM):
