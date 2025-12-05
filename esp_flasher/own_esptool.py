@@ -407,10 +407,13 @@ class ESPLoader(object):
             detecting_printed = True
             chip_id = detect_port.get_chip_id()
             
-            # Try to match chip_id with IMAGE_CHIP_ID
+            # Chips that don't support get_chip_id()
+            unsupported_chips = [ESP8266ROM, ESP32ROM, ESP32S2ROM]
+            
+            # Check all chip classes
             for cls in [ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM, ESP32C2ROM, ESP32H2ROM, 
-                        ESP32S3ROM, ESP32P4ROM, ESP32S2ROM, ESP32ROM]:
-                if hasattr(cls, 'IMAGE_CHIP_ID') and chip_id == cls.IMAGE_CHIP_ID:
+                        ESP32S3ROM, ESP32P4ROM, ESP32S2ROM, ESP32ROM, ESP8266ROM]:
+                if cls not in unsupported_chips and chip_id == cls.IMAGE_CHIP_ID:
                     inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
                     inst = check_if_stub(inst)
                     inst._post_connect()
@@ -424,15 +427,16 @@ class ESPLoader(object):
             # Fall back to magic value detection
             pass
 
-        # Fall back to magic value detection for older chips that don't support get_chip_id()
-        # Only ESP8266, ESP32, and ESP32-S2 need this fallback
+        # Fall back to magic value detection if get_chip_id() failed or is not supported
+        # This is needed for older chips (ESP8266, ESP32, ESP32-S2) and as fallback for newer chips
         try:
             if not detecting_printed:
                 print('Detecting chip type...', end='')
             chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
 
-            # Only check chips that don't reliably support get_chip_id()
-            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
+            # Check all chips via magic value as fallback
+            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM, ESP32P4ROM, 
+                        ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM, ESP32C2ROM, ESP32H2ROM]:
                 if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                     inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
                     inst = check_if_stub(inst)
@@ -912,8 +916,11 @@ class ESPLoader(object):
             "api_version": None if esp32s2 else res[10],
         }
 
-    @esp32s3_or_newer_function_only
     def get_chip_id(self):
+        """Get chip ID using ESP_GET_SECURITY_INFO command.
+        Supported by ESP32-C3 and later chips (including ESP32-C5, ESP32-C6, ESP32-C61, etc.)
+        Will raise UnsupportedCommandError if not supported by the chip.
+        """
         res = self.check_command('get security info', self.ESP_GET_SECURITY_INFO, b'')
         res = struct.unpack("<IBBBBBBBBI", res[:16])  # 4b flags, 1b flash_crypt_cnt, 7*1b key_purposes, 4b chip_id
         chip_id = res[9]  # 2/4 status bytes invariant
