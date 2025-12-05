@@ -401,8 +401,10 @@ class ESPLoader(object):
 
         # First, try to detect chip using get_chip_id (ESP32-C3 and later)
         # This works even in Secure Download Mode
+        detecting_printed = False
         try:
             print('Detecting chip type...', end='')
+            detecting_printed = True
             chip_id = detect_port.get_chip_id()
             
             # Try to match chip_id with IMAGE_CHIP_ID
@@ -422,14 +424,15 @@ class ESPLoader(object):
             # Fall back to magic value detection
             pass
 
-        # Fall back to magic value detection for older chips or if get_chip_id failed
+        # Fall back to magic value detection for older chips that don't support get_chip_id()
+        # Only ESP8266, ESP32, and ESP32-S2 need this fallback
         try:
-            if inst is None:
+            if not detecting_printed:
                 print('Detecting chip type...', end='')
             chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
 
-            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM, ESP32P4ROM, 
-                        ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM, ESP32C2ROM, ESP32H2ROM]:
+            # Only check chips that don't reliably support get_chip_id()
+            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
                 if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                     inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
                     inst = check_if_stub(inst)
