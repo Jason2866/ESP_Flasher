@@ -77,7 +77,6 @@ DEFAULT_CONNECT_ATTEMPTS = 7          # default number of times to try connectio
 WRITE_BLOCK_ATTEMPTS = 3              # number of times to try writing a data block
 
 SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32c2', 'esp32c3', 'esp32c5', 'esp32c6', 'esp32c61', 'esp32h2', 'esp32p4']
-# check esp32s3_or_newer_function_only() when MCU is added
 
 def timeout_per_mb(seconds_per_mb, size_bytes):
     """ Scales timeouts which are size-specific """
@@ -190,7 +189,7 @@ def stub_and_esp32_function_only(func):
 
 def esp32s3_or_newer_function_only(func):
     """ Attribute for a function only supported by ESP32S3 and later chips ROM """
-    return check_supported_function(func, lambda o: isinstance(o, (ESP32S3ROM, ESP32C3ROM, ESP32C5ROM, ESP32C6ROM)))
+    return check_supported_function(func, lambda o: isinstance(o, ESP32S3ROM) or isinstance(o, ESP32C3ROM))
 
 
 PYTHON2 = sys.version_info[0] < 3  # True if on pre-Python 3
@@ -394,17 +393,24 @@ class ESPLoader(object):
                 instance.sync_stub_detected = True
             return instance
 
-        # First, try to detect chip using get_chip_id (ESP32-C3 and later)
-        # This works even in Secure Download Mode
+        # First, check magic value to identify old chips (ESP8266, ESP32, ESP32-S2)
+        print('Detecting chip type...', end='')
         try:
-            print('Detecting chip type...', end='')
+            chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
+            
+            # Check if it's an old chip that doesn't support get_chip_id()
+            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
+                if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
+                    inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
+                    inst = check_if_stub(inst)
+                    inst._post_connect()
+                    return inst
+            
+            # For newer chips, use get_chip_id() for accurate detection
             chip_id = detect_port.get_chip_id()
             
-            # Chips that don't support get_chip_id()
-            no_chip_id = ['esp8266', 'esp32', 'esp32s2']
-            
             # Create reverse mapping from IMAGE_CHIP_ID to chip name dynamically
-            # Get all chip names from _chip_to_rom_loader, excluding unsupported ones
+            no_chip_id = ['esp8266', 'esp32', 'esp32s2']
             chip_map = {}
             for name in SUPPORTED_CHIPS:
                 if name not in no_chip_id:
@@ -423,22 +429,6 @@ class ESPLoader(object):
                 inst._post_connect()
                 inst.check_chip_id()
                 return inst
-
-        except (UnsupportedCommandError, NotImplementedInROMError, FatalError):
-            # get_chip_id not supported (ESP8266, ESP32, ESP32-S2)
-            pass
-
-        # Fall back to magic value detection if get_chip_id() is not supported
-        # This is needed for older chips (ESP8266, ESP32, ESP32-S2)
-        try:
-            chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
-            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
-                if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
-                    inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
-                    inst = check_if_stub(inst)
-                    inst._post_connect()
-                    inst.check_chip_id()
-                    return inst
 
         except UnsupportedCommandError:
             raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
@@ -913,12 +903,11 @@ class ESPLoader(object):
             "api_version": None if esp32s2 else res[10],
         }
 
-    # update esp32s3_or_newer_function_only() when new MCUs are added
-    @esp32s3_or_newer_function_only
     def get_chip_id(self):
         """Get chip ID using ESP_GET_SECURITY_INFO command.
         Supported by ESP32-C3 and later chips (including ESP32-C5, ESP32-C6, ESP32-C61, etc.)
-        Will raise UnsupportedCommandError if not supported by the chip.
+        NOTE: This function should only be called after verifying the chip is NOT ESP8266/ESP32/ESP32-S2
+        to avoid breaking the stub loader.
         """
         res = self.check_command('get security info', self.ESP_GET_SECURITY_INFO, b'')
         res = struct.unpack("<IBBBBBBBBI", res[:16])  # 4b flags, 1b flash_crypt_cnt, 7*1b key_purposes, 4b chip_id
@@ -1367,7 +1356,8 @@ class ESPLoader(object):
                       .format(chip_id, self.UNSUPPORTED_CHIPS.get(chip_id, 'Unknown'), self.IMAGE_CHIP_ID))
                 # Try to flash anyways by disabling stub
                 self.stub_is_disabled = True
-        except NotImplementedInROMError:
+        except (NotImplementedInROMError, UnsupportedCommandError):
+            # get_chip_id() not supported by this chip (ESP8266, ESP32, ESP32-S2)
             pass
 
 
