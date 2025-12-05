@@ -290,9 +290,8 @@ def configure_write_flash_args(
             ofs_bootloader = 0x0
             flash_freq = "80m"  # For Tasmota we use only fastest
         elif "ESP32-P4" in info.model:
-            model = "esp32p4"
             ofs_bootloader = 0x2000
-            # Check chip revision for P4 (rev 3.0 and above use different safeboot)
+            # Check chip revision for P4 (rev 3.0 and above use different bootloader and safeboot)
             # Model format: "ESP32-P4 (revision vX.Y)"
             revision_match = re.search(r'revision v(\d+)\.(\d+)', info.model)
             if revision_match:
@@ -300,11 +299,14 @@ def configure_write_flash_args(
                 minor_rev = int(revision_match.group(2))
                 revision = major_rev * 100 + minor_rev
                 if revision >= 300:  # Revision 3.0 or higher
+                    model = "esp32p4rev3"
                     safeboot = "tasmota32p4rev3-safeboot.bin"
-                else:  # Revision below 3.0
+                else:  # Revision below 3.0 (RC1)
+                    model = "esp32p4"
                     safeboot = "tasmota32p4-safeboot.bin"
             else:
-                # Fallback if revision cannot be parsed
+                # Fallback if revision cannot be parsed (assume RC1)
+                model = "esp32p4"
                 safeboot = "tasmota32p4-safeboot.bin"
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
