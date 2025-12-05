@@ -288,12 +288,13 @@ def configure_write_flash_args(
             safeboot = "tasmota32c61-safeboot.bin"
             ofs_bootloader = 0x0
             flash_freq = "80m"  # For Tasmota we use only fastest
-        elif "ESP32-P4RC1" in info.model:
-            model = "esp32p4rc1"
+        elif "ESP32-P4" in info.model:
+            model = "esp32p4"
             safeboot = "tasmota32p4-safeboot.bin"
             ofs_bootloader = 0x2000
         elif "ESP32-P4" in info.model:
             model = "esp32p4"
+            # todo chip revision check for rev3
             safeboot = "tasmota32p4rev3-safeboot.bin"
             ofs_bootloader = 0x2000
         elif "ESP32-S3" in info.model:
@@ -373,8 +374,8 @@ def configure_write_flash_args(
                            min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output)
 
 
-def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=False, force_esp32s3=False, force_esp32c2=False, force_esp32c3=False, force_esp32c5=False, force_esp32c6=False, force_esp32c61=False, force_esp32p4rc1=False, force_esp32p4=False):
-    if force_esp8266 or force_esp32 or force_esp32s2 or force_esp32s3 or force_esp32c2 or force_esp32c3 or force_esp32c5 or force_esp32c6 or force_esp32c61 or force_esp32p4rc1 or force_esp32p4:
+def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=False, force_esp32s3=False, force_esp32c2=False, force_esp32c3=False, force_esp32c5=False, force_esp32c6=False, force_esp32c61=False, force_esp32p4=False):
+    if force_esp8266 or force_esp32 or force_esp32s2 or force_esp32s3 or force_esp32c2 or force_esp32c3 or force_esp32c5 or force_esp32c6 or force_esp32c61 or force_esp32p4:
         if force_esp8266:
             klass = esptool.ESP8266ROM
         elif force_esp32:
@@ -393,8 +394,6 @@ def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=Fals
             klass = esptool.ESP32C6ROM
         elif force_esp32c61:
             klass = esptool.ESP32C61ROM
-        elif force_esp32p4rc1:
-            klass = esptool.ESP32P4RC1ROM
         elif force_esp32p4:
             klass = esptool.ESP32P4ROM
         chip = klass(port)
