@@ -401,10 +401,8 @@ class ESPLoader(object):
 
         # First, try to detect chip using get_chip_id (ESP32-C3 and later)
         # This works even in Secure Download Mode
-        detecting_printed = False
         try:
             print('Detecting chip type...', end='')
-            detecting_printed = True
             chip_id = detect_port.get_chip_id()
             
             # Chips that don't support get_chip_id()
@@ -430,30 +428,23 @@ class ESPLoader(object):
                 inst._post_connect()
                 inst.check_chip_id()
                 return inst
-            
-            # If chip_id doesn't match any known chip, fall through to magic value detection
-            print(f" Unknown chip ID {chip_id}, trying magic value detection...")
+
         except (UnsupportedCommandError, NotImplementedInROMError, FatalError):
-            # get_chip_id not supported (ESP8266, ESP32, ESP32-S2) or failed
-            # Fall back to magic value detection
+            # get_chip_id not supported (ESP8266, ESP32, ESP32-S2)
             pass
 
-        # Fall back to magic value detection if get_chip_id() failed or is not supported
-        # This is needed for older chips (ESP8266, ESP32, ESP32-S2) and as fallback for newer chips
+        # Fall back to magic value detection if get_chip_id() is not supported
+        # This is needed for older chips (ESP8266, ESP32, ESP32-S2)
         try:
-            if not detecting_printed:
-                print('Detecting chip type...', end='')
             chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
-
-            # Check all chips via magic value as fallback
-            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM, ESP32P4ROM, 
-                        ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM, ESP32C2ROM, ESP32H2ROM]:
+            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
                 if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                     inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
                     inst = check_if_stub(inst)
                     inst._post_connect()
                     inst.check_chip_id()
                     return inst
+
         except UnsupportedCommandError:
             raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
                              "autodetection will not work. Need to manually specify the chip.")
