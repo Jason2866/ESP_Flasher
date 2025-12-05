@@ -979,7 +979,7 @@ class ESPLoader(object):
         print("Compressed %d bytes to %d..." % (size, compsize))
         params = struct.pack('<IIII', write_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
         if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM,ESP32C5ROM,
-                             ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4RC1ROM,ESP32P4ROM)) and not self.IS_STUB:
+                             ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4RC1ROM, ESP32P4ROM)) and not self.IS_STUB:
             params += struct.pack('<I', 0)  # extra param is to enter encrypted flash mode via ROM (not supported currently)
         self.check_command("enter compressed flash mode", self.ESP_FLASH_DEFL_BEGIN, params, timeout=timeout)
         if size != 0 and not self.IS_STUB:
