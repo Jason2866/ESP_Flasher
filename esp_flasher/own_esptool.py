@@ -397,7 +397,7 @@ class ESPLoader(object):
         print('Detecting chip type...', end='')
         try:
             chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
-            
+
             # Check if it's an old chip that doesn't support get_chip_id()
             for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
                 if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
@@ -405,10 +405,10 @@ class ESPLoader(object):
                     inst = check_if_stub(inst)
                     inst._post_connect()
                     return inst
-            
+
             # For newer chips, use get_chip_id() for accurate detection
             chip_id = detect_port.get_chip_id()
-            
+
             # Create reverse mapping from IMAGE_CHIP_ID to chip name dynamically
             no_chip_id = ['esp8266', 'esp32', 'esp32s2']
             chip_map = {}
@@ -420,7 +420,7 @@ class ESPLoader(object):
                             chip_map[cls.IMAGE_CHIP_ID] = name
                     except KeyError:
                         pass
-            
+
             chip_name = chip_map.get(chip_id)
             if chip_name:
                 cls = _chip_to_rom_loader(chip_name)
@@ -433,7 +433,7 @@ class ESPLoader(object):
         except UnsupportedCommandError:
             raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
                              "autodetection will not work. Need to manually specify the chip.")
-        
+
         if inst is not None:
             return inst
 
