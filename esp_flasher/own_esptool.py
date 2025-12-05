@@ -58,7 +58,7 @@ except Exception:
         raise
 
 
-__version__ = "3.5.0"
+__version__ = "3.6.0"
 
 MAX_UINT32 = 0xffffffff
 MAX_UINT24 = 0xffffff
@@ -77,7 +77,7 @@ DEFAULT_CONNECT_ATTEMPTS = 7          # default number of times to try connectio
 WRITE_BLOCK_ATTEMPTS = 3              # number of times to try writing a data block
 
 SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32c2', 'esp32c3', 'esp32c5', 'esp32c6', 'esp32c61', 'esp32h2', 'esp32p4']
-
+# check esp32s3_or_newer_function_only() when MCU is added
 
 def timeout_per_mb(seconds_per_mb, size_bytes):
     """ Scales timeouts which are size-specific """
@@ -190,19 +190,14 @@ def stub_and_esp32_function_only(func):
 
 def esp32s3_or_newer_function_only(func):
     """ Attribute for a function only supported by ESP32S3 and later chips ROM """
-    return check_supported_function(func, lambda o: isinstance(o, ESP32S3ROM) or isinstance(o, ESP32C3ROM))
+    return check_supported_function(func, lambda o: isinstance(o, (ESP32S3ROM, ESP32C3ROM, ESP32C5ROM, ESP32C6ROM)))
 
 
 PYTHON2 = sys.version_info[0] < 3  # True if on pre-Python 3
 
-# Function to return nth byte of a bitstring
-# Different behaviour on Python 2 vs 3
-if PYTHON2:
-    def byte(bitstr, index):
-        return ord(bitstr[index])
-else:
-    def byte(bitstr, index):
-        return bitstr[index]
+
+def byte(bitstr, index):
+    return bitstr[index]
 
 # Provide a 'basestring' class on Python 3
 try:
@@ -406,13 +401,13 @@ class ESPLoader(object):
             chip_id = detect_port.get_chip_id()
             
             # Chips that don't support get_chip_id()
-            unsupported_chips = ['esp8266', 'esp32', 'esp32s2']
+            no_chip_id = ['esp8266', 'esp32', 'esp32s2']
             
             # Create reverse mapping from IMAGE_CHIP_ID to chip name dynamically
             # Get all chip names from _chip_to_rom_loader, excluding unsupported ones
             chip_map = {}
             for name in SUPPORTED_CHIPS:
-                if name not in unsupported_chips:
+                if name not in no_chip_id:
                     try:
                         cls = _chip_to_rom_loader(name)
                         if hasattr(cls, 'IMAGE_CHIP_ID'):
@@ -918,6 +913,7 @@ class ESPLoader(object):
             "api_version": None if esp32s2 else res[10],
         }
 
+    # update esp32s3_or_newer_function_only() when new MCUs are added
     @esp32s3_or_newer_function_only
     def get_chip_id(self):
         """Get chip ID using ESP_GET_SECURITY_INFO command.
@@ -1380,7 +1376,7 @@ class ESP8266ROM(ESPLoader):
     """
     CHIP_NAME = "ESP8266"
     IS_STUB = False
-    IMAGE_CHIP_ID = -1  # ESP8266 doesn't support get_chip_id, but we set this for consistency
+    IMAGE_CHIP_ID = 0
 
     CHIP_DETECT_MAGIC_VALUE = [0xfff0c101]
 
