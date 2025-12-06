@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import struct
 from os.path import join
 from io import BytesIO
@@ -119,15 +120,38 @@ def read_chip_property(func, *args, **kwargs):
 
 
 def read_chip_info(chip):
+    """
+    Read chip information using MCU-specific methods from own_esptool.py
+    Each chip class (ESP32ROM, ESP32S2ROM, ESP32C3ROM, etc.) implements:
+    - get_chip_description(): Returns chip name with revision (e.g. "ESP32-C61 (revision v0.1)")
+    - get_chip_features(): Returns list of features (e.g. ["Wi-Fi 6", "BT 5 (LE)", "Single Core", "160MHz"])
+    """
     mac = ":".join(f"{x:02X}" for x in read_chip_property(chip.read_mac))
+    
     if isinstance(chip, esptool.ESP32ROM):
+        # Use MCU-specific methods for accurate chip information
         model = read_chip_property(chip.get_chip_description)
         features = read_chip_property(chip.get_chip_features)
-        num_cores = 2 if "Dual Core" in features else 1
-        frequency = next((x for x in ("160MHz", "240MHz") if x in features), "80MHz")
-        has_bluetooth = "BLE" in features or "BT" in features or "BT 5" in features
-        has_embedded_flash = "Embedded Flash" in features
-        has_factory_calibrated_adc = "VRef calibration in efuse" in features
+        
+        # Parse features list to extract chip information
+        # Core count detection: supports "Single Core", "Dual Core", "Dual Core + LP Core", "Single Core + LP Core"
+        if any("Dual Core" in f for f in features):
+            num_cores = 2
+        else:
+            num_cores = 1
+        
+        # Frequency detection: supports 80MHz, 120MHz, 160MHz, 240MHz, 400MHz
+        frequency = next((x for x in ("400MHz", "240MHz", "160MHz", "120MHz", "80MHz") if x in features), "80MHz")
+        
+        # Bluetooth detection: supports "BT", "BLE", "BT 5", "BT 5 (LE)"
+        has_bluetooth = any(bt in str(f) for f in features for bt in ["BLE", "BT"])
+        
+        # Embedded flash detection: checks for "Embedded Flash" in any feature string
+        has_embedded_flash = any("Embedded Flash" in str(f) for f in features)
+        
+        # Factory calibrated ADC: specific to some ESP32 variants
+        has_factory_calibrated_adc = any("VRef calibration in efuse" in str(f) for f in features)
+        
         return ESP32ChipInfo(
             model,
             mac,
@@ -137,10 +161,13 @@ def read_chip_info(chip):
             has_embedded_flash,
             has_factory_calibrated_adc,
         )
+    
     if isinstance(chip, esptool.ESP8266ROM):
+        # Use MCU-specific methods for ESP8266
         model = read_chip_property(chip.get_chip_description)
         chip_id = read_chip_property(chip.chip_id)
         return ESP8266ChipInfo(model, mac, chip_id)
+    
     raise Esp_flasherError(f"Unknown chip type {type(chip)}")
 
 
@@ -257,10 +284,30 @@ def configure_write_flash_args(
             safeboot = "tasmota32c6-safeboot.bin"
             ofs_bootloader = 0x0
             flash_freq = "80m"  # For Tasmota we use only fastest
+        elif "ESP32-C61" in info.model:
+            model = "esp32c61"
+            safeboot = "tasmota32c61-safeboot.bin"
+            ofs_bootloader = 0x0
+            flash_freq = "80m"  # For Tasmota we use only fastest
         elif "ESP32-P4" in info.model:
-            model = "esp32p4"
-            safeboot = "tasmota32p4-safeboot.bin"
             ofs_bootloader = 0x2000
+            # Check chip revision for P4 (rev 3.0 and above use different bootloader and safeboot)
+            # Model format: "ESP32-P4 (revision vX.Y)"
+            revision_match = re.search(r'revision v(\d+)\.(\d+)', info.model)
+            if revision_match:
+                major_rev = int(revision_match.group(1))
+                minor_rev = int(revision_match.group(2))
+                revision = major_rev * 100 + minor_rev
+                if revision >= 300:  # Revision 3.0 or higher
+                    model = "esp32p4rev3"
+                    safeboot = "tasmota32p4rev3-safeboot.bin"
+                else:  # Revision below 3.0 (RC1)
+                    model = "esp32p4"
+                    safeboot = "tasmota32p4-safeboot.bin"
+            else:
+                # Fallback if revision cannot be parsed (assume RC1)
+                model = "esp32p4"
+                safeboot = "tasmota32p4-safeboot.bin"
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
             safeboot = "tasmota32s3-safeboot.bin"
@@ -338,8 +385,8 @@ def configure_write_flash_args(
                            min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output)
 
 
-def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=False, force_esp32s3=False, force_esp32c2=False, force_esp32c3=False, force_esp32c5=False, force_esp32c6=False, force_esp32p4=False):
-    if force_esp8266 or force_esp32 or force_esp32s2 or force_esp32s3 or force_esp32c2 or force_esp32c3 or force_esp32c5 or force_esp32c6 or force_esp32p4:
+def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=False, force_esp32s3=False, force_esp32c2=False, force_esp32c3=False, force_esp32c5=False, force_esp32c6=False, force_esp32c61=False, force_esp32p4=False):
+    if force_esp8266 or force_esp32 or force_esp32s2 or force_esp32s3 or force_esp32c2 or force_esp32c3 or force_esp32c5 or force_esp32c6 or force_esp32c61 or force_esp32p4:
         if force_esp8266:
             klass = esptool.ESP8266ROM
         elif force_esp32:
@@ -356,6 +403,8 @@ def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=Fals
             klass = esptool.ESP32C5ROM
         elif force_esp32c6:
             klass = esptool.ESP32C6ROM
+        elif force_esp32c61:
+            klass = esptool.ESP32C61ROM
         elif force_esp32p4:
             klass = esptool.ESP32P4ROM
         chip = klass(port)
