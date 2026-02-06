@@ -707,28 +707,29 @@ class ESPLoader(object):
                              'https://docs.espressif.com/projects/esptool/en/latest/troubleshooting.html'.format(self.CHIP_NAME, last_error))
 
         if not detecting:
-            try:
-                # check the date code registers match what we expect to see
-                chip_magic_value = self.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
-                if chip_magic_value not in self.CHIP_DETECT_MAGIC_VALUE:
-                    actually = None
-                    for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM, ESP32S3ROM, ESP32P4ROM,
-                                ESP32C3ROM, ESP32H2ROM, ESP32C2ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM]:
-                        if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
-                            actually = cls
-                            break
-                    # If we couldn't match the magic value to a known class, either warn or raise
-                    if actually is None:
-                        if warnings:
-                            print(("WARNING: This chip doesn't appear to be a %s (chip magic value 0x%08x). "
-                                   "Probably it is unsupported by this version of esptool.") % (self.CHIP_NAME, chip_magic_value))
+            # Only check magic value for old chips (ESP8266, ESP32, ESP32-S2)
+            # Newer chips use get_chip_id() for identification
+            if isinstance(self, (ESP8266ROM, ESP32ROM, ESP32S2ROM)):
+                try:
+                    chip_magic_value = self.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
+                    if chip_magic_value not in self.CHIP_DETECT_MAGIC_VALUE:
+                        actually = None
+                        for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
+                            if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
+                                actually = cls
+                                break
+                        # If we couldn't match the magic value to a known class, either warn or raise
+                        if actually is None:
+                            if warnings:
+                                print(("WARNING: This chip doesn't appear to be a %s (chip magic value 0x%08x). "
+                                       "Probably it is unsupported by this version of esptool.") % (self.CHIP_NAME, chip_magic_value))
+                            else:
+                                raise FatalError("Unexpected CHIP magic value 0x%08x. Failed to autodetect chip type." % (chip_magic_value))
                         else:
-                            raise FatalError("Unexpected CHIP magic value 0x%08x. Failed to autodetect chip type." % (chip_magic_value))
-                    else:
-                        # Found a different supported chip class
-                        raise FatalError("This chip is %s not %s. Wrong --chip argument?" % (actually.CHIP_NAME, self.CHIP_NAME))
-            except UnsupportedCommandError:
-                self.secure_download_mode = True
+                            # Found a different supported chip class
+                            raise FatalError("This chip is %s not %s. Wrong --chip argument?" % (actually.CHIP_NAME, self.CHIP_NAME))
+                except UnsupportedCommandError:
+                    self.secure_download_mode = True
             self._post_connect()
             self.check_chip_id()
 
@@ -2132,8 +2133,6 @@ class ESP32S3ROM(ESP32ROM):
 
     IMAGE_CHIP_ID = 9
 
-    CHIP_DETECT_MAGIC_VALUE = [0x9]
-
     FPGA_SLOW_BOOT = False
 
     IROM_MAP_START = 0x42000000
@@ -2468,9 +2467,6 @@ class ESP32C3ROM(ESP32ROM):
 
     BOOTLOADER_FLASH_OFFSET = 0x0
 
-    # Magic values for ESP32-C3 eco 1+2, eco 3, eco 6, and eco 7 respectively
-    CHIP_DETECT_MAGIC_VALUE = [0x6921506F, 0x1B31506F, 0x4881606F, 0x4361606F]
-
     UART_DATE_REG_ADDR = 0x60000000 + 0x7C
 
     UART_CLKDIV_REG = 0x60000014
@@ -2727,9 +2723,6 @@ class ESP32C6ROM(ESP32C3ROM):
 
     BOOTLOADER_FLASH_OFFSET = 0x0
 
-    # Magic value for ESP32C6
-    CHIP_DETECT_MAGIC_VALUE = [0x2CE0806F]
-
     SPI_REG_BASE = 0x60003000
     SPI_USR_OFFS = 0x18
     SPI_USR1_OFFS = 0x1C
@@ -2939,9 +2932,6 @@ class ESP32C61ROM(ESP32C6ROM):
     CHIP_NAME = "ESP32-C61"
     IMAGE_CHIP_ID = 20
 
-    # ESP32-C61 uses get_chip_id() for detection, not magic value
-    CHIP_DETECT_MAGIC_VALUE = []
-
     UART_DATE_REG_ADDR = 0x60000000 + 0x7C
 
     EFUSE_BASE = 0x600B4800
@@ -3066,8 +3056,6 @@ class ESP32C5ROM(ESP32C6ROM):
     IMAGE_CHIP_ID = 23
 
     BOOTLOADER_FLASH_OFFSET = 0x2000
-
-    CHIP_DETECT_MAGIC_VALUE = [0x5C501458, 0x5FD1406F, 0x1101406f, 0x63e1406f]
 
     EFUSE_BASE = 0x600B4800
     EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x044
@@ -3605,9 +3593,6 @@ class ESP32H2ROM(ESP32C6ROM):
     CHIP_NAME = "ESP32-H2"
     IMAGE_CHIP_ID = 16
 
-    # Magic value for ESP32H2
-    CHIP_DETECT_MAGIC_VALUE = [0xD7B73E80]
-
     DR_REG_LP_WDT_BASE = 0x600B1C00
     RTC_CNTL_WDTCONFIG0_REG = DR_REG_LP_WDT_BASE + 0x0  # LP_WDT_RWDT_CONFIG0_REG
     RTC_CNTL_WDTWPROTECT_REG = DR_REG_LP_WDT_BASE + 0x001C  # LP_WDT_RWDT_WPROTECT_REG
@@ -3667,9 +3652,6 @@ class ESP32C2ROM(ESP32C3ROM):
     IROM_MAP_END = 0x42400000
     DROM_MAP_START = 0x3C000000
     DROM_MAP_END = 0x3C400000
-
-    # Magic value for ESP32C2 ECO0 , ECO1 and ECO4 respectively
-    CHIP_DETECT_MAGIC_VALUE = [0x6F51306F, 0x7C41A06F, 0x0C21E06F]
 
     EFUSE_BASE = 0x60008800
     EFUSE_BLOCK2_ADDR = EFUSE_BASE + 0x040
