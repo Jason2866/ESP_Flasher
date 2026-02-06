@@ -485,7 +485,15 @@ class ESPLoader(object):
         return state
 
     """ Send a request and read the response """
-    def command(self, op=None, data=b"", chk=0, wait_response=True, timeout=DEFAULT_TIMEOUT):
+    def command(
+        self,
+        op=None,
+        data=b"",
+        chk=0,
+        wait_response=True,
+        timeout=DEFAULT_TIMEOUT,
+    ):
+        """Send a request and read the response"""
         saved_timeout = self._port.timeout
         new_timeout = min(timeout, MAX_TIMEOUT)
         if new_timeout != saved_timeout:
@@ -495,7 +503,7 @@ class ESPLoader(object):
             if op is not None:
                 self.trace("command op=0x%02x data len=%s wait_response=%d timeout=%.3f data=%s",
                            op, len(data), 1 if wait_response else 0, timeout, HexFormatter(data))
-                pkt = struct.pack(b'<BBHI', 0x00, op, len(data), chk) + data
+                pkt = struct.pack(b"<BBHI", 0x00, op, len(data), chk) + data
                 self.write(pkt)
 
             if not wait_response:
@@ -509,7 +517,7 @@ class ESPLoader(object):
                 p = self.read()
                 if len(p) < 8:
                     continue
-                (resp, op_ret, len_ret, val) = struct.unpack('<BBHI', p[:8])
+                (resp, op_ret, len_ret, val) = struct.unpack("<BBHI", p[:8])
                 if resp != 1:
                     continue
                 data = p[8:]
@@ -517,14 +525,42 @@ class ESPLoader(object):
                 if op is None or op_ret == op:
                     return val, data
                 if byte(data, 0) != 0 and byte(data, 1) == self.ROM_INVALID_RECV_MSG:
-                    self.flush_input()  # Unsupported read_reg can result in more than one error response for some reason
+
+                    def drain_input_buffer(buffering_time=0.2):
+                        """
+                        Actively drain the input buffer by reading data
+                        for a specified time. Simple approach for some
+                        drivers that have issues with the buffer flushing.
+
+                        Args:
+                            buffering_time: Time in seconds to wait for
+                            the buffer to fill.
+                        """
+                        time.sleep(buffering_time)
+                        original_timeout = self._port.timeout
+                        # Set a very short timeout for draining
+                        self._port.timeout = 0.001
+
+                        # Unsupported command response is sent 8 times and has
+                        # 14 bytes length including delimiter 0xC0 bytes.
+                        # At least part of it is read as a command response,
+                        # but to be safe, read it all.
+                        self._port.read(14 * 8)
+
+                        # Restore original timeout
+                        self._port.timeout = original_timeout
+                        self.flush_input()
+
+                    # Unsupported command can result in
+                    # more than one error response for some reason
+                    drain_input_buffer(0.2)
                     raise UnsupportedCommandError(self, op)
 
         finally:
             if new_timeout != saved_timeout:
                 self._port.timeout = saved_timeout
 
-        raise FatalError("Response doesn't match request")
+        raise FatalError("Response doesn't match request.")
 
     def check_command(self, op_description, op=None, data=b'', chk=0, timeout=DEFAULT_TIMEOUT):
         """
