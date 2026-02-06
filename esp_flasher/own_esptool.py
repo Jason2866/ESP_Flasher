@@ -421,8 +421,9 @@ class ESPLoader(object):
                 inst.check_chip_id()
                 return inst
 
-        except UnsupportedCommandError:
-            # get_chip_id() not supported - this is an old chip (ESP8266, ESP32, ESP32-S2)
+        except (UnsupportedCommandError, struct.error, FatalError):
+            # get_chip_id() not supported or returned invalid data
+            # This is an old chip (ESP8266, ESP32, ESP32-S2) or chip with different security info format
             # Fall back to magic value detection
             detect_port.flush_input()  # Clean buffer after failed command
             
@@ -3962,6 +3963,14 @@ class ESP32P4StubLoader(ESP32P4ROM):
     
     def uses_usb(self):
         return self._uses_usb
+    
+    def change_baud(self, baud):
+        # ESP32-P4 ROM/Stub over USB does not support baud rate changes
+        # USB-JTAG/Serial and USB-OTG use virtual baud rates
+        if not self._uses_usb:
+            ESP32ROM.change_baud(self, baud)
+        else:
+            print(f"Baud rate change not required for USB connection")
 
 
 ESP32P4ROM.STUB_CLASS = ESP32P4StubLoader
@@ -3987,6 +3996,14 @@ class ESP32P4RC1StubLoader(ESP32P4RC1ROM):
     
     def uses_usb(self):
         return self._uses_usb
+    
+    def change_baud(self, baud):
+        # ESP32-P4 ROM/Stub over USB does not support baud rate changes
+        # USB-JTAG/Serial and USB-OTG use virtual baud rates
+        if not self._uses_usb:
+            ESP32ROM.change_baud(self, baud)
+        else:
+            print(f"Baud rate change not required for USB connection")
 
 
 ESP32P4RC1ROM.STUB_CLASS = ESP32P4RC1StubLoader
