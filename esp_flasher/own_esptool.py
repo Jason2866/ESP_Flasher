@@ -5036,45 +5036,93 @@ def slip_reader(port, trace_function):
     Designed to avoid too many calls to serial.read(1), which can bog
     down on slow systems.
     """
+
+    def detect_panic_handler(input):
+        """
+        Checks the input bytes for panic handler messages.
+        Raises a FatalError if Guru Meditation or Fatal Exception is found, as both
+        of these are used between different ROM versions.
+        Tries to also parse the error cause (e.g. IllegalInstruction).
+        """
+
+        guru_meditation = (
+            rb"G?uru Meditation Error: (?:Core \d panic'ed \(([a-zA-Z ]*)\))?"
+        )
+        fatal_exception = rb"F?atal exception \(\d+\): (?:([a-zA-Z ]*)?.*epc)?"
+
+        # Search either for Guru Meditation or Fatal Exception
+        data = re.search(
+            rb"".join([rb"(?:", guru_meditation, rb"|", fatal_exception, rb")"]),
+            input,
+            re.DOTALL,
+        )
+        if data is not None:
+            cause = [
+                "({})".format(i.decode("utf-8"))
+                for i in [data.group(1), data.group(2)]
+                if i is not None
+            ]
+            cause = f" {cause[0]}" if len(cause) else ""
+            msg = f"Guru Meditation Error detected{cause}."
+            raise FatalError(msg)
+
     partial_packet = None
     in_escape = False
     successful_slip = False
     while True:
         waiting = port.inWaiting()
         read_bytes = port.read(1 if waiting == 0 else waiting)
-        if read_bytes == b'':
+        if read_bytes == b"":
             if partial_packet is None:  # fail due to no data
-                msg = "Serial data stream stopped: Possible serial noise or corruption." if successful_slip else "No serial data received."
+                msg = (
+                    "Serial data stream stopped: Possible serial noise or corruption."
+                    if successful_slip
+                    else "No serial data received."
+                )
             else:  # fail during packet transfer
-                msg = "Packet content transfer stopped (received {} bytes)".format(len(partial_packet))
+                msg = "Packet content transfer stopped "
+                f"(received {len(partial_packet)} bytes)."
             trace_function(msg)
             raise FatalError(msg)
-        trace_function("Read %d bytes: %s", len(read_bytes), HexFormatter(read_bytes))
+        trace_function(
+            f"{f'Read {len(read_bytes)} bytes:':<21} {HexFormatter(read_bytes)}"
+        )
         for b in read_bytes:
-            if type(b) is int:
-                b = bytes([b])  # python 2/3 compat
-
+            b = bytes([b])
             if partial_packet is None:  # waiting for packet header
-                if b == b'\xc0':
+                if b == b"\xc0":
                     partial_packet = b""
                 else:
-                    trace_function("Read invalid data: %s", HexFormatter(read_bytes))
-                    trace_function("Remaining data in serial buffer: %s", HexFormatter(port.read(port.inWaiting())))
-                    raise FatalError('Invalid head of packet (0x%s): Possible serial noise or corruption.' % hexify(b))
+                    trace_function(f"Read invalid data: {HexFormatter(read_bytes)}")
+                    remaining_data = port.read(port.inWaiting())
+                    trace_function(
+                        "Remaining data in serial buffer: "
+                        f"{HexFormatter(remaining_data)}",
+                    )
+                    detect_panic_handler(read_bytes + remaining_data)
+                    raise FatalError(
+                        f"Invalid head of packet (0x{hexify(b)}): "
+                        "Possible serial noise or corruption."
+                    )
             elif in_escape:  # part-way through escape sequence
                 in_escape = False
-                if b == b'\xdc':
-                    partial_packet += b'\xc0'
-                elif b == b'\xdd':
-                    partial_packet += b'\xdb'
+                if b == b"\xdc":
+                    partial_packet += b"\xc0"
+                elif b == b"\xdd":
+                    partial_packet += b"\xdb"
                 else:
-                    trace_function("Read invalid data: %s", HexFormatter(read_bytes))
-                    trace_function("Remaining data in serial buffer: %s", HexFormatter(port.read(port.inWaiting())))
-                    raise FatalError('Invalid SLIP escape (0xdb, 0x%s)' % (hexify(b)))
-            elif b == b'\xdb':  # start of escape sequence
+                    trace_function(f"Read invalid data: {HexFormatter(read_bytes)}")
+                    remaining_data = port.read(port.inWaiting())
+                    trace_function(
+                        "Remaining data in serial buffer: "
+                        f"{HexFormatter(remaining_data)}"
+                    )
+                    detect_panic_handler(read_bytes + remaining_data)
+                    raise FatalError(f"Invalid SLIP escape (0xdb, 0x{hexify(b)}).")
+            elif b == b"\xdb":  # start of escape sequence
                 in_escape = True
-            elif b == b'\xc0':  # end of packet
-                trace_function("Received full packet: %s", HexFormatter(partial_packet))
+            elif b == b"\xc0":  # end of packet
+                trace_function(f"Received full packet: {HexFormatter(partial_packet)}")
                 yield partial_packet
                 partial_packet = None
                 successful_slip = True
