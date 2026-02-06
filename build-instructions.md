@@ -11,3 +11,9 @@
 5. Check with `python -m esp_flasher.__main__`
 6. `python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py`
 7. Go to `dist` folder, check ESP-Flasher.exe works.
+
+# MacOS:
+
+1. Open VSC
+2. generate venv with VSC '(check all requirements)
+3. `/<path>/ESP_Flasher/.venv/bin/pyinstaller -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py`

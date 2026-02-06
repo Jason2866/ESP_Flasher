@@ -441,7 +441,10 @@ class ESPLoader(object):
 
     """ Read a SLIP packet from the serial port """
     def read(self):
-        return next(self._slip_reader)
+        try:
+            return next(self._slip_reader)
+        except StopIteration:
+            raise FatalError("Timed out waiting for packet header")
 
     """ Write bytes to the serial port while performing SLIP escaping """
     def write(self, packet):
@@ -714,10 +717,15 @@ class ESPLoader(object):
                         if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
                             actually = cls
                             break
-                    if warnings and actually is None:
-                        print(("WARNING: This chip doesn't appear to be a %s (chip magic value 0x%08x). "
-                               "Probably it is unsupported by this version of esptool.") % (self.CHIP_NAME, chip_magic_value))
+                    # If we couldn't match the magic value to a known class, either warn or raise
+                    if actually is None:
+                        if warnings:
+                            print(("WARNING: This chip doesn't appear to be a %s (chip magic value 0x%08x). "
+                                   "Probably it is unsupported by this version of esptool.") % (self.CHIP_NAME, chip_magic_value))
+                        else:
+                            raise FatalError("Unexpected CHIP magic value 0x%08x. Failed to autodetect chip type." % (chip_magic_value))
                     else:
+                        # Found a different supported chip class
                         raise FatalError("This chip is %s not %s. Wrong --chip argument?" % (actually.CHIP_NAME, self.CHIP_NAME))
             except UnsupportedCommandError:
                 self.secure_download_mode = True
@@ -3265,8 +3273,6 @@ class ESP32P4ROM(ESP32ROM):
 
     BOOTLOADER_FLASH_OFFSET = 0x2000  # First 2 sectors are reserved for FE purposes
 
-    CHIP_DETECT_MAGIC_VALUE = [0x0, 0x0ADDBAD0]
-
     UART_DATE_REG_ADDR = 0x500CA000 + 0x8C
 
     EFUSE_BASE = 0x5012D000
@@ -3286,6 +3292,10 @@ class ESP32P4ROM(ESP32ROM):
     USES_MAGIC_VALUE = False
 
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
+
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_REG = EFUSE_BASE + 0x34
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_SHIFT = 9
+    FORCE_USE_KEY_MANAGER_VAL_XTS_AES_KEY = 2
 
     EFUSE_PURPOSE_KEY0_REG = EFUSE_BASE + 0x34
     EFUSE_PURPOSE_KEY0_SHIFT = 24
@@ -3324,9 +3334,33 @@ class ESP32P4ROM(ESP32ROM):
 
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
 
-    UARTDEV_BUF_NO = 0x4FF3FEC8  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB_OTG = 5  # The above var when USB-OTG is used
-    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 6  # The above var when USB-JTAG/Serial is used
+    # Flash power-on related registers and bits needed for ECO6
+    DR_REG_LPAON_BASE = 0x50110000
+    DR_REG_PMU_BASE = DR_REG_LPAON_BASE + 0x5000
+    DR_REG_LP_SYS_BASE = DR_REG_LPAON_BASE + 0x0
+    LP_SYSTEM_REG_ANA_XPD_PAD_GROUP_REG = DR_REG_LP_SYS_BASE + 0x10C
+    PMU_EXT_LDO_P0_0P1A_ANA_REG = DR_REG_PMU_BASE + 0x1BC
+    PMU_ANA_0P1A_EN_CUR_LIM_0 = 1 << 27
+    PMU_EXT_LDO_P0_0P1A_REG = DR_REG_PMU_BASE + 0x1B8
+    PMU_0P1A_TARGET0_0 = 0xFF << 23
+    PMU_0P1A_FORCE_TIEH_SEL_0 = 1 << 7
+    PMU_DATE_REG = DR_REG_PMU_BASE + 0x3FC
+
+    @property
+    def UARTDEV_BUF_NO(self):
+        """Variable .bss.UartDev.buff_uart_no in ROM .bss
+        which indicates the port in use.
+        """
+        BUF_UART_NO_OFFSET = 24
+
+        BSS_UART_DEV_ADDR = 0x4FF3FEB0 if self.get_chip_full_revision() < 300 else 0x4FFBFEB0
+        return BSS_UART_DEV_ADDR + BUF_UART_NO_OFFSET
+
+    # The value from UARTDEV_BUF_NO when USB-OTG is used
+    UARTDEV_BUF_NO_USB_OTG = 5
+
+    # The value from UARTDEV_BUF_NO when USB-JTAG/Serial is used
+    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 6
 
     MEMORY_MAP = [
         [0x00000000, 0x00010000, "PADDING"],
@@ -3414,6 +3448,9 @@ class ESP32P4ROM(ESP32ROM):
         
         # ESP32-P4 revision detection: use ESP32P4RC1ROM stub for revisions < 3.0
         if not self.secure_download_mode:
+            # Always call power_on_flash() - it checks revision internally
+            self.power_on_flash()  # Needs to be powered on before attach_flash()
+            
             revision = self.get_chip_full_revision()
             if revision < 300:
                 # Use ESP32P4RC1ROM stub code and stub class for revisions below 3.0
@@ -3505,6 +3542,54 @@ class ESP32P4ROM(ESP32ROM):
             self._setRTS(True)  # EN->LOW
             time.sleep(0.1)
             self._setRTS(False)
+
+    def power_on_flash(self):
+        """Power on the flash chip by setting the appropriate regs."""
+        if self.secure_download_mode:
+            raise NotSupportedError(self, "Powering on flash in secure download mode")
+
+        if self.get_chip_full_revision() != 301:  # !=ECO6
+            # The flash chip is powered off by default on ECO6, when the default flash
+            # voltage changed from 1.8V to 3.3V. This is to prevent damage to 1.8V flash
+            # chips. Board designers must set the appropriate voltage level in eFuse.
+            return
+
+        # Power up pad group
+        self.write_reg(self.LP_SYSTEM_REG_ANA_XPD_PAD_GROUP_REG, 1)
+        time.sleep(0.01)
+        # Flash power up sequence
+        self.write_reg(
+            self.PMU_EXT_LDO_P0_0P1A_ANA_REG,
+            self.read_reg(self.PMU_EXT_LDO_P0_0P1A_ANA_REG)
+            | self.PMU_ANA_0P1A_EN_CUR_LIM_0,
+        )
+        self.write_reg(
+            self.PMU_EXT_LDO_P0_0P1A_REG,
+            self.read_reg(self.PMU_EXT_LDO_P0_0P1A_REG)
+            | self.PMU_0P1A_FORCE_TIEH_SEL_0,
+        )
+        self.write_reg(self.PMU_DATE_REG, self.read_reg(self.PMU_DATE_REG) | (3 << 0))
+        time.sleep(0.00005)
+        self.write_reg(
+            self.PMU_EXT_LDO_P0_0P1A_ANA_REG,
+            self.read_reg(self.PMU_EXT_LDO_P0_0P1A_ANA_REG)
+            & ~self.PMU_ANA_0P1A_EN_CUR_LIM_0,
+        )
+        self.write_reg(
+            self.PMU_EXT_LDO_P0_0P1A_REG,
+            self.read_reg(self.PMU_EXT_LDO_P0_0P1A_REG) & ~self.PMU_0P1A_TARGET0_0,
+        )
+        # Update eFuse voltage to PMU
+        self.write_reg(
+            self.PMU_EXT_LDO_P0_0P1A_REG,
+            self.read_reg(self.PMU_EXT_LDO_P0_0P1A_REG) | 0x80,
+        )
+        self.write_reg(
+            self.PMU_EXT_LDO_P0_0P1A_REG,
+            self.read_reg(self.PMU_EXT_LDO_P0_0P1A_REG)
+            & ~self.PMU_0P1A_FORCE_TIEH_SEL_0,
+        )
+        time.sleep(0.0018)
 
 
 class ESP32P4RC1ROM(ESP32P4ROM):
