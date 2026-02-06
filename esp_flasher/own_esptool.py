@@ -393,20 +393,11 @@ class ESPLoader(object):
                 instance.sync_stub_detected = True
             return instance
 
-        # First, check magic value to identify old chips (ESP8266, ESP32, ESP32-S2)
         print('Detecting chip type...', end='')
+        
+        # First, try get_chip_id() for newer chips (ESP32-C3 and later)
+        # This avoids reading the magic value register
         try:
-            chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
-
-            # Check if it's an old chip that doesn't support get_chip_id()
-            for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
-                if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
-                    inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
-                    inst = check_if_stub(inst)
-                    inst._post_connect()
-                    return inst
-
-            # For newer chips, use get_chip_id() for accurate detection
             chip_id = detect_port.get_chip_id()
 
             # Create reverse mapping from IMAGE_CHIP_ID to chip name dynamically
@@ -431,13 +422,28 @@ class ESPLoader(object):
                 return inst
 
         except UnsupportedCommandError:
-            raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
-                             "autodetection will not work. Need to manually specify the chip.")
+            # get_chip_id() not supported - this is an old chip (ESP8266, ESP32, ESP32-S2)
+            # Fall back to magic value detection
+            detect_port.flush_input()  # Clean buffer after failed command
+            
+            try:
+                chip_magic_value = detect_port.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
+                
+                for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
+                    if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
+                        inst = cls(detect_port._port, baud, trace_enabled=trace_enabled)
+                        inst = check_if_stub(inst)
+                        inst._post_connect()
+                        return inst
+                
+                raise FatalError("Unexpected CHIP magic value 0x%08x. Failed to autodetect chip type." % (chip_magic_value))
+            except Exception as e:
+                if "Secure Download Mode" in str(e):
+                    raise FatalError("Unsupported Command Error received. Probably this means Secure Download Mode is enabled, "
+                                     "autodetection will not work. Need to manually specify the chip.")
+                raise
 
-        if inst is not None:
-            return inst
-
-        raise FatalError("Unexpected CHIP magic value 0x%08x. Failed to autodetect chip type." % (chip_magic_value))
+        raise FatalError("Failed to autodetect chip type.")
 
     """ Read a SLIP packet from the serial port """
     def read(self):
@@ -706,32 +712,6 @@ class ESPLoader(object):
                              '\nFor troubleshooting steps visit: '
                              'https://docs.espressif.com/projects/esptool/en/latest/troubleshooting.html'.format(self.CHIP_NAME, last_error))
 
-        if not detecting:
-            # Only check magic value for old chips (ESP8266, ESP32, ESP32-S2)
-            # Newer chips use get_chip_id() for identification
-            if isinstance(self, (ESP8266ROM, ESP32ROM, ESP32S2ROM)):
-                try:
-                    chip_magic_value = self.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR)
-                    if chip_magic_value not in self.CHIP_DETECT_MAGIC_VALUE:
-                        actually = None
-                        for cls in [ESP8266ROM, ESP32ROM, ESP32S2ROM]:
-                            if chip_magic_value in cls.CHIP_DETECT_MAGIC_VALUE:
-                                actually = cls
-                                break
-                        # If we couldn't match the magic value to a known class, either warn or raise
-                        if actually is None:
-                            if warnings:
-                                print(("WARNING: This chip doesn't appear to be a %s (chip magic value 0x%08x). "
-                                       "Probably it is unsupported by this version of esptool.") % (self.CHIP_NAME, chip_magic_value))
-                            else:
-                                raise FatalError("Unexpected CHIP magic value 0x%08x. Failed to autodetect chip type." % (chip_magic_value))
-                        else:
-                            # Found a different supported chip class
-                            raise FatalError("This chip is %s not %s. Wrong --chip argument?" % (actually.CHIP_NAME, self.CHIP_NAME))
-                except UnsupportedCommandError:
-                    self.secure_download_mode = True
-            self._post_connect()
-            self.check_chip_id()
 
     def _post_connect(self):
         """
@@ -3417,6 +3397,11 @@ class ESP32P4ROM(ESP32ROM):
     def get_chip_features(self):
         return ["Dual Core + LP Core", "400MHz"]
 
+    def get_chip_revision(self):
+        # Override ESP32ROM's get_chip_revision() which only returns major version
+        # ESP32-P4 needs full revision format (major*100 + minor) for ECO6 detection
+        return self.get_major_chip_version() * 100 + self.get_minor_chip_version()
+
     def get_chip_full_revision(self):
         return self.get_major_chip_version() * 100 + self.get_minor_chip_version()
 
@@ -3436,10 +3421,11 @@ class ESP32P4ROM(ESP32ROM):
         
         # ESP32-P4 revision detection: use ESP32P4RC1ROM stub for revisions < 3.0
         if not self.secure_download_mode:
-            # Always call power_on_flash() - it checks revision internally
-            self.power_on_flash()  # Needs to be powered on before attach_flash()
+            # Power on flash first (needed for ECO6/rev 301)
+            self.power_on_flash()
             
-            revision = self.get_chip_full_revision()
+            # Read revision to determine which stub to use
+            revision = self.get_chip_revision()
             if revision < 300:
                 # Use ESP32P4RC1ROM stub code and stub class for revisions below 3.0
                 self.STUB_CODE = ESP32P4RC1ROM.STUB_CODE
@@ -3536,7 +3522,8 @@ class ESP32P4ROM(ESP32ROM):
         if self.secure_download_mode:
             raise NotSupportedError(self, "Powering on flash in secure download mode")
 
-        if self.get_chip_full_revision() != 301:  # !=ECO6
+        # eFuse registers are in the SoC, not in flash, so we can always read them
+        if self.get_chip_revision() != 301:  # !=ECO6
             # The flash chip is powered off by default on ECO6, when the default flash
             # voltage changed from 1.8V to 3.3V. This is to prevent damage to 1.8V flash
             # chips. Board designers must set the appropriate voltage level in eFuse.
