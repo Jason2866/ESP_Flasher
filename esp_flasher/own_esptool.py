@@ -3963,14 +3963,6 @@ class ESP32P4StubLoader(ESP32P4ROM):
     
     def uses_usb(self):
         return self._uses_usb
-    
-    def change_baud(self, baud):
-        # ESP32-P4 ROM/Stub over USB does not support baud rate changes
-        # USB-JTAG/Serial and USB-OTG use virtual baud rates
-        if not self._uses_usb:
-            ESP32ROM.change_baud(self, baud)
-        else:
-            print(f"Baud rate change not required for USB connection")
 
 
 ESP32P4ROM.STUB_CLASS = ESP32P4StubLoader
@@ -3996,14 +3988,6 @@ class ESP32P4RC1StubLoader(ESP32P4RC1ROM):
     
     def uses_usb(self):
         return self._uses_usb
-    
-    def change_baud(self, baud):
-        # ESP32-P4 ROM/Stub over USB does not support baud rate changes
-        # USB-JTAG/Serial and USB-OTG use virtual baud rates
-        if not self._uses_usb:
-            ESP32ROM.change_baud(self, baud)
-        else:
-            print(f"Baud rate change not required for USB connection")
 
 
 ESP32P4RC1ROM.STUB_CLASS = ESP32P4RC1StubLoader
