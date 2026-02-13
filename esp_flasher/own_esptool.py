@@ -5615,10 +5615,14 @@ def write_flash(esp, args):
             image = image[esp.FLASH_WRITE_SIZE:]
             seq += 1
 
+        # Stub only writes each block to flash after 'ack'ing the receive,
+        # so do a final operation which will not be 'ack'ed
+        # until the last block has actually been written out to flash
         if esp.IS_STUB:
-            # Stub only writes each block to flash after 'ack'ing the receive, so do a final dummy operation which will
-            # not be 'ack'ed until the last block has actually been written out to flash
-            esp.read_reg(ESPLoader.CHIP_DETECT_MAGIC_REG_ADDR, timeout=timeout)
+            if compress and not encrypted:
+                esp.flash_defl_finish(reboot=False)
+            else:
+                esp.flash_finish(reboot=False)
 
         t = time.time() - t
         speed_msg = ""
@@ -5626,8 +5630,8 @@ def write_flash(esp, args):
             if t > 0.0:
                 speed_msg = " (effective %.1f kbit/s)" % (uncsize / t * 8 / 1000)
             print_overwrite('Wrote %d bytes (%d compressed) at 0x%08x in %.1f seconds%s...' % (uncsize,
-                                                                                               bytes_sent,
-                                                                                               address, t, speed_msg), last_line=True)
+                                                                                                bytes_sent,
+                                                                                                address, t, speed_msg), last_line=True)
         else:
             if t > 0.0:
                 speed_msg = " (%.1f kbit/s)" % (bytes_written / t * 8 / 1000)
@@ -5647,22 +5651,6 @@ def write_flash(esp, args):
                 pass
 
     print('\nLeaving...')
-
-    if esp.IS_STUB:
-        # skip sending flash_finish to ROM loader here,
-        # as it causes the loader to exit and run user code
-        esp.flash_begin(0, 0)
-
-        # Get the "encrypted" flag for the last file flashed
-        # Note: all_files list contains triplets like:
-        # (address: Integer, filename: String, encrypted: Boolean)
-        last_file_encrypted = all_files[-1][2]
-
-        # Check whether the last file flashed was compressed or not
-        if args.compress and not last_file_encrypted:
-            esp.flash_defl_finish(False)
-        else:
-            esp.flash_finish(False)
 
     if args.verify:
         print('Verifying just-written flash...')
