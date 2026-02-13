@@ -63,7 +63,7 @@ __version__ = "3.6.0"
 MAX_UINT32 = 0xffffffff
 MAX_UINT24 = 0xffffff
 
-DEFAULT_TIMEOUT = 3                   # timeout for most flash operations
+DEFAULT_TIMEOUT = 10                  # timeout for most flash operations
 START_FLASH_TIMEOUT = 20              # timeout for starting flash (may perform erase)
 CHIP_ERASE_TIMEOUT = 120              # timeout for full chip erase
 MAX_TIMEOUT = CHIP_ERASE_TIMEOUT * 2  # longest any command can run
@@ -3456,8 +3456,9 @@ class ESP32P4ROM(ESP32ROM):
         if self.uses_usb():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
         
-        # ESP32-P4 revision detection: use ESP32P4RC1ROM stub for revisions < 3.0
         if not self.secure_download_mode:
+            # Disable watchdogs that can reset the chip during flashing
+            self.disable_watchdogs()
             # Power on flash first (needed for ECO6/rev 301)
             self.power_on_flash()
             
@@ -3468,6 +3469,32 @@ class ESP32P4ROM(ESP32ROM):
                 self.STUB_CODE = ESP32P4RC1ROM.STUB_CODE
                 self.STUB_CLASS = ESP32P4RC1ROM.STUB_CLASS
                 print(f"Detected ESP32-P4 revision {revision // 100}.{revision % 100}, using RC1 stub")
+
+    def disable_watchdogs(self):
+        """Disable RTC WDT and SWD watchdogs.
+        When USB-JTAG/Serial is used, these watchdogs are not reset
+        and can reset the board during flashing.
+        """
+        if self.uses_usb_jtag_serial():
+            # Disable RTC WDT
+            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
+            self.write_reg(self.RTC_CNTL_WDTCONFIG0_REG, 0)
+            self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)
+            # Automatically feed SWD
+            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
+            self.write_reg(
+                self.RTC_CNTL_SWD_CONF_REG,
+                self.read_reg(self.RTC_CNTL_SWD_CONF_REG)
+                | self.RTC_CNTL_SWD_AUTO_FEED_EN,
+            )
+            self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
+
+    def uses_usb_jtag_serial(self):
+        """Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used"""
+        if self.secure_download_mode:
+            return False
+        buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
+        return buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL
 
     def get_crystal_freq(self):
         # ESP32P4 XTAL is fixed to 40MHz
