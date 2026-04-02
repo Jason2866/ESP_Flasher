@@ -3,6 +3,7 @@ Serial Console with input support for ESP-Flasher
 Allows viewing logs and sending commands to the ESP device
 """
 
+import time
 import threading
 import serial
 import logging
@@ -95,7 +96,6 @@ class SerialReader(QObject):
                                         self._emit_line(line)
                     else:
                         # No data available, small sleep to avoid busy loop
-                        import time
                         time.sleep(0.01)
                 else:
                     break
