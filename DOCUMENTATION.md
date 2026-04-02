@@ -1,6 +1,6 @@
 # ESP-Flasher Documentation
 
-**Version:** 3.4.1  
+**Version:** 4.0.0  
 **License:** MIT  
 **Author:** Jason2866 (Johann Obermeier)  
 **Repository:** [github.com/Jason2866/ESP_Flasher](https://github.com/Jason2866/ESP_Flasher)
