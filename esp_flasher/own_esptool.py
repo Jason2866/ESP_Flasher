@@ -79,7 +79,13 @@ WRITE_BLOCK_ATTEMPTS = 3              # number of times to try writing a data bl
 
 SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32c2', 'esp32c3', 'esp32c5', 'esp32c6', 'esp32c61', 'esp32h2', 'esp32p4']
 
-STUBS_DIR = os.path.join(os.path.dirname(__file__), "stubs")
+# Handle PyInstaller's temporary directory for frozen executables
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    # Running as PyInstaller bundle
+    STUBS_DIR = os.path.join(sys._MEIPASS, "esp_flasher", "stubs")
+else:
+    # Running as normal Python script
+    STUBS_DIR = os.path.join(os.path.dirname(__file__), "stubs")
 
 
 class _StubLazyLoader:
