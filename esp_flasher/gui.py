@@ -368,10 +368,9 @@ class MainWindow(QMainWindow):
         # Disable input controls (check if they exist first)
         if hasattr(self, 'input_field'):
             self.input_field.setEnabled(False)
+            self.input_field.setPlaceholderText("Type command and press Enter (connect to device first)...")
         if hasattr(self, 'send_button'):
             self.send_button.setEnabled(False)
-        if hasattr(self, 'input_field'):
-            self.input_field.setPlaceholderText("Type command and press Enter (connect to device first)...")
     
     def send_command(self):
         """Send command to serial port"""
