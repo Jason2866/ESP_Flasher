@@ -95,6 +95,9 @@ def load_stub(chip_name):
     stub["text"] = base64.b64decode(stub["text"])
     if "data" in stub:
         stub["data"] = base64.b64decode(stub["data"])
+    else:
+        stub["data"] = b""
+        stub.setdefault("data_start", 0)
     return stub
 
 

@@ -53,5 +53,5 @@ setup(
             'esp_flasher = esp_flasher.__main__:main'
         ]
     },
-    packages=find_packages(include="esprelease.*")
+    packages=find_packages(include=("esp_flasher", "esp_flasher.*", "esprelease.*"))
 )
