@@ -165,6 +165,9 @@ class SerialConsoleWidget(QWidget):
         self.serial_port = None
         self.serial_reader = None
         self.colored_console = None
+        self.command_history = []  # Store command history
+        self.history_index = -1  # Current position in history (-1 = not browsing)
+        self.current_input = ""  # Store current input when browsing history
         
         self.init_ui()
     
@@ -191,6 +194,8 @@ class SerialConsoleWidget(QWidget):
         self.input_field.setFont(QFont("Courier", 10))
         self.input_field.returnPressed.connect(self.send_command)
         self.input_field.setEnabled(False)  # Disabled until serial port is opened
+        # Install event filter to catch arrow key presses
+        self.input_field.installEventFilter(self)
         
         self.send_button = QPushButton("Send")
         self.send_button.clicked.connect(self.send_command)
@@ -281,6 +286,17 @@ class SerialConsoleWidget(QWidget):
             # Send command with newline
             self.serial_port.write((command + "\r\n").encode())
             
+            # Add to command history (avoid duplicates of last command)
+            if not self.command_history or self.command_history[-1] != command:
+                self.command_history.append(command)
+                # Limit history to 100 commands
+                if len(self.command_history) > 100:
+                    self.command_history.pop(0)
+            
+            # Reset history navigation
+            self.history_index = -1
+            self.current_input = ""
+            
             # Echo command to console
             self.colored_console.write(f"\033[36m> {command}\033[0m\n")
             
@@ -291,6 +307,51 @@ class SerialConsoleWidget(QWidget):
             self.handle_serial_error(f"Failed to send command: {e}")
         except Exception as e:
             self.handle_serial_error(f"Unexpected error: {e}")
+    
+    def eventFilter(self, obj, event):
+        """Filter events to catch arrow key presses in input field"""
+        if obj == self.input_field and event.type() == event.KeyPress:
+            
+            if event.key() == Qt.Key_Up:
+                # Navigate up in history (older commands)
+                self.navigate_history_up()
+                return True
+            elif event.key() == Qt.Key_Down:
+                # Navigate down in history (newer commands)
+                self.navigate_history_down()
+                return True
+        
+        return super().eventFilter(obj, event)
+    
+    def navigate_history_up(self):
+        """Navigate to previous command in history"""
+        if not self.command_history:
+            return
+        
+        # First time pressing up - save current input
+        if self.history_index == -1:
+            self.current_input = self.input_field.text()
+            self.history_index = len(self.command_history)
+        
+        # Move up in history
+        if self.history_index > 0:
+            self.history_index -= 1
+            self.input_field.setText(self.command_history[self.history_index])
+    
+    def navigate_history_down(self):
+        """Navigate to next command in history"""
+        if self.history_index == -1:
+            return  # Not browsing history
+        
+        # Move down in history
+        self.history_index += 1
+        
+        if self.history_index >= len(self.command_history):
+            # Reached the end - restore current input
+            self.history_index = -1
+            self.input_field.setText(self.current_input)
+        else:
+            self.input_field.setText(self.command_history[self.history_index])
     
     def append_line(self, line):
         """Append a line to the console"""
