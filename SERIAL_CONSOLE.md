@@ -43,15 +43,6 @@ ESP-Flasher now includes an interactive serial console with command input suppor
 - **Enter** — Send command
 - **Click anywhere in console** — Focus input field (if no text is selected)
 
-### Command Examples
-
-```
-help                    # Show available commands
-status                  # Get device status
-restart                 # Restart the device
-wifi                    # Show WiFi information
-```
-
 ## Implementation Details
 
 ### Architecture
