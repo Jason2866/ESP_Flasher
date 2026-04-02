@@ -102,6 +102,15 @@ class _StubLazyLoader:
         try:
             with open(json_path, "r") as f:
                 stub = json.load(f)
+            
+            # Validate required keys before decoding
+            required_keys = ["text", "text_start", "entry"]
+            missing_keys = [key for key in required_keys if key not in stub]
+            if missing_keys:
+                raise FatalError(
+                    f"Stub file for {self.chip_name} is missing required keys: {', '.join(missing_keys)}"
+                )
+            
             # Decode base64-encoded binary segments
             stub["text"] = base64.b64decode(stub["text"])
             if "data" in stub:
@@ -109,12 +118,13 @@ class _StubLazyLoader:
             else:
                 stub["data"] = b""
                 stub.setdefault("data_start", 0)
+            
             self._cached_stub = stub
             return stub
-        except (IOError, OSError, json.JSONDecodeError, KeyError) as e:
+        except (IOError, OSError, json.JSONDecodeError, KeyError, ValueError) as e:
             raise FatalError(
                 f"Failed to load stub code for {self.chip_name}: {e}"
-            )
+            ) from e
 
 
 def load_stub(chip_name):
