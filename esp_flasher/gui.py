@@ -169,6 +169,7 @@ class MainWindow(QMainWindow):
                 self._port = ports[0]
         else:
             self.port_combobox.addItem("No ports found")
+            self._port = None  # Clear port when none found
 
     def on_port_changed(self, index):
         """Called when port selection changes in combobox"""
@@ -187,12 +188,14 @@ class MainWindow(QMainWindow):
             self.disconnect_from_port()
         else:
             # Not connected, so connect
-            # First reload ports to ensure we have the latest list
+            # Always reload ports to ensure we have the latest list
             self.reload_ports()
-            if self._port and self._port != "No ports found":
+            
+            if self._port:
                 self.connect_to_port()
             else:
-                self.show_log_error("No serial ports available")
+                # No ports found - inform user that rescan was performed
+                self._colored_console.write("\033[33mNo serial ports found. Please connect a device and click Connect again.\033[0m\n")
     
     def disconnect_from_port(self):
         """Disconnect from serial port"""
