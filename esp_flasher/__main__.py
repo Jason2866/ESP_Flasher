@@ -113,7 +113,7 @@ def show_logs(serial_port):
                 print(message.encode("ascii", "backslashreplace"))
 
 
-def run_esp_flasher(argv):
+def run_esp_flasher(argv, skip_logs=False):
     args = parse_args(argv)
     port = select_port(args)
 
@@ -230,6 +230,13 @@ def run_esp_flasher(argv):
 
     print("Done! Flashing is complete!")
     print()
+
+    # Skip logs if called from GUI (GUI will handle serial connection)
+    if skip_logs:
+        # Close the port so GUI can reopen it
+        # pylint: disable=protected-access
+        stub_chip._port.close()
+        return
 
     if args.upload_baud_rate != 115200:
         # pylint: disable=protected-access

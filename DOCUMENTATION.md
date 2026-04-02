@@ -82,8 +82,9 @@ The tool wraps [esptool](https://github.com/espressif/esptool) functionality in 
 - **ELF-to-binary conversion** of bootloader files
 - **Configurable baud rate** (default: 1,500,000 for ESP32, falls back to 115,200 if unsupported)
 - **Flash erase** before writing (can be disabled with `--no-erase`)
-- **Serial log viewer** after flashing or standalone via `--show-logs`
+- **Interactive serial monitor** with command input support, ANSI colors, and timestamps
 - **ANSI color support** — full support for colored and formatted terminal output (bold, italic, underline, colors)
+- **Dynamic console interface** — input field appears when viewing logs for sending commands
 - **Dark-themed GUI** built with PyQt5 using the Fusion style
 - **Cross-platform** — Windows, macOS (Intel + ARM), and Linux (X11 + Wayland)
 
@@ -160,11 +161,18 @@ esp_flasher
 ```
 
 The GUI provides:
-1. **Serial Port** — a dropdown to select the target port (with a Reload button)
-2. **Firmware** — a file browser to select a `.bin` firmware file
-3. **Flash ESP** — starts the flashing process
-4. **View Logs** — opens a serial monitor at 115200 baud
-5. **Console** — displays real-time output from the flashing process
+1. **Serial Port** — a dropdown to select the target port
+   - **Connect Button** — Click to connect/disconnect from the selected port
+   - Automatically reloads available ports when clicked
+   - Button turns green when connected, shows "Disconnect"
+   - Button is gray when disconnected, shows "Connect"
+2. **Firmware** — a file browser to select a `.bin` firmware file (optional, only for flashing)
+3. **Flash ESP** — starts the flashing process (disconnects during flash, reconnects after if was connected)
+4. **Console** — displays real-time serial output
+   - Input field at the bottom for sending commands (enabled when connected)
+   - ANSI color support for colored output
+   - Timestamps for serial log lines
+   - Clear button to reset console
 
 ### Command Line Interface
 
@@ -218,6 +226,7 @@ ESP_Flasher/
 │   ├── console_color.py          # ANSI color support for terminal output
 │   ├── gui.py                    # PyQt5 GUI implementation
 │   ├── helpers.py                # Utility functions
+│   ├── serial_console.py         # Interactive serial console with input support
 │   └── own_esptool.py            # Custom esptool (ESP ROM loaders, flash operations)
 ├── bootloader/                   # Pre-built bootloader ELF files per chip
 │   ├── esp32/
@@ -244,7 +253,8 @@ ESP_Flasher/
 │   ├── partitions.esp32s2.bin
 │   └── partitions.esp32s3.bin
 ├── examples/                     # Example scripts
-│   └── colored_output_example.py # ANSI color usage example
+│   ├── colored_output_example.py # ANSI color usage example
+│   └── serial_console_example.py # Serial console with input example
 ├── .github/workflows/            # CI/CD workflows
 │   ├── build.yml                 # Build binaries for all platforms
 │   └── build_pypi.yml            # Publish to PyPI
@@ -299,12 +309,26 @@ A self-contained, customized version of Espressif's esptool (based on v3.6.0). I
 #### `gui.py`
 PyQt5-based GUI with:
 - Dark Fusion theme
-- Serial port selection with reload
+- Serial port selection with single Connect button
+  - Connect button reloads ports and connects in one action
+  - Button changes color: green when connected, gray when disconnected
+  - Button text changes: "Disconnect" when connected, "Connect" when disconnected
 - Firmware file browser (`.bin` filter)
-- Flash and View Logs buttons
-- Real-time console output with ANSI color support via `ColoredConsole`
+- Flash button that disconnects during flashing and reconnects after (if was connected)
+- Console with always-visible input field:
+  - Shows serial output in real-time
+  - Input field enabled when serial connection is active
+  - ANSI color support via `ColoredConsole`
+  - Automatic timestamping for serial logs
 - `FlashingThread` — runs flashing in a background daemon thread
 - Automatic Qt platform detection (Cocoa/XCB/Wayland/Windows)
+
+#### `serial_console.py`
+Serial port reader for log viewing:
+- **`SerialReader`** — Thread-safe serial port reader that runs in background
+- Emits Qt signals for received lines and errors
+- Automatic timestamping of received lines
+- Proper cleanup on stop
 
 #### `console_color.py`
 ANSI color code parser and renderer:

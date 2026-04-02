@@ -1,6 +1,5 @@
 """
 ANSI Color Console Support for ESP-Flasher
-Based on the implementation from esp32tool
 """
 
 from PyQt5.QtWidgets import QTextEdit
