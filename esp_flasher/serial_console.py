@@ -27,6 +27,9 @@ class SerialReader(QObject):
         self.serial_port = serial_port
         self.running = False
         self.thread = None
+        # Use incremental decoder for proper UTF-8 handling
+        import codecs
+        self.decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
     
     def start(self):
         """Start reading from serial port"""
@@ -50,7 +53,8 @@ class SerialReader(QObject):
                     if self.serial_port.in_waiting > 0:
                         raw = self.serial_port.read(self.serial_port.in_waiting)
                         if raw:
-                            text = raw.decode(errors="ignore")
+                            # Use incremental decoder to handle multi-byte UTF-8 characters
+                            text = self.decoder.decode(raw, False)
                             buffer += text
                             
                             # Process complete lines (ending with \n or \r)
