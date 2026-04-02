@@ -5,11 +5,12 @@ This shows how to use the SerialConsoleWidget for interactive serial communicati
 """
 
 import sys
+from pathlib import Path
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PyQt5.QtGui import QPalette, QColor
 
 # Add parent directory to path for imports
-sys.path.insert(0, '..')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from esp_flasher.serial_console import SerialConsoleWidget
 

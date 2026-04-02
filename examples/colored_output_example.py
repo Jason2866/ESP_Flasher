@@ -57,9 +57,9 @@ def print_progress(current, total, message=''):
     bar = '█' * filled + '░' * (bar_length - filled)
     
     color = ANSIColors.GREEN if percentage == 100 else ANSIColors.CYAN
-    print(f"\r{color}[{bar}] {percentage:.1f}% {message}{ANSIColors.RESET}", end='')
+    print(f"\r{color}[{bar}] {percentage:.1f}% {message}{ANSIColors.RESET}", end='', flush=True)
     if percentage == 100:
-        print()  # New line when complete
+        print(flush=True)  # New line when complete
 
 
 def simulate_flashing():

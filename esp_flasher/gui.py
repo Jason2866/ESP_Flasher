@@ -17,7 +17,8 @@ from esp_flasher.const import __version__
 from esp_flasher.console_color import ColoredConsole
 
 class FlashingThread(threading.Thread):
-    finished = None  # Will be set to a Qt signal
+    finished = None  # Will be set to a Qt signal for success
+    failed = None    # Will be set to a Qt signal for failure
     
     def __init__(self, firmware, port):
         threading.Thread.__init__(self)
@@ -34,17 +35,19 @@ class FlashingThread(threading.Thread):
             # Call with skip_logs=True so it returns after flashing
             run_esp_flasher(argv, skip_logs=True)
             
-            # Emit finished signal
+            # Emit success signal
             if self.finished:
                 self.finished.emit()
                 
         except Exception as e:
             print(f"\033[31mFlashing error: {e}\033[0m")
-            if self.finished:
-                self.finished.emit()
+            # Emit failure signal
+            if self.failed:
+                self.failed.emit()
 
 class MainWindow(QMainWindow):
     flash_finished = pyqtSignal()
+    flash_failed = pyqtSignal()
     
     def __init__(self):
         super().__init__()
@@ -55,14 +58,16 @@ class MainWindow(QMainWindow):
         self._serial_reader = None
         self._serial_port = None
         self._was_connected_before_flash = False
+        self._is_flashing = False
 
         self.init_ui()
         # Redirect stdout to colored console
         self._colored_console = ColoredConsole(self.console)
         sys.stdout = self._colored_console
         
-        # Connect flash finished signal
+        # Connect flash signals
         self.flash_finished.connect(self.on_flash_finished)
+        self.flash_failed.connect(self.on_flash_failed)
 
     def init_ui(self):
         self.setWindowTitle(f"Tasmota-Esp-Flasher {__version__}")
@@ -167,10 +172,16 @@ class MainWindow(QMainWindow):
 
     def on_port_changed(self, index):
         """Called when port selection changes in combobox"""
-        self._port = self.port_combobox.itemText(index)
+        # Only update port if not connected
+        if not (self._serial_port and self._serial_port.is_open):
+            self._port = self.port_combobox.itemText(index)
     
     def toggle_connection(self):
         """Toggle connection on/off when Connect button is clicked"""
+        if self._is_flashing:
+            self.show_log_error("Cannot change connection while flashing")
+            return
+            
         if self._serial_port and self._serial_port.is_open:
             # Currently connected, so disconnect
             self.disconnect_from_port()
@@ -190,6 +201,9 @@ class MainWindow(QMainWindow):
         
         # Stop the serial reader first
         self.stop_serial()
+        
+        # Re-enable port selection
+        self.port_combobox.setEnabled(True)
         
         # Update button appearance
         self.connect_button.setText("Connect")
@@ -223,6 +237,9 @@ class MainWindow(QMainWindow):
             self.send_button.setEnabled(True)
             self.input_field.setPlaceholderText("Type command and press Enter...")
             
+            # Disable port selection while connected
+            self.port_combobox.setEnabled(False)
+            
             # Update button appearance - green background when connected
             self.connect_button.setText("Disconnect")
             self.connect_button.setStyleSheet("background-color: #2d5016; color: white;")
@@ -234,6 +251,7 @@ class MainWindow(QMainWindow):
             self.stop_serial()
             self.connect_button.setText("Connect")
             self.connect_button.setStyleSheet("")
+            self.port_combobox.setEnabled(True)
 
     def pick_file(self):
         options = QFileDialog.Options()
@@ -243,6 +261,10 @@ class MainWindow(QMainWindow):
             self.firmware_button.setText(file_name)
 
     def flash_esp(self):
+        if self._is_flashing:
+            self.show_log_error("Flashing already in progress")
+            return
+            
         if not self._firmware or not self._port:
             if not self._port:
                 print("\033[31mNo serial port selected!\033[0m")
@@ -269,18 +291,43 @@ class MainWindow(QMainWindow):
         """Start the flashing worker thread"""
         self.console.clear()
         
-        # Create worker and connect its finished signal to our signal
+        # Set flashing flag and disable UI
+        self._is_flashing = True
+        self.flash_button.setEnabled(False)
+        self.connect_button.setEnabled(False)
+        self.port_combobox.setEnabled(False)
+        
+        # Create worker and connect its signals
         self._flash_worker = FlashingThread(self._firmware, self._port)
-        self._flash_worker.finished = self.flash_finished  # Connect to our signal
+        self._flash_worker.finished = self.flash_finished
+        self._flash_worker.failed = self.flash_failed
         self._flash_worker.start()
     
     def on_flash_finished(self):
         """Called when flashing is complete"""
         print("\033[32m\nFlashing complete!\033[0m")
         
+        # Clear flashing flag and re-enable UI
+        self._is_flashing = False
+        self.flash_button.setEnabled(True)
+        self.connect_button.setEnabled(True)
+        if not (self._serial_port and self._serial_port.is_open):
+            self.port_combobox.setEnabled(True)
+        
         # Reconnect immediately if we were connected before
         if self._was_connected_before_flash:
             self._reconnect_after_flash()
+    
+    def on_flash_failed(self):
+        """Called when flashing fails"""
+        print("\033[31m\nFlashing failed!\033[0m")
+        
+        # Clear flashing flag and re-enable UI
+        self._is_flashing = False
+        self.flash_button.setEnabled(True)
+        self.connect_button.setEnabled(True)
+        if not (self._serial_port and self._serial_port.is_open):
+            self.port_combobox.setEnabled(True)
     
     def _reconnect_after_flash(self):
         """Reconnect to serial port after flash"""
@@ -354,6 +401,11 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Handle window close event"""
+        if self._is_flashing:
+            self.show_log_error("Cannot close window while flashing is in progress")
+            event.ignore()
+            return
+            
         if self._serial_port and self._serial_port.is_open:
             self.disconnect_from_port()
         super().closeEvent(event)

@@ -51,7 +51,7 @@ wifi                    # Show WiFi information
 - **Thread-safe**: Serial reading in background thread, GUI updates in main thread
 - **Robust error handling**: Gracefully handles disconnections and errors
 - **Clean shutdown**: Properly closes serial port on exit
-- **Cross-platform**: Works on Windows, macOS, and Linuxs
+- **Cross-platform**: Works on Windows, macOS, and Linux
 
 ### Files Added
 
@@ -76,6 +76,7 @@ Just download the latest release and run it. The new features are integrated int
 ### For Developers
 
 ```python
+from PyQt5.QtWidgets import QTextEdit
 from esp_flasher.console_color import ColoredConsole
 from esp_flasher.serial_console import SerialReader
 import serial

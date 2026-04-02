@@ -26,7 +26,7 @@ Serial monitor with command input support:
 Single console window for all output:
 - Shows flashing output (read-only)
 - Shows serial logs with input field for commands
-- Input field dynamically appears/disappears based on mode
+- Input field always visible, enabled/disabled based on connection state
 
 ## New Files
 

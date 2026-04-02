@@ -83,7 +83,7 @@ class ColoredConsole(QObject):
         # ANSI escape sequence regex
         # Matches: ESC[...m (SGR - Select Graphic Rendition)
         # Also matches: ESC]...BEL or ESC]...ESC\ (OSC - Operating System Command)
-        ansi_re = re.compile(r'(?:\x1B|\033)(?:\[(.*?)[@-~]|\].*?(?:\x07|\x1B\\))')
+        ansi_re = re.compile(r'(?:\x1B|\033)(?:\[(.*?)m|\].*?(?:\x07|\x1B\\))')
         
         # Check if we should auto-scroll (before adding text)
         scrollbar = self.text_edit.verticalScrollBar()
@@ -173,12 +173,16 @@ class ColoredConsole(QObject):
     
     def _process_ansi_code(self, code_str: str):
         """Process ANSI SGR (Select Graphic Rendition) codes"""
+        # Empty string means reset (SGR 0)
         if not code_str:
+            self.state.reset()
             return
         
         # Split multiple codes separated by semicolon
         for code in code_str.split(';'):
+            # Empty segment means reset (SGR 0)
             if not code:
+                self.state.reset()
                 continue
             
             try:
@@ -197,9 +201,11 @@ class ColoredConsole(QObject):
             elif code_num == 4:
                 self.state.underline = True
             elif code_num == 5:
-                self.state.secret = True
+                pass  # Blink (not implemented)
             elif code_num == 6:
-                self.state.secret = False
+                pass  # Rapid blink (not implemented)
+            elif code_num == 8:
+                self.state.secret = True  # Conceal
             elif code_num == 9:
                 self.state.strikethrough = True
             elif code_num == 22:
@@ -208,6 +214,8 @@ class ColoredConsole(QObject):
                 self.state.italic = False
             elif code_num == 24:
                 self.state.underline = False
+            elif code_num == 28:
+                self.state.secret = False  # Reveal
             elif code_num == 29:
                 self.state.strikethrough = False
             # Foreground colors

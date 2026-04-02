@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Test script to demonstrate ANSI color support in ESP-Flasher
+Demo script to demonstrate ANSI color support in ESP-Flasher
 """
 
-def test_ansi_colors():
+# Prevent pytest from collecting this module
+__test__ = False
+
+def demo_ansi_colors():
     """Print various ANSI color codes to test the console"""
     
     print("\n=== Testing ANSI Color Support ===\n")
@@ -55,4 +58,4 @@ def test_ansi_colors():
 
 
 if __name__ == "__main__":
-    test_ansi_colors()
+    demo_ansi_colors()

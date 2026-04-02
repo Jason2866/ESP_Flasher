@@ -18,8 +18,8 @@ ESP-Flasher now includes an interactive serial console with command input suppor
 
 ### Serial Communication
 - **Configurable baud rate** — Default 115200, can be changed
-- **Automatic reconnection** — Handles port disconnections gracefully
-- **Error handling** — Shows errors in red color
+- **Reconnection after flashing** — Automatically reopens port after firmware flash completes
+- **Error handling** — Displays error messages in the console
 - **Clean shutdown** — Properly closes serial port on exit
 
 ## Usage

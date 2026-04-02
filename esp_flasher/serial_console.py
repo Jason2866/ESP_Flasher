@@ -44,7 +44,8 @@ class SerialReader(QObject):
                     raw = self.serial_port.readline()
                     if raw:
                         text = raw.decode(errors="ignore")
-                        line = text.replace("\r", "").replace("\n", "")
+                        # Only strip newlines, preserve carriage returns for progress indicators
+                        line = text.rstrip("\n")
                         if line:  # Only emit non-empty lines
                             time_ = datetime.now().time().strftime("[%H:%M:%S]")
                             message = f"{time_} {line}"
@@ -122,18 +123,29 @@ class SerialConsoleWidget(QWidget):
             # Open new serial port
             self.serial_port = serial.Serial(port_name, baudrate=baudrate, timeout=1)
             
-            # Start reader thread
-            self.serial_reader = SerialReader(self.serial_port)
-            self.serial_reader.line_received.connect(self.append_line)
-            self.serial_reader.error_occurred.connect(self.show_error)
-            self.serial_reader.start()
-            
-            # Enable input
-            self.input_field.setEnabled(True)
-            self.send_button.setEnabled(True)
-            self.input_field.setFocus()
-            
-            self.colored_console.write(f"\033[32mConnected to {port_name} at {baudrate} baud\033[0m\n")
+            try:
+                # Start reader thread
+                self.serial_reader = SerialReader(self.serial_port)
+                self.serial_reader.line_received.connect(self.append_line)
+                self.serial_reader.error_occurred.connect(self.show_error)
+                self.serial_reader.start()
+                
+                # Enable input
+                self.input_field.setEnabled(True)
+                self.send_button.setEnabled(True)
+                self.input_field.setFocus()
+                
+                self.colored_console.write(f"\033[32mConnected to {port_name} at {baudrate} baud\033[0m\n")
+                
+            except Exception as e:
+                # Clean up on failure
+                if self.serial_reader:
+                    self.serial_reader.stop()
+                    self.serial_reader = None
+                if self.serial_port:
+                    self.serial_port.close()
+                    self.serial_port = None
+                raise
             
         except serial.SerialException as e:
             self.show_error(f"Failed to open serial port: {e}")
