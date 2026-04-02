@@ -229,7 +229,7 @@ class MainWindow(QMainWindow):
             # Start reader thread
             self._serial_reader = SerialReader(self._serial_port)
             self._serial_reader.line_received.connect(self.append_log_line)
-            self._serial_reader.error_occurred.connect(self.show_log_error)
+            self._serial_reader.error_occurred.connect(self.handle_serial_error)
             self._serial_reader.start()
             
             # Enable input controls
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
     
     def _start_flash_worker(self):
         """Start the flashing worker thread"""
-        self.console.clear()
+        self._colored_console.clear()
         
         # Set flashing flag and disable UI
         self._is_flashing = True
@@ -385,19 +385,31 @@ class MainWindow(QMainWindow):
             self.input_field.clear()
             
         except Exception as e:
-            self.show_log_error(f"Failed to send command: {e}")
+            self.handle_serial_error(f"Failed to send command: {e}")
     
     def append_log_line(self, line):
         """Append a line to the console"""
-        self._colored_console.write(line + "\n")
+        # Preserve bare \r for progress indicators
+        if line.endswith("\r"):
+            self._colored_console.write(line)
+        else:
+            self._colored_console.write(line + "\n")
     
     def show_log_error(self, message):
         """Show error message in console"""
         self._colored_console.write(f"\033[31m{message}\033[0m\n")
     
+    def handle_serial_error(self, message):
+        """Handle serial errors by showing message and disconnecting"""
+        self.show_log_error(message)
+        self.stop_serial()
+        self.port_combobox.setEnabled(True)
+        self.connect_button.setText("Connect")
+        self.connect_button.setStyleSheet("")
+    
     def clear_console(self):
         """Clear the console"""
-        self.console.clear()
+        self._colored_console.clear()
     
     def closeEvent(self, event):
         """Handle window close event"""

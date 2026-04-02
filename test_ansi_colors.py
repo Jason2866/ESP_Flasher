@@ -54,6 +54,32 @@ def demo_ansi_colors():
     print("\033[1;32mFlash complete!\033[0m")
     print("\033[31mError: Connection failed\033[0m")
     
+    # Test bare reset sequence
+    print("\n=== Testing Parser Edge Cases ===\n")
+    print("\033[mBare reset (ESC[m)\033[0m")
+    
+    # Test conceal/reveal
+    print("\033[8mThis text is concealed\033[28m and this is revealed\033[0m")
+    
+    # Test carriage return (progress indicator simulation)
+    import sys
+    sys.stdout.write("\033[33mProgress: [          ] 0%\r")
+    sys.stdout.flush()
+    import time
+    time.sleep(0.5)
+    sys.stdout.write("\033[33mProgress: [#####     ] 50%\r")
+    sys.stdout.flush()
+    time.sleep(0.5)
+    sys.stdout.write("\033[32mProgress: [##########] 100%\033[0m\n")
+    sys.stdout.flush()
+    
+    # Test mixed CR with ANSI codes
+    sys.stdout.write("\033[31mLoading...\r")
+    sys.stdout.flush()
+    time.sleep(0.5)
+    sys.stdout.write("\033[32mComplete! \033[0m\n")
+    sys.stdout.flush()
+    
     print("\n=== Test Complete ===\n")
 
 

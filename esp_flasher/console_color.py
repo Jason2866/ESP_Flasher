@@ -75,7 +75,9 @@ class ColoredConsole(QObject):
         return self.text_edit.toPlainText()
     
     def clear(self):
-        """Clear the console"""
+        """Clear the console and reset parser state"""
+        self.state.reset()
+        self.carriage_return = False
         self.text_edit.clear()
     
     def _append_text(self, line: str):

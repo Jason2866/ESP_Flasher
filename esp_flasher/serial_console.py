@@ -127,7 +127,7 @@ class SerialConsoleWidget(QWidget):
                 # Start reader thread
                 self.serial_reader = SerialReader(self.serial_port)
                 self.serial_reader.line_received.connect(self.append_line)
-                self.serial_reader.error_occurred.connect(self.show_error)
+                self.serial_reader.error_occurred.connect(self.handle_serial_error)
                 self.serial_reader.start()
                 
                 # Enable input
@@ -192,21 +192,30 @@ class SerialConsoleWidget(QWidget):
             self.input_field.clear()
             
         except serial.SerialException as e:
-            self.show_error(f"Failed to send command: {e}")
+            self.handle_serial_error(f"Failed to send command: {e}")
         except Exception as e:
-            self.show_error(f"Unexpected error: {e}")
+            self.handle_serial_error(f"Unexpected error: {e}")
     
     def append_line(self, line):
         """Append a line to the console"""
-        self.colored_console.write(line + "\n")
+        # Preserve bare \r for progress indicators
+        if line.endswith("\r"):
+            self.colored_console.write(line)
+        else:
+            self.colored_console.write(line + "\n")
     
     def show_error(self, message):
         """Show error message in console"""
         self.colored_console.write(f"\033[31m{message}\033[0m\n")
     
+    def handle_serial_error(self, message):
+        """Handle serial errors by showing message and disconnecting"""
+        self.show_error(message)
+        self.stop_serial()
+    
     def clear_console(self):
         """Clear the console output"""
-        self.console_output.clear()
+        self.colored_console.clear()
     
     def closeEvent(self, event):
         """Handle widget close event"""
