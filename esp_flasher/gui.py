@@ -3,7 +3,6 @@ import sys
 import threading
 import os
 import platform
-import distro
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,

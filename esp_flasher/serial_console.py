@@ -108,20 +108,47 @@ class SerialReader(QObject):
     
     def _emit_line(self, line):
         """Emit a line with optional timestamp"""
+        # Remove ANSI codes for timestamp detection
+        import re
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        line_without_ansi = ansi_escape.sub('', line)
+        
         # Add timestamp only to lines that don't already have one
-        # Check if line starts with a timestamp pattern (HH:MM:SS)
+        # Check if line starts with a timestamp pattern [HH:MM:SS] or HH:MM:SS.mmm
         has_timestamp = False
-        if len(line) >= 8:
-            # Check for patterns like "21:29:01" or "[21:29:01]"
-            start_idx = 1 if line.startswith('[') else 0
-            if (len(line) > start_idx + 7 and 
-                line[start_idx + 2] == ':' and 
-                line[start_idx + 5] == ':'):
-                has_timestamp = True
+        
+        if len(line_without_ansi) >= 10:
+            # Check for [HH:MM:SS] pattern at the start
+            if (line_without_ansi.startswith('[') and 
+                line_without_ansi[3] == ':' and 
+                line_without_ansi[6] == ':' and 
+                line_without_ansi[9] == ']'):
+                # Verify it's actually digits
+                try:
+                    int(line_without_ansi[1:3])  # hours
+                    int(line_without_ansi[4:6])  # minutes
+                    int(line_without_ansi[7:9])  # seconds
+                    has_timestamp = True
+                except ValueError:
+                    pass
+            # Check for HH:MM:SS.mmm pattern at the start (device timestamp)
+            elif (line_without_ansi[2] == ':' and 
+                  line_without_ansi[5] == ':' and 
+                  len(line_without_ansi) > 8 and
+                  line_without_ansi[8] in ['.', ' ', '\t']):
+                try:
+                    int(line_without_ansi[0:2])  # hours
+                    int(line_without_ansi[3:5])  # minutes
+                    int(line_without_ansi[6:8])  # seconds
+                    has_timestamp = True
+                except ValueError:
+                    pass
         
         if not has_timestamp:
             time_ = datetime.now().time().strftime("[%H:%M:%S]")
-            message = f"{time_} {line}"
+            # Ensure timestamp is always in default color by resetting before and after
+            # This prevents any previous line's formatting from affecting the timestamp
+            message = f"\033[0m{time_} {line}"
         else:
             message = line
         
