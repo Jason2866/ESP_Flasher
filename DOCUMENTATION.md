@@ -1,6 +1,6 @@
 # ESP-Flasher Documentation
 
-**Version:** 3.3.1  
+**Version:** 3.4.1  
 **License:** MIT  
 **Author:** Jason2866 (Johann Obermeier)  
 **Repository:** [github.com/Jason2866/ESP_Flasher](https://github.com/Jason2866/ESP_Flasher)
@@ -27,6 +27,7 @@
   - [Flashing Process](#flashing-process)
   - [Firmware Detection](#firmware-detection)
   - [Bootloader & Partition Handling](#bootloader--partition-handling)
+  - [ANSI Color Support](#ansi-color-support)
 - [Supported Flash Configurations](#supported-flash-configurations)
   - [Flash Sizes](#flash-sizes)
   - [Flash Modes](#flash-modes)
@@ -81,7 +82,9 @@ The tool wraps [esptool](https://github.com/espressif/esptool) functionality in 
 - **ELF-to-binary conversion** of bootloader files
 - **Configurable baud rate** (default: 1,500,000 for ESP32, falls back to 115,200 if unsupported)
 - **Flash erase** before writing (can be disabled with `--no-erase`)
-- **Serial log viewer** after flashing or standalone via `--show-logs`
+- **Interactive serial monitor** with command input support, ANSI colors, and timestamps
+- **ANSI color support** — full support for colored and formatted terminal output (bold, italic, underline, colors)
+- **Dynamic console interface** — input field appears when viewing logs for sending commands
 - **Dark-themed GUI** built with PyQt5 using the Fusion style
 - **Cross-platform** — Windows, macOS (Intel + ARM), and Linux (X11 + Wayland)
 
@@ -158,11 +161,18 @@ esp_flasher
 ```
 
 The GUI provides:
-1. **Serial Port** — a dropdown to select the target port (with a Reload button)
-2. **Firmware** — a file browser to select a `.bin` firmware file
-3. **Flash ESP** — starts the flashing process
-4. **View Logs** — opens a serial monitor at 115200 baud
-5. **Console** — displays real-time output from the flashing process
+1. **Serial Port** — a dropdown to select the target port
+   - **Connect Button** — Click to connect/disconnect from the selected port
+   - Automatically reloads available ports when clicked
+   - Button turns green when connected, shows "Disconnect"
+   - Button is gray when disconnected, shows "Connect"
+2. **Firmware** — a file browser to select a `.bin` firmware file (optional, only for flashing)
+3. **Flash ESP** — starts the flashing process (disconnects during flash, reconnects after if was connected)
+4. **Console** — displays real-time serial output
+   - Input field at the bottom for sending commands (enabled when connected)
+   - ANSI color support for colored output
+   - Timestamps for serial log lines
+   - Clear button to reset console
 
 ### Command Line Interface
 
@@ -213,8 +223,10 @@ ESP_Flasher/
 │   ├── __main__.py               # Entry point (CLI + GUI launcher)
 │   ├── common.py                 # Chip info classes, flash configuration logic
 │   ├── const.py                  # Constants, version, URLs
+│   ├── console_color.py          # ANSI color support for terminal output
 │   ├── gui.py                    # PyQt5 GUI implementation
 │   ├── helpers.py                # Utility functions
+│   ├── serial_console.py         # Interactive serial console with input support
 │   └── own_esptool.py            # Custom esptool (ESP ROM loaders, flash operations)
 ├── bootloader/                   # Pre-built bootloader ELF files per chip
 │   ├── esp32/
@@ -240,6 +252,9 @@ ESP_Flasher/
 │   ├── partitions.esp32p4rev3.bin
 │   ├── partitions.esp32s2.bin
 │   └── partitions.esp32s3.bin
+├── examples/                     # Example scripts
+│   ├── colored_output_example.py # ANSI color usage example
+│   └── serial_console_example.py # Serial console with input example
 ├── .github/workflows/            # CI/CD workflows
 │   ├── build.yml                 # Build binaries for all platforms
 │   └── build_pypi.yml            # Publish to PyPI
@@ -249,6 +264,8 @@ ESP_Flasher/
 ├── ESP-Flasher.spec              # PyInstaller spec file
 ├── icon.icns                     # macOS app icon
 ├── icon.ico                      # Windows app icon
+├── ANSI_COLOR_SUPPORT.md         # ANSI color support documentation
+├── test_ansi_colors.py           # Test script for ANSI colors
 └── README.md
 ```
 
@@ -292,12 +309,34 @@ A self-contained, customized version of Espressif's esptool (based on v3.6.0). I
 #### `gui.py`
 PyQt5-based GUI with:
 - Dark Fusion theme
-- Serial port selection with reload
+- Serial port selection with single Connect button
+  - Connect button reloads ports and connects in one action
+  - Button changes color: green when connected, gray when disconnected
+  - Button text changes: "Disconnect" when connected, "Connect" when disconnected
 - Firmware file browser (`.bin` filter)
-- Flash and View Logs buttons
-- Real-time console output via `RedirectText` (redirects `sys.stdout`)
+- Flash button that disconnects during flashing and reconnects after (if was connected)
+- Console with always-visible input field:
+  - Shows serial output in real-time
+  - Input field enabled when serial connection is active
+  - ANSI color support via `ColoredConsole`
+  - Automatic timestamping for serial logs
 - `FlashingThread` — runs flashing in a background daemon thread
 - Automatic Qt platform detection (Cocoa/XCB/Wayland/Windows)
+
+#### `serial_console.py`
+Serial port reader for log viewing:
+- **`SerialReader`** — Thread-safe serial port reader that runs in background
+- Emits Qt signals for received lines and errors
+- Automatic timestamping of received lines
+- Proper cleanup on stop
+
+#### `console_color.py`
+ANSI color code parser and renderer:
+- **`ConsoleState`** — Tracks current text formatting state (bold, italic, colors, etc.)
+- **`ColoredConsole`** — Main class that processes ANSI escape sequences and applies formatting using Qt's `QTextCharFormat`
+- Supports SGR (Select Graphic Rendition) codes 0-49
+- Handles carriage returns for progress indicators
+- Thread-safe via Qt signals
 
 #### `const.py`
 Application constants:
@@ -359,6 +398,25 @@ Partition tables and safeboot images are downloaded on every flash operation fro
 - **Partitions:** `https://raw.githubusercontent.com/Jason2866/ESP_Flasher/factory/partitions/partitions.<model>.bin`
 - **Safeboot:** `https://ota.tasmota.com/tasmota32/tasmota32<variant>-safeboot.bin`
 - **OTA Data:** `https://raw.githubusercontent.com/Jason2866/ESP_Flasher/factory/partitions/boot_app0.bin`
+
+### ANSI Color Support
+
+ESP-Flasher includes full ANSI color code support in the terminal. The console can display:
+
+- **Text formatting:** Bold, italic, underline, strikethrough
+- **Foreground colors:** Black, red, green, yellow, blue, magenta, cyan, white
+- **Background colors:** All standard 8 colors
+- **Special features:** Secret text (redacted), carriage return handling for progress indicators
+
+The implementation is in `esp_flasher/console_color.py` and uses Qt's `QTextCharFormat` to apply formatting. ANSI escape sequences are parsed using regex and converted to Qt text formatting in real-time.
+
+**Example usage:**
+```python
+print("\033[32mSuccess!\033[0m")  # Green text
+print("\033[1;31mError!\033[0m")  # Bold red text
+```
+
+For more details, see [ANSI_COLOR_SUPPORT.md](ANSI_COLOR_SUPPORT.md).
 
 ---
 
@@ -426,12 +484,12 @@ pip install -e .
 ### macOS
 
 ```bash
-pyinstaller -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
 Or using a virtual environment:
 ```bash
-/<path>/ESP_Flasher/.venv/bin/pyinstaller -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+/<path>/ESP_Flasher/.venv/bin/pyinstaller -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
 The output is located at `dist/ESP-Flasher.app`.
@@ -443,7 +501,7 @@ Same command as macOS Intel — PyInstaller builds for the native architecture.
 ### Windows
 
 ```bash
-python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
+python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
 ```
 
 The output is located at `dist\ESP-Flasher.exe`.
@@ -452,7 +510,7 @@ The output is located at `dist\ESP-Flasher.exe`.
 
 ```bash
 sudo apt install libnotify-dev libsdl2-dev
-python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher/__main__.py
+python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
 The output is located at `dist/ESP-Flasher`.
@@ -482,7 +540,7 @@ On tagged releases, a `release` job uploads all artifacts to the GitHub Release.
 
 ### PyPI Publishing
 
-The workflow `.github/workflows/build_pypi.yml` builds an sdist and wheel, then publishes to PyPI using the `PYPI_API_TOKEN` secret. Triggered on version tags or manual dispatch.
+The workflow `.github/workflows/build_pypi.yml` builds an sdist and wheel, then publishes to PyPI. Triggered on version tags or manual dispatch.
 
 ---
 
