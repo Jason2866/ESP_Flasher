@@ -85,6 +85,10 @@ class ColoredConsole(QObject):
         # Also matches: ESC]...BEL or ESC]...ESC\ (OSC - Operating System Command)
         ansi_re = re.compile(r'(?:\x1B|\033)(?:\[(.*?)[@-~]|\].*?(?:\x07|\x1B\\))')
         
+        # Check if we should auto-scroll (before adding text)
+        scrollbar = self.text_edit.verticalScrollBar()
+        should_autoscroll = scrollbar.value() >= scrollbar.maximum() - 10
+        
         # Handle carriage return from previous line
         if self.carriage_return:
             if line != "\n":  # don't remove if \r\n
@@ -124,10 +128,12 @@ class ColoredConsole(QObject):
         if i < len(line):
             self._add_span(cursor, line[i:])
         
-        # Auto-scroll to bottom if we're near the bottom
-        scrollbar = self.text_edit.verticalScrollBar()
-        at_bottom = scrollbar.value() >= scrollbar.maximum() - 50
-        if at_bottom:
+        # Set the cursor to make it visible
+        self.text_edit.setTextCursor(cursor)
+        
+        # Auto-scroll to bottom if we were at the bottom before
+        if should_autoscroll:
+            self.text_edit.ensureCursorVisible()
             scrollbar.setValue(scrollbar.maximum())
     
     def _add_span(self, cursor: QTextCursor, content: str):
