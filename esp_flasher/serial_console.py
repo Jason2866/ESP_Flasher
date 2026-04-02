@@ -5,12 +5,16 @@ Allows viewing logs and sending commands to the ESP device
 
 import threading
 import serial
+import logging
 from datetime import datetime
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QTextEdit
 from PyQt5.QtCore import pyqtSignal, QObject, Qt
 from PyQt5.QtGui import QFont
 
 from esp_flasher.console_color import ColoredConsole
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 
 class SerialReader(QObject):
@@ -38,18 +42,57 @@ class SerialReader(QObject):
     
     def _read_loop(self):
         """Read loop running in background thread"""
+        buffer = ""
         while self.running:
             try:
                 if self.serial_port and self.serial_port.is_open:
-                    raw = self.serial_port.readline()
-                    if raw:
-                        text = raw.decode(errors="ignore")
-                        # Only strip newlines, preserve carriage returns for progress indicators
-                        line = text.rstrip("\n")
-                        if line:  # Only emit non-empty lines
-                            time_ = datetime.now().time().strftime("[%H:%M:%S]")
-                            message = f"{time_} {line}"
-                            self.line_received.emit(message)
+                    # Read available data
+                    if self.serial_port.in_waiting > 0:
+                        raw = self.serial_port.read(self.serial_port.in_waiting)
+                        if raw:
+                            text = raw.decode(errors="ignore")
+                            buffer += text
+                            
+                            # Process complete lines (ending with \n or \r)
+                            while '\n' in buffer or '\r' in buffer:
+                                # Find the first line ending
+                                idx_n = buffer.find('\n')
+                                idx_r = buffer.find('\r')
+                                
+                                # Determine which comes first
+                                if idx_n == -1:
+                                    idx = idx_r
+                                    line_ending = '\r'
+                                elif idx_r == -1:
+                                    idx = idx_n
+                                    line_ending = '\n'
+                                else:
+                                    if idx_n < idx_r:
+                                        idx = idx_n
+                                        line_ending = '\n'
+                                    else:
+                                        idx = idx_r
+                                        line_ending = '\r'
+                                
+                                # Extract the line
+                                line = buffer[:idx]
+                                buffer = buffer[idx + 1:]
+                                
+                                # Skip \n if it follows \r (handle \r\n)
+                                if line_ending == '\r' and buffer.startswith('\n'):
+                                    buffer = buffer[1:]
+                                    line_ending = '\n'
+                                
+                                # Emit the line if not empty
+                                if line.strip():
+                                    if line_ending == '\r':
+                                        self._emit_line(line + '\r')
+                                    else:
+                                        self._emit_line(line)
+                    else:
+                        # No data available, small sleep to avoid busy loop
+                        import time
+                        time.sleep(0.01)
                 else:
                     break
             except serial.SerialException as e:
@@ -58,6 +101,27 @@ class SerialReader(QObject):
             except Exception as e:
                 self.error_occurred.emit(f"Unexpected error: {e}")
                 break
+    
+    def _emit_line(self, line):
+        """Emit a line with optional timestamp"""
+        # Add timestamp only to lines that don't already have one
+        # Check if line starts with a timestamp pattern (HH:MM:SS)
+        has_timestamp = False
+        if len(line) >= 8:
+            # Check for patterns like "21:29:01" or "[21:29:01]"
+            start_idx = 1 if line.startswith('[') else 0
+            if (len(line) > start_idx + 7 and 
+                line[start_idx + 2] == ':' and 
+                line[start_idx + 5] == ':'):
+                has_timestamp = True
+        
+        if not has_timestamp:
+            time_ = datetime.now().time().strftime("[%H:%M:%S]")
+            message = f"{time_} {line}"
+        else:
+            message = line
+        
+        self.line_received.emit(message)
 
 
 class SerialConsoleWidget(QWidget):
@@ -163,9 +227,10 @@ class SerialConsoleWidget(QWidget):
         if self.serial_port and self.serial_port.is_open:
             try:
                 self.serial_port.close()
-            except Exception:
-                pass
-            self.serial_port = None
+            except Exception as e:
+                logger.debug("Error closing serial port: %s", e, exc_info=True)
+            finally:
+                self.serial_port = None
         
         # Disable input
         self.input_field.setEnabled(False)

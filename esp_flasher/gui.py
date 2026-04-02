@@ -17,14 +17,13 @@ from esp_flasher.const import __version__
 from esp_flasher.console_color import ColoredConsole
 
 class FlashingThread(threading.Thread):
-    finished = None  # Will be set to a Qt signal for success
-    failed = None    # Will be set to a Qt signal for failure
-    
-    def __init__(self, firmware, port):
+    def __init__(self, firmware, port, finished=None, failed=None):
         threading.Thread.__init__(self)
         self.daemon = True
         self._firmware = firmware
         self._port = port
+        self.finished = finished
+        self.failed = failed
 
     def run(self):
         try:
@@ -301,9 +300,12 @@ class MainWindow(QMainWindow):
         self.port_combobox.setEnabled(False)
         
         # Create worker and connect its signals
-        self._flash_worker = FlashingThread(self._firmware, self._port)
-        self._flash_worker.finished = self.flash_finished
-        self._flash_worker.failed = self.flash_failed
+        self._flash_worker = FlashingThread(
+            self._firmware, 
+            self._port,
+            finished=self.flash_finished,
+            failed=self.flash_failed
+        )
         self._flash_worker.start()
     
     def on_flash_finished(self):
@@ -346,18 +348,23 @@ class MainWindow(QMainWindow):
             self._serial_reader.stop()
             self._serial_reader = None
         
-        # Close serial port and ensure it's fully released
+        # Close serial port and schedule cleanup
         if self._serial_port:
             try:
                 if self._serial_port.is_open:
                     self._serial_port.close()
-                # Give OS time to release the port
-                import time
-                time.sleep(0.1)
             except Exception as e:
                 print(f"Error closing serial port: {e}")
-            finally:
-                self._serial_port = None
+            
+            # Schedule cleanup after port release using non-blocking timer
+            from PyQt5.QtCore import QTimer
+            QTimer.singleShot(100, self._finish_serial_cleanup)
+        else:
+            self._finish_serial_cleanup()
+    
+    def _finish_serial_cleanup(self):
+        """Complete serial port cleanup after release delay"""
+        self._serial_port = None
         
         # Disable input controls (check if they exist first)
         if hasattr(self, 'input_field'):
