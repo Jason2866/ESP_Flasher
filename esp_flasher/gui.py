@@ -1,5 +1,4 @@
 # Big thx to Michael Kandziora for this GUI port to PyQt5
-import re
 import sys
 import threading
 import os
@@ -9,52 +8,12 @@ import distro
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout)
-from PyQt5.QtGui import QColor, QTextCursor, QPalette, QColor
+from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import pyqtSignal, QObject
 
 from esp_flasher.own_esptool import get_port_list
 from esp_flasher.const import __version__
-
-COLOR_RE = re.compile(r'(?:\033)(?:\[(.*?)[@-~]|\].*?(?:\007|\033\\))')
-COLORS = {
-    'black': QColor('black'),
-    'red': QColor('red'),
-    'green': QColor('green'),
-    'yellow': QColor('yellow'),
-    'blue': QColor('blue'),
-    'magenta': QColor('magenta'),
-    'cyan': QColor('cyan'),
-    'white': QColor('white'),
-}
-FORE_COLORS = {**COLORS, None: QColor('white')}
-BACK_COLORS = {**COLORS, None: QColor('black')}
-
-class RedirectText(QObject):
-    text_written = pyqtSignal(str)
-
-    def __init__(self, text_edit):
-        super().__init__()
-        self._out = text_edit
-        self._line = ''
-        self._bold = False
-        self._italic = False
-        self._underline = False
-        self._foreground = None
-        self._background = None
-        self._secret = False
-        self.text_written.connect(self._append_text)
-
-    def write(self, string):
-        self.text_written.emit(string)
-
-    def flush(self):
-        pass
-
-    def _append_text(self, text):
-        cursor = self._out.textCursor()
-        self._out.moveCursor(QTextCursor.End)
-        self._out.insertPlainText(text)
-        self._out.setTextCursor(cursor)
+from esp_flasher.console_color import ColoredConsole
 
 class FlashingThread(threading.Thread):
     def __init__(self, firmware, port, show_logs=False):
@@ -82,9 +41,12 @@ class MainWindow(QMainWindow):
 
         self._firmware = None
         self._port = None
+        self._colored_console = None
 
         self.init_ui()
-        sys.stdout = RedirectText(self.console)  # Redirect stdout to console
+        # Redirect stdout to colored console
+        self._colored_console = ColoredConsole(self.console)
+        sys.stdout = self._colored_console
 
     def init_ui(self):
         self.setWindowTitle(f"Tasmota-Esp-Flasher {__version__}")
