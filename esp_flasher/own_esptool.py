@@ -1005,6 +1005,17 @@ class ESPLoader(object):
                              % (arg, ", ".join(cls.FLASH_FREQUENCY.keys())))
 
     def run_stub(self, stub=None):
+        # Special handling for ESP32-P4: select RC1 stub for revisions < 3.0
+        # This must happen before loading the stub to ensure the correct variant is used
+        if stub is None and isinstance(self, ESP32P4ROM) and not isinstance(self, ESP32P4RC1ROM):
+            if not self.secure_download_mode:
+                revision = self.get_chip_revision()
+                if revision < 300:
+                    # Use ESP32P4RC1ROM stub code and stub class for revisions below 3.0
+                    self.STUB_CODE = load_stub("esp32p4rc1")
+                    self.STUB_CLASS = ESP32P4RC1ROM.STUB_CLASS
+                    print(f"Detected ESP32-P4 revision {revision // 100}.{revision % 100}, using RC1 stub")
+        
         if stub is None:
             stub = self.STUB_CODE.load()
 
@@ -3509,14 +3520,6 @@ class ESP32P4ROM(ESP32ROM):
             self.disable_watchdogs()
             # Power on flash first (needed for ECO6/rev 301)
             self.power_on_flash()
-            
-            # Read revision to determine which stub to use
-            revision = self.get_chip_revision()
-            if revision < 300:
-                # Use ESP32P4RC1ROM stub code and stub class for revisions below 3.0
-                self.STUB_CODE = load_stub("esp32p4rc1")
-                self.STUB_CLASS = ESP32P4RC1ROM.STUB_CLASS
-                print(f"Detected ESP32-P4 revision {revision // 100}.{revision % 100}, using RC1 stub")
 
     def disable_watchdogs(self):
         """Disable RTC WDT and SWD watchdogs.
