@@ -38,6 +38,7 @@ setup(
     author=PROJECT_AUTHOR,
     author_email=PROJECT_EMAIL,
     description="ESP8266/ESP32 Tasmota firmware flasher for ESP",
+    package_data={'esp_flasher': ['stubs/*.json']},
     include_package_data=True,
     zip_safe=False,
     platforms='any',
@@ -52,5 +53,5 @@ setup(
             'esp_flasher = esp_flasher.__main__:main'
         ]
     },
-    packages=find_packages(include="esprelease.*")
+    packages=find_packages(include=("esp_flasher", "esp_flasher.*", "esprelease.*"))
 )

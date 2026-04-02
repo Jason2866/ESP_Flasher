@@ -19,9 +19,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           architecture: 'x64'
@@ -34,12 +34,12 @@ jobs:
           esp_flasher -h
       - name: Run PyInstaller
         run: |
-          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
+          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
       - name: Test binary
         shell: bash
         run: |
           dist/ESP-Flasher.exe -h
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Windows
           path: dist/ESP-Flasher.exe
@@ -48,9 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
      - name: Checkout
-       uses: actions/checkout@v4
+       uses: actions/checkout@v6
      - name: Install Python
-       uses: actions/setup-python@v5
+       uses: actions/setup-python@v6
        with:
          python-version: '3.13'
      - name: Install dependencies
@@ -66,7 +66,7 @@ jobs:
          esp_flasher -h
      - name: Run PyInstaller
        run: |
-         python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher/__main__.py
+         python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
      - name: Test binary
        shell: bash
        run: |
@@ -76,7 +76,7 @@ jobs:
          mv dist/ESP-Flasher ESP-Flasher
      - name: 'Tar files'
        run: tar -cvf Ubuntu.tar ESP-Flasher
-     - uses: actions/upload-artifact@v4
+     - uses: actions/upload-artifact@v7
        with:
          name: Ubuntu
          path: Ubuntu.tar
@@ -85,9 +85,9 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
       - name: Install requirements
@@ -99,7 +99,7 @@ jobs:
           esp_flasher -h
       - name: Run PyInstaller
         run: |
-          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
       - name: Test binary
         shell: bash
         run: |
@@ -110,7 +110,7 @@ jobs:
       - name: 'Tar files'
         run: tar -cvf macOS.tar ESP-Flasher-macOS.app
       - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macOS
           path: macOS.tar
@@ -119,9 +119,9 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
       - name: Install requirements
@@ -133,7 +133,7 @@ jobs:
           esp_flasher -h
       - name: Run PyInstaller
         run: |
-          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
       - name: Test binary
         shell: bash
         run: |
@@ -144,7 +144,7 @@ jobs:
       - name: 'Tar files'
         run: tar -cvf macOSarm.tar ESP-Flasher-macOSarm.app
       - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macOSarm
           path: macOSarm.tar
@@ -156,11 +156,11 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - name: Checkout repository
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
           with:
             ref: factory
         - name: Download built binaries artifacts
-          uses: actions/download-artifact@v4
+          uses: actions/download-artifact@v8
           with:
             path: binary
             merge-multiple: true

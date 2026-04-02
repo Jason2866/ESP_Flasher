@@ -10,11 +10,16 @@ jobs:
 
   build-pypi:
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/esp-flasher
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
      - name: Checkout
-       uses: actions/checkout@v4
+       uses: actions/checkout@v6
      - name: Install Python
-       uses: actions/setup-python@v5
+       uses: actions/setup-python@v6
        with:
          python-version: '3.13'
      - name: Install dependencies
@@ -29,16 +34,13 @@ jobs:
        run: python setup.py sdist bdist_wheel
      - name: See dist directory
        run: ls dist
-     - uses: actions/upload-artifact@v4
+     - uses: actions/upload-artifact@v7
        with:
          name: sdist
          path: dist/esp_flasher-*.tar.gz
-     - uses: actions/upload-artifact@v4
+     - uses: actions/upload-artifact@v7
        with:
          name: bdist_wheel
          path: dist/esp_flasher-*.whl
      - name: Publish a Python distribution to PyPI
        uses: pypa/gh-action-pypi-publish@release/v1
-       with:
-         user: __token__
-         password: ${{ secrets.PYPI_API_TOKEN }}
