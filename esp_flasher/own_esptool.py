@@ -82,23 +82,48 @@ SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32c2', 'esp32c3
 STUBS_DIR = os.path.join(os.path.dirname(__file__), "stubs")
 
 
-def load_stub(chip_name):
-    """Load flasher stub data from a JSON file for the given chip name.
-
-    The JSON files contain base64-encoded text and data segments,
-    which are decoded to bytes at load time.
+class _StubLazyLoader:
+    """Lazy loader for flasher stub code.
+    
+    Defers file I/O and JSON decoding until the stub is actually needed,
+    preventing import failures from missing/corrupt stub files when they're
+    not required (e.g., --no-stub, version, image_info commands).
     """
-    json_path = os.path.join(STUBS_DIR, chip_name + ".json")
-    with open(json_path, "r") as f:
-        stub = json.load(f)
-    # Decode base64-encoded binary segments
-    stub["text"] = base64.b64decode(stub["text"])
-    if "data" in stub:
-        stub["data"] = base64.b64decode(stub["data"])
-    else:
-        stub["data"] = b""
-        stub.setdefault("data_start", 0)
-    return stub
+    def __init__(self, chip_name):
+        self.chip_name = chip_name
+        self._cached_stub = None
+    
+    def load(self):
+        """Load and cache the stub data on first access."""
+        if self._cached_stub is not None:
+            return self._cached_stub
+        
+        json_path = os.path.join(STUBS_DIR, self.chip_name + ".json")
+        try:
+            with open(json_path, "r") as f:
+                stub = json.load(f)
+            # Decode base64-encoded binary segments
+            stub["text"] = base64.b64decode(stub["text"])
+            if "data" in stub:
+                stub["data"] = base64.b64decode(stub["data"])
+            else:
+                stub["data"] = b""
+                stub.setdefault("data_start", 0)
+            self._cached_stub = stub
+            return stub
+        except (IOError, OSError, json.JSONDecodeError, KeyError) as e:
+            raise FatalError(
+                f"Failed to load stub code for {self.chip_name}: {e}"
+            )
+
+
+def load_stub(chip_name):
+    """Create a lazy loader for flasher stub data.
+    
+    Returns a lazy loader that will load the JSON file and decode
+    base64-encoded segments only when actually accessed.
+    """
+    return _StubLazyLoader(chip_name)
 
 
 def timeout_per_mb(seconds_per_mb, size_bytes):
@@ -816,7 +841,7 @@ class ESPLoader(object):
     """ Start downloading an application image to RAM """
     def mem_begin(self, size, blocks, blocksize, offset):
         if self.IS_STUB:  # check we're not going to overwrite a running stub with this data
-            stub = self.STUB_CODE
+            stub = self.STUB_CODE.load()
             load_start = offset
             load_end = offset + size
             for (start, end) in [(stub["data_start"], stub["data_start"] + len(stub["data"])),
@@ -981,7 +1006,7 @@ class ESPLoader(object):
 
     def run_stub(self, stub=None):
         if stub is None:
-            stub = self.STUB_CODE
+            stub = self.STUB_CODE.load()
 
         if self.sync_stub_detected:
             print("Stub is already running. No upload is necessary.")
