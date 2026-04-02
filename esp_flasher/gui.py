@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout,
                              QLineEdit)
 from PyQt5.QtGui import QColor, QPalette
-from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtCore import pyqtSignal, QObject, Qt
 
 from esp_flasher.own_esptool import get_port_list
 from esp_flasher.const import __version__
@@ -414,7 +414,6 @@ class MainWindow(QMainWindow):
     def eventFilter(self, obj, event):
         """Filter events to catch arrow key presses in input field"""
         if obj == self.input_field and event.type() == event.KeyPress:
-            from PyQt5.QtCore import Qt
             
             if event.key() == Qt.Key_Up:
                 # Navigate up in history (older commands)

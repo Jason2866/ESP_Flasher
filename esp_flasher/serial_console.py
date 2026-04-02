@@ -311,7 +311,6 @@ class SerialConsoleWidget(QWidget):
     def eventFilter(self, obj, event):
         """Filter events to catch arrow key presses in input field"""
         if obj == self.input_field and event.type() == event.KeyPress:
-            from PyQt5.QtCore import Qt
             
             if event.key() == Qt.Key_Up:
                 # Navigate up in history (older commands)
