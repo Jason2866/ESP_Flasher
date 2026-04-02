@@ -29,7 +29,7 @@ Instructions for building standalone ESP-Flasher binaries using [PyInstaller](ht
 3. Install dependencies (see [Prerequisites](#prerequisites-all-platforms))
 4. Build the binary:
    ```bash
-   python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher\__main__.py
+   python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
    ```
 5. Verify the binary:
    ```bash
@@ -46,7 +46,7 @@ The output is `dist\ESP-Flasher.exe`.
 2. Install dependencies (see [Prerequisites](#prerequisites-all-platforms))
 3. Build the binary:
    ```bash
-   python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+   .venv/bin/pyinstaller -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
    ```
 4. Verify the binary:
    ```bash
@@ -67,7 +67,7 @@ Same steps as macOS Intel — PyInstaller builds for the native architecture aut
 2. Activate it and install all dependencies (see [Prerequisites](#prerequisites-all-platforms))
 3. Build the binary using the venv's PyInstaller:
    ```bash
-   .venv/bin/pyinstaller -F -w -n ESP-Flasher -i icon.icns esp_flasher/__main__.py
+   .venv/bin/pyinstaller -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
    ```
 
 The output is `dist/ESP-Flasher.app`.
@@ -84,7 +84,7 @@ The output is `dist/ESP-Flasher.app`.
 2. Install dependencies (see [Prerequisites](#prerequisites-all-platforms))
 3. Build the binary:
    ```bash
-   python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico esp_flasher/__main__.py
+   python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
    ```
 4. Verify the binary:
    ```bash
@@ -99,15 +99,6 @@ The output is `dist/ESP-Flasher`.
 > ```
 > Then log out and back in.
 
----
-
-## Using the PyInstaller spec file
-
-Alternatively, you can build using the included `ESP-Flasher.spec` (configured for macOS):
-
-```bash
-pyinstaller ESP-Flasher.spec
-```
 
 This produces `dist/ESP-Flasher.app` with the bundled icon and settings.
 
