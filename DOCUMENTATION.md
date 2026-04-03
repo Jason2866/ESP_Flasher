@@ -98,10 +98,10 @@ Download the latest release for your operating system from the [Releases page](h
 
 | Platform | Binary |
 |----------|--------|
-| Windows | `ESP-Flasher.exe` |
+| Windows | `ESP-Flasher-Windows.zip` (extract and run `ESP-Flasher.exe`) |
 | macOS (Intel) | `ESP-Flasher-macOS.app` (tar archive) |
 | macOS (ARM/Apple Silicon) | `ESP-Flasher-macOSarm.app` (tar archive) |
-| Linux (Ubuntu) | `ESP-Flasher` (tar archive) |
+| Linux (Ubuntu) | `Ubuntu.tar` (extract and run `ESP-Flasher/ESP-Flasher`) |
 
 ### From PyPI
 
@@ -484,15 +484,15 @@ pip install -e .
 ### macOS
 
 ```bash
-python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
 Or using a virtual environment:
 ```bash
-/<path>/ESP_Flasher/.venv/bin/pyinstaller -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+/<path>/ESP_Flasher/.venv/bin/pyinstaller -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
-The output is located at `dist/ESP-Flasher.app`.
+The output is located at `dist/ESP-Flasher.app` (onedir bundle for fast startup).
 
 ### macOS (ARM)
 
@@ -501,19 +501,19 @@ Same command as macOS Intel — PyInstaller builds for the native architecture.
 ### Windows
 
 ```bash
-python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
+python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
 ```
 
-The output is located at `dist\ESP-Flasher.exe`.
+The output is located at `dist\ESP-Flasher\` (directory containing `ESP-Flasher.exe` and dependencies).
 
 ### Linux (Ubuntu)
 
 ```bash
 sudo apt install libnotify-dev libsdl2-dev
-python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
-The output is located at `dist/ESP-Flasher`.
+The output is located at `dist/ESP-Flasher/` (directory containing the executable and dependencies).
 
 ---
 
@@ -531,10 +531,10 @@ It builds binaries for four platforms in parallel:
 
 | Job | Runner | Python | Output |
 |-----|--------|--------|--------|
-| `build-windows` | `windows-latest` | 3.13 | `ESP-Flasher.exe` |
-| `build-ubuntu` | `ubuntu-latest` | 3.13 | `ESP-Flasher` (tar) |
-| `build-macos` | `macos-15-intel` | 3.13 | `ESP-Flasher-macOS.app` (tar) |
-| `build-macos-arm` | `macos-15` | 3.13 | `ESP-Flasher-macOSarm.app` (tar) |
+| `build-windows` | `windows-latest` | 3.13 | `ESP-Flasher-Windows.zip` (onedir) |
+| `build-ubuntu` | `ubuntu-latest` | 3.13 | `Ubuntu.tar` (onedir) |
+| `build-macos` | `macos-15-intel` | 3.13 | `ESP-Flasher-macOS.app` (onedir, tar) |
+| `build-macos-arm` | `macos-15` | 3.13 | `ESP-Flasher-macOSarm.app` (onedir, tar) |
 
 On tagged releases, a `release` job uploads all artifacts to the GitHub Release.
 

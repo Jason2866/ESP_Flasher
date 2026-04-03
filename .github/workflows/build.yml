@@ -34,15 +34,19 @@ jobs:
           esp_flasher -h
       - name: Run PyInstaller
         run: |
-          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
+          python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
       - name: Test binary
         shell: bash
         run: |
-          dist/ESP-Flasher.exe -h
+          dist/ESP-Flasher/ESP-Flasher.exe -h
+      - name: Create archive
+        shell: bash
+        run: |
+          cd dist && 7z a -tzip ../ESP-Flasher-Windows.zip ESP-Flasher/
       - uses: actions/upload-artifact@v7
         with:
           name: Windows
-          path: dist/ESP-Flasher.exe
+          path: ESP-Flasher-Windows.zip
 
   build-ubuntu:
     runs-on: ubuntu-latest
@@ -66,16 +70,13 @@ jobs:
          esp_flasher -h
      - name: Run PyInstaller
        run: |
-         python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+         python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
      - name: Test binary
        shell: bash
        run: |
-         dist/ESP-Flasher -h 
-     - name: Move app
-       run: |
-         mv dist/ESP-Flasher ESP-Flasher
+         dist/ESP-Flasher/ESP-Flasher -h
      - name: 'Tar files'
-       run: tar -cvf Ubuntu.tar ESP-Flasher
+       run: tar -cvf Ubuntu.tar -C dist ESP-Flasher/
      - uses: actions/upload-artifact@v7
        with:
          name: Ubuntu
@@ -99,11 +100,11 @@ jobs:
           esp_flasher -h
       - name: Run PyInstaller
         run: |
-          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+          python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
       - name: Test binary
         shell: bash
         run: |
-          dist/ESP-Flasher -h
+          dist/ESP-Flasher/ESP-Flasher -h
       - name: Move app
         run: |
           mv dist/ESP-Flasher.app ESP-Flasher-macOS.app
@@ -133,11 +134,11 @@ jobs:
           esp_flasher -h
       - name: Run PyInstaller
         run: |
-          python -m PyInstaller.__main__ -F -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+          python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
       - name: Test binary
         shell: bash
         run: |
-          dist/ESP-Flasher -h 
+          dist/ESP-Flasher/ESP-Flasher -h
       - name: Move app
         run: |
           mv dist/ESP-Flasher.app ESP-Flasher-macOSarm.app
