@@ -2,6 +2,12 @@ import re
 
 __version__ = "4.1.0"
 
+# Default window geometry
+DEFAULT_WINDOW_WIDTH = 800
+DEFAULT_WINDOW_HEIGHT = 600
+DEFAULT_WINDOW_X = 100
+DEFAULT_WINDOW_Y = 100
+
 ESP32_DEFAULT_OTA_DATA = (
     "https://raw.githubusercontent.com/Jason2866/ESP_Flasher/factory/"
     "partitions/boot_app0.bin"

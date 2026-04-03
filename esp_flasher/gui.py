@@ -9,10 +9,12 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout,
                              QLineEdit)
 from PyQt5.QtGui import QColor, QPalette
-from PyQt5.QtCore import pyqtSignal, QObject, Qt
+from PyQt5.QtCore import pyqtSignal, QObject, Qt, QSettings
 
 from esp_flasher.own_esptool import get_port_list
-from esp_flasher.const import __version__
+from esp_flasher.const import (__version__, DEFAULT_WINDOW_WIDTH, 
+                               DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_X, 
+                               DEFAULT_WINDOW_Y)
 from esp_flasher.console_color import ColoredConsole
 
 class FlashingThread(threading.Thread):
@@ -60,6 +62,9 @@ class MainWindow(QMainWindow):
         self.command_history = []  # Store command history
         self.history_index = -1  # Current position in history (-1 = not browsing)
         self.current_input = ""  # Store current input when browsing history
+        
+        # Initialize settings
+        self.settings = QSettings('Tasmota', 'ESP-Flasher')
 
         self.init_ui()
         # Redirect stdout to colored console
@@ -69,10 +74,15 @@ class MainWindow(QMainWindow):
         # Connect flash signals
         self.flash_finished.connect(self.on_flash_finished)
         self.flash_failed.connect(self.on_flash_failed)
+        
+        # Restore window geometry
+        self.restore_window_geometry()
 
     def init_ui(self):
         self.setWindowTitle(f"Tasmota-Esp-Flasher {__version__}")
-        self.setGeometry(100, 100, 800, 600)
+        # Set default size (will be overridden by saved settings if available)
+        self.setGeometry(DEFAULT_WINDOW_X, DEFAULT_WINDOW_Y, 
+                        DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -480,12 +490,25 @@ class MainWindow(QMainWindow):
         """Clear the console"""
         self._colored_console.clear()
     
+    def restore_window_geometry(self):
+        """Restore window size and position from settings"""
+        geometry = self.settings.value('window/geometry')
+        if geometry:
+            self.restoreGeometry(geometry)
+    
+    def save_window_geometry(self):
+        """Save window size and position to settings"""
+        self.settings.setValue('window/geometry', self.saveGeometry())
+    
     def closeEvent(self, event):
         """Handle window close event"""
         if self._is_flashing:
             self.show_log_error("Cannot close window while flashing is in progress")
             event.ignore()
             return
+        
+        # Save window geometry before closing
+        self.save_window_geometry()
             
         if self._serial_port and self._serial_port.is_open:
             self.disconnect_from_port()
