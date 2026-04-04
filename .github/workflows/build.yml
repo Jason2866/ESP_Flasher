@@ -94,7 +94,7 @@ jobs:
      - name: Install dependencies
        run: |
          sudo apt update
-         sudo apt install libnotify-dev libsdl2-dev qtbase5-dev qt5-qmake
+         sudo apt install libnotify-dev libsdl2-dev
      - name: Install requirements
        run: |
          pip install -r requirements.txt -r requirements_build.txt

@@ -8,9 +8,9 @@ import threading
 import serial
 import logging
 from datetime import datetime
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QTextEdit
-from PyQt5.QtCore import pyqtSignal, QObject, Qt
-from PyQt5.QtGui import QFont
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QTextEdit
+from PyQt6.QtCore import pyqtSignal, QObject, Qt
+from PyQt6.QtGui import QFont
 
 from esp_flasher.console_color import ColoredConsole
 from esp_flasher.own_esptool import colorize, COLOR_RED, COLOR_GREEN, COLOR_CYAN, COLOR_RESET
@@ -317,13 +317,13 @@ class SerialConsoleWidget(QWidget):
     
     def eventFilter(self, obj, event):
         """Filter events to catch arrow key presses in input field"""
-        if obj == self.input_field and event.type() == event.KeyPress:
+        if obj == self.input_field and event.type() == event.Type.KeyPress:
             
-            if event.key() == Qt.Key_Up:
+            if event.key() == Qt.Key.Key_Up:
                 # Navigate up in history (older commands)
                 self.navigate_history_up()
                 return True
-            elif event.key() == Qt.Key_Down:
+            elif event.key() == Qt.Key.Key_Down:
                 # Navigate down in history (newer commands)
                 self.navigate_history_down()
                 return True

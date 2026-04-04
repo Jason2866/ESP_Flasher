@@ -2,9 +2,9 @@
 ANSI Color Console Support for ESP-Flasher
 """
 
-from PyQt5.QtWidgets import QTextEdit
-from PyQt5.QtGui import QColor, QTextCursor, QTextCharFormat, QFont
-from PyQt5.QtCore import QObject, pyqtSignal
+from PyQt6.QtWidgets import QTextEdit
+from PyQt6.QtGui import QColor, QTextCursor, QTextCharFormat, QFont
+from PyQt6.QtCore import QObject, pyqtSignal
 import re
 
 
@@ -96,8 +96,8 @@ class ColoredConsole(QObject):
             if line != "\n":  # don't remove if \r\n
                 # Remove last line
                 cursor = self.text_edit.textCursor()
-                cursor.movePosition(QTextCursor.End)
-                cursor.select(QTextCursor.LineUnderCursor)
+                cursor.movePosition(QTextCursor.MoveOperation.End)
+                cursor.select(QTextCursor.SelectionType.LineUnderCursor)
                 cursor.removeSelectedText()
                 cursor.deletePreviousChar()  # Remove the newline
             self.carriage_return = False
@@ -110,7 +110,7 @@ class ColoredConsole(QObject):
         
         # Move cursor to end
         cursor = self.text_edit.textCursor()
-        cursor.movePosition(QTextCursor.End)
+        cursor.movePosition(QTextCursor.MoveOperation.End)
         
         # Process the line with ANSI codes
         i = 0
@@ -148,7 +148,7 @@ class ColoredConsole(QObject):
         fmt = QTextCharFormat()
         
         if self.state.bold:
-            fmt.setFontWeight(QFont.Bold)
+            fmt.setFontWeight(QFont.Weight.Bold)
         
         if self.state.italic:
             fmt.setFontItalic(True)

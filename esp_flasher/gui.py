@@ -4,12 +4,12 @@ import threading
 import os
 import platform
 
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout,
                              QLineEdit)
-from PyQt5.QtGui import QColor, QPalette
-from PyQt5.QtCore import pyqtSignal, QObject, Qt, QSettings
+from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtCore import pyqtSignal, QObject, Qt, QSettings
 
 from esp_flasher.own_esptool import get_port_list, colorize, COLOR_RED, COLOR_GREEN, COLOR_CYAN, COLOR_YELLOW
 from esp_flasher.const import (__version__, DEFAULT_WINDOW_WIDTH, 
@@ -270,8 +270,7 @@ class MainWindow(QMainWindow):
             self.port_combobox.setEnabled(True)
 
     def pick_file(self):
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getOpenFileName(self, "Select Firmware File", "", "Binary Files (*.bin);;All Files (*)", options=options)
+        file_name, _ = QFileDialog.getOpenFileName(self, "Select Firmware File", "", "Binary Files (*.bin);;All Files (*)")
         if file_name:
             self._firmware = file_name
             self.firmware_button.setText(file_name)
@@ -297,7 +296,7 @@ class MainWindow(QMainWindow):
             self.disconnect_from_port()
             
             # Give the OS time to release the port
-            from PyQt5.QtCore import QTimer
+            from PyQt6.QtCore import QTimer
             # Wait 500ms then start flashing
             QTimer.singleShot(500, self._start_flash_worker)
         else:
@@ -370,7 +369,7 @@ class MainWindow(QMainWindow):
                 print(f"Error closing serial port: {e}")
             
             # Schedule cleanup after port release using non-blocking timer
-            from PyQt5.QtCore import QTimer
+            from PyQt6.QtCore import QTimer
             QTimer.singleShot(100, self._finish_serial_cleanup)
         else:
             self._finish_serial_cleanup()
@@ -422,13 +421,13 @@ class MainWindow(QMainWindow):
     
     def eventFilter(self, obj, event):
         """Filter events to catch arrow key presses in input field"""
-        if obj == self.input_field and event.type() == event.KeyPress:
+        if obj == self.input_field and event.type() == event.Type.KeyPress:
             
-            if event.key() == Qt.Key_Up:
+            if event.key() == Qt.Key.Key_Up:
                 # Navigate up in history (older commands)
                 self.navigate_history_up()
                 return True
-            elif event.key() == Qt.Key_Down:
+            elif event.key() == Qt.Key.Key_Down:
                 # Navigate down in history (newer commands)
                 self.navigate_history_down()
                 return True
@@ -551,24 +550,24 @@ def main():
 
     app.setStyle("Fusion")
     palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(53, 53, 53))
-    palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
-    palette.setColor(QPalette.Base, QColor(35, 35, 35))
-    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-    palette.setColor(QPalette.ToolTipBase, QColor(255, 255, 255))
-    palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
-    palette.setColor(QPalette.Text, QColor(255, 255, 255))
-    palette.setColor(QPalette.Button, QColor(53, 53, 53))
-    palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-    palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-    palette.setColor(QPalette.Link, QColor(42, 130, 218))
-    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+    palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(255, 255, 255))
+    palette.setColor(QPalette.ColorRole.Base, QColor(35, 35, 35))
+    palette.setColor(QPalette.ColorRole.AlternateBase, QColor(53, 53, 53))
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 255))
+    palette.setColor(QPalette.ColorRole.ToolTipText, QColor(255, 255, 255))
+    palette.setColor(QPalette.ColorRole.Text, QColor(255, 255, 255))
+    palette.setColor(QPalette.ColorRole.Button, QColor(53, 53, 53))
+    palette.setColor(QPalette.ColorRole.ButtonText, QColor(255, 255, 255))
+    palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 0, 0))
+    palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor(0, 0, 0))
     app.setPalette(palette)
 
     main_window = MainWindow()
     main_window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()
