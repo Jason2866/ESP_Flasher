@@ -82,6 +82,40 @@ jobs:
          name: Ubuntu
          path: Ubuntu.tar
 
+  build-ubuntu-arm:
+    runs-on: ubuntu-24.04-arm
+    steps:
+     - name: Checkout
+       uses: actions/checkout@v6
+     - name: Install Python
+       uses: actions/setup-python@v6
+       with:
+         python-version: '3.13'
+     - name: Install dependencies
+       run: |
+         sudo apt update
+         sudo apt install libnotify-dev libsdl2-dev
+     - name: Install requirements
+       run: |
+         pip install -r requirements.txt -r requirements_build.txt
+         pip install -e .
+     - name: Check if the installed versions can run
+       run: |
+         esp_flasher -h
+     - name: Run PyInstaller
+       run: |
+         python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --hidden-import colorama --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+     - name: Test binary
+       shell: bash
+       run: |
+         dist/ESP-Flasher/ESP-Flasher -h
+     - name: 'Tar files'
+       run: tar -cvf Ubuntu-arm.tar -C dist ESP-Flasher/
+     - uses: actions/upload-artifact@v7
+       with:
+         name: Ubuntu-arm
+         path: Ubuntu-arm.tar
+
   build-macos:
     runs-on: macos-15-intel
     steps:
@@ -152,7 +186,7 @@ jobs:
 
   release:
       name: Upload binaries to release section
-      needs: [build-windows, build-ubuntu, build-macos, build-macos-arm]
+      needs: [build-windows, build-ubuntu, build-ubuntu-arm, build-macos, build-macos-arm]
       if: startsWith(github.ref, 'refs/tags/')
       runs-on: ubuntu-latest
       steps:
