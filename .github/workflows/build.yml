@@ -48,6 +48,39 @@ jobs:
           name: Windows
           path: ESP-Flasher-Windows.zip
 
+  build-windows-arm:
+    runs-on: windows-11-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: 'arm64'
+      - name: Install requirements
+        run: |
+          pip install -r requirements.txt -r requirements_build.txt
+          pip install -e .
+      - name: Check if the installed versions can run
+        run: |
+          esp_flasher -h
+      - name: Run PyInstaller
+        run: |
+          python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --hidden-import colorama --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
+      - name: Test binary
+        shell: bash
+        run: |
+          dist/ESP-Flasher/ESP-Flasher.exe -h
+      - name: Create archive
+        shell: bash
+        run: |
+          cd dist && 7z a -tzip ../ESP-Flasher-Windows-arm.zip ESP-Flasher/
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Windows-arm
+          path: ESP-Flasher-Windows-arm.zip
+
   build-ubuntu:
     runs-on: ubuntu-latest
     steps:
@@ -186,7 +219,7 @@ jobs:
 
   release:
       name: Upload binaries to release section
-      needs: [build-windows, build-ubuntu, build-ubuntu-arm, build-macos, build-macos-arm]
+      needs: [build-windows, build-windows-arm, build-ubuntu, build-ubuntu-arm, build-macos, build-macos-arm]
       if: startsWith(github.ref, 'refs/tags/')
       runs-on: ubuntu-latest
       steps:
