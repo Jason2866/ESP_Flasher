@@ -25,7 +25,7 @@ import sys
 import time
 import zlib
 import colorama
-colorama.init()
+colorama.just_fix_windows_console()
 
 try:
     import serial
