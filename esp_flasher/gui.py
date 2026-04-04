@@ -350,10 +350,8 @@ class MainWindow(QMainWindow):
     
     def _reconnect_after_flash(self):
         """Reconnect to serial port after flash"""
-        try:
-            self.connect_to_port()
-        except Exception:
-            print(f"\033[33mPort {self._port} has disappeared (WDT reset). Please reconnect manually.\033[0m")
+        self.connect_to_port()
+        if not (self._serial_port and self._serial_port.is_open):
             self.port_combobox.setEnabled(True)
     
     def stop_serial(self):

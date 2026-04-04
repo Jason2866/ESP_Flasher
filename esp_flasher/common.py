@@ -4,6 +4,7 @@ import re
 import struct
 from os.path import join
 from io import BytesIO
+from urllib.parse import urlparse, unquote
 
 import esp_flasher.own_esptool as esptool
 
@@ -240,7 +241,7 @@ def open_downloadable_binary(path):
                 f"Error while retrieving firmware file '{path}': {err}"
             ) from err
 
-        filename = path.split("/")[-1].split("?")[0] or path
+        filename = os.path.basename(unquote(urlparse(path).path)) or path
         binary = NamedBytesIO(response.content, name=filename)
         return binary
 
@@ -366,7 +367,7 @@ def configure_write_flash_args(
                 with open(output, "rb") as fh:
                     bootloader = NamedBytesIO(fh.read(), name=os.path.basename(output))
             except IOError as err:
-                bootloader=""           # Will be there in second call!
+                bootloader = NamedBytesIO(name=os.path.basename(output))  # Will be there in second call!
 
             input = boot_loader_file    # local downloaded elf bootloader file
             if not partitions_path:

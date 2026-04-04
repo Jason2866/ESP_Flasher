@@ -93,8 +93,8 @@ def select_port(args, silent=False):
             print("Please choose one with the --port argument.")
         raise Esp_flasherError
     if not silent:
-        print(f"Auto-detected serial port: {ports}")
-    return ports
+        print(f"Auto-detected serial port: {ports[0]}")
+    return ports[0]
 
 
 def show_logs(serial_port):

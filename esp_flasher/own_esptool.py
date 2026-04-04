@@ -5666,10 +5666,8 @@ def write_flash(esp, args):
             reset = '\033[0m'
             bar = fill_color + '█' * filled + dim_color + '█' * (bar_length - filled) + reset
             bar_str = '%s[%s] %d%% 0x%08x%s' % (fill_color, bar, pct, address + bytes_written, reset)
-            if pct == 100:
-                sys.stdout.write(bar_str + "\n")
-            else:
-                sys.stdout.write(bar_str + "\r")
+            sys.stdout.write(bar_str + ("\n" if pct == 100 else "\r"))
+            sys.stdout.flush()
             block = image[0:esp.FLASH_WRITE_SIZE]
             if compress:
                 # feeding each compressed block into the decompressor lets us see block-by-block how much will be written
