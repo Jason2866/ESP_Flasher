@@ -5609,10 +5609,12 @@ def write_flash(esp, args):
                 print(colorize("WARNING: Flash address {:#010x} is not aligned to a {:#x} byte flash sector. "
                                "{:#x} bytes before this address will be erased."
                                .format(address, esp.FLASH_SECTOR_SIZE, bytes_over), COLOR_YELLOW))
-            # Print the address range of to-be-erased flash memory region
-            # print(colorize("Flash will be erased from {:#010x} to {:#010x}..."
-                  #              .format(address - bytes_over, div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1), COLOR_CYAN))
-            print(colorize("Flashing %s to 0x%08x - 0x%08x..." % (getattr(argfile, 'name', '<memory>'), address, write_end - 1), COLOR_YELLOW))
+            # Print the address range of the flash region that will actually be erased
+            if write_end > address:
+                erase_start = address - bytes_over
+                erase_end = div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1
+                print(colorize("Flashing %s: erase 0x%08x - 0x%08x..."
+                               % (getattr(argfile, 'name', '<memory>'), erase_start, erase_end), COLOR_YELLOW))
 
     """ Create a list describing all the files we have to flash. Each entry holds an "encrypt" flag
     marking whether the file needs encryption or not. This list needs to be sorted.
@@ -5677,12 +5679,14 @@ def write_flash(esp, args):
                 bar_length = 30
                 filled = int(bar_length * (seq + 1) / blocks)
                 fill_color = COLOR_GREEN if pct == 100 else COLOR_CYAN
-                dim_color = COLOR_DIM
-                reset = COLOR_RESET
-                bar = fill_color + '█' * filled + dim_color + '█' * (bar_length - filled) + reset
-                bar_str = '%s[%s] %d%% 0x%08x%s' % (fill_color, bar, pct, address + bytes_written, reset)
-                sys.stdout.write(bar_str + ("\n" if pct == 100 else "\r"))
-                sys.stdout.flush()
+                try:
+                    bar = fill_color + '█' * filled + COLOR_DIM + '█' * (bar_length - filled) + COLOR_RESET
+                    bar_str = '%s[%s] %d%% 0x%08x%s' % (fill_color, bar, pct, address + bytes_written, COLOR_RESET)
+                    sys.stdout.write(bar_str + ("\n" if pct == 100 else "\r"))
+                    sys.stdout.flush()
+                except UnicodeEncodeError:
+                    print_overwrite('Writing at 0x%08x... (%d %%)' % (address + bytes_written, 100 * (seq + 1) // blocks))
+                    sys.stdout.flush()
             block = image[0:esp.FLASH_WRITE_SIZE]
             if compress:
                 # feeding each compressed block into the decompressor lets us see block-by-block how much will be written
