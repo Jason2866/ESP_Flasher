@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtGui import QColor, QPalette
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QSettings
 
-from esp_flasher.own_esptool import get_port_list
+from esp_flasher.own_esptool import get_port_list, colorize, COLOR_RED, COLOR_GREEN, COLOR_CYAN, COLOR_YELLOW
 from esp_flasher.const import (__version__, DEFAULT_WINDOW_WIDTH, 
                                DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_X, 
                                DEFAULT_WINDOW_Y)
@@ -40,7 +40,7 @@ class FlashingThread(threading.Thread):
                 self.finished.emit()
                 
         except Exception as e:
-            print(f"\033[31mFlashing error: {e}\033[0m")
+            print(colorize(f"Flashing error: {e}", COLOR_RED))
             # Emit failure signal
             if self.failed:
                 self.failed.emit()
@@ -208,7 +208,7 @@ class MainWindow(QMainWindow):
                 self.connect_to_port()
             else:
                 # No ports found - inform user that rescan was performed
-                self._colored_console.write("\033[33mNo serial ports found. Please connect a device and click Connect again.\033[0m\n")
+                self._colored_console.write(colorize("No serial ports found. Please connect a device and click Connect again.", COLOR_YELLOW) + "\n")
     
     def disconnect_from_port(self):
         """Disconnect from serial port"""
@@ -225,7 +225,7 @@ class MainWindow(QMainWindow):
         self.connect_button.setText("Connect")
         self.connect_button.setStyleSheet("")  # Reset to default style
         
-        print(f"\033[33mDisconnected from {self._port}\033[0m")
+        print(colorize(f"Disconnected from {self._port}", COLOR_YELLOW))
     
     def connect_to_port(self):
         """Connect to the selected serial port"""
@@ -260,7 +260,7 @@ class MainWindow(QMainWindow):
             self.connect_button.setText("Disconnect")
             self.connect_button.setStyleSheet("background-color: #2d5016; color: white;")
             
-            self._colored_console.write(f"\033[32mConnected to {self._port} at 115200 baud\033[0m\n")
+            self._colored_console.write(colorize(f"Connected to {self._port} at 115200 baud", COLOR_GREEN) + "\n")
             
         except Exception as e:
             self.show_log_error(f"Failed to open serial port: {e}")
@@ -283,9 +283,9 @@ class MainWindow(QMainWindow):
             
         if not self._firmware or not self._port:
             if not self._port:
-                print("\033[31mNo serial port selected!\033[0m")
+                print(colorize("No serial port selected!", COLOR_RED))
             if not self._firmware:
-                print("\033[31mNo firmware file selected!\033[0m")
+                print(colorize("No firmware file selected!", COLOR_RED))
             return
         
         # Remember if we were connected
@@ -293,7 +293,7 @@ class MainWindow(QMainWindow):
         
         # IMPORTANT: Completely disconnect and wait for port to be released
         if self._was_connected_before_flash:
-            print("\033[33mDisconnecting from serial port for flashing...\033[0m")
+            print(colorize("Disconnecting from serial port for flashing...", COLOR_YELLOW))
             self.disconnect_from_port()
             
             # Give the OS time to release the port
@@ -324,7 +324,7 @@ class MainWindow(QMainWindow):
     
     def on_flash_finished(self):
         """Called when flashing is complete"""
-        print("\033[32m\nFlashing complete!\033[0m")
+        print(colorize("\nFlashing complete!", COLOR_GREEN))
         
         # Clear flashing flag and re-enable UI
         self._is_flashing = False
@@ -339,7 +339,7 @@ class MainWindow(QMainWindow):
     
     def on_flash_failed(self):
         """Called when flashing fails"""
-        print("\033[31m\nFlashing failed!\033[0m")
+        print(colorize("\nFlashing failed!", COLOR_RED))
         
         # Clear flashing flag and re-enable UI
         self._is_flashing = False
@@ -412,7 +412,7 @@ class MainWindow(QMainWindow):
             self.current_input = ""
             
             # Echo command to console
-            self._colored_console.write(f"\033[36m> {command}\033[0m\n")
+            self._colored_console.write(colorize(f"> {command}", COLOR_CYAN) + "\n")
             
             # Clear input field
             self.input_field.clear()
@@ -475,7 +475,7 @@ class MainWindow(QMainWindow):
     
     def show_log_error(self, message):
         """Show error message in console"""
-        self._colored_console.write(f"\033[31m{message}\033[0m\n")
+        self._colored_console.write(colorize(message, COLOR_RED) + "\n")
     
     def handle_serial_error(self, message):
         """Handle serial errors by showing message and disconnecting"""

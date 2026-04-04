@@ -59,7 +59,21 @@ except Exception:
         raise
 
 
-__version__ = "3.6.0"
+__version__ = "3.7.0"
+
+# ANSI color constants
+COLOR_RESET = '\033[0m'
+COLOR_BOLD = '\033[1m'
+COLOR_RED = '\033[31m'
+COLOR_GREEN = '\033[32m'
+COLOR_CYAN = '\033[36m'
+COLOR_YELLOW = '\033[33m'
+COLOR_DIM = '\033[30m'
+
+
+def colorize(text, color):
+    return color + text + COLOR_RESET
+
 
 MAX_UINT32 = 0xffffffff
 MAX_UINT24 = 0xffffff
@@ -1423,7 +1437,7 @@ class ESPLoader(object):
         return norm_xtal
 
     def hard_reset(self):
-        print('\033[36mHard resetting via RTS pin...\033[0m')
+        print(colorize('Hard resetting via RTS pin...', COLOR_CYAN))
         self._setRTS(True)  # EN->LOW
         time.sleep(0.1)
         self._setRTS(False)
@@ -5592,13 +5606,13 @@ def write_flash(esp, args):
             argfile.seek(0)
             bytes_over = address % esp.FLASH_SECTOR_SIZE
             if bytes_over != 0:
-                print("\033[33mWARNING: Flash address {:#010x} is not aligned to a {:#x} byte flash sector. "
-                      "{:#x} bytes before this address will be erased.\033[0m"
-                      .format(address, esp.FLASH_SECTOR_SIZE, bytes_over))
+                print(colorize("WARNING: Flash address {:#010x} is not aligned to a {:#x} byte flash sector. "
+                               "{:#x} bytes before this address will be erased."
+                               .format(address, esp.FLASH_SECTOR_SIZE, bytes_over), COLOR_YELLOW))
             # Print the address range of to-be-erased flash memory region
-            # print("\033[36mFlash will be erased from {:#010x} to {:#010x}...\033[0m"
-                  # .format(address - bytes_over, div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1))
-            print("\033[33mFlashing %s to 0x%08x - 0x%08x...\033[0m" % (getattr(argfile, 'name', '<memory>'), address, write_end - 1))
+            # print(colorize("Flash will be erased from {:#010x} to {:#010x}..."
+                  #              .format(address - bytes_over, div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1), COLOR_CYAN))
+            print(colorize("Flashing %s to 0x%08x - 0x%08x..." % (getattr(argfile, 'name', '<memory>'), address, write_end - 1), COLOR_YELLOW))
 
     """ Create a list describing all the files we have to flash. Each entry holds an "encrypt" flag
     marking whether the file needs encryption or not. This list needs to be sorted.
@@ -5632,7 +5646,7 @@ def write_flash(esp, args):
             compress = False
 
         if args.no_stub:
-            print('\033[33mErasing flash...\033[0m')
+            print(colorize('Erasing flash...', COLOR_YELLOW))
         image = pad_to(argfile.read(), esp.FLASH_ENCRYPTED_WRITE_ALIGN if encrypted else 4)
         if len(image) == 0:
             print('WARNING: File %s is empty' % argfile.name)
@@ -5662,9 +5676,9 @@ def write_flash(esp, args):
                 pct = 100 * (seq + 1) // blocks
                 bar_length = 30
                 filled = int(bar_length * (seq + 1) / blocks)
-                fill_color = '\033[32m' if pct == 100 else '\033[36m'
-                dim_color = '\033[30m'
-                reset = '\033[0m'
+                fill_color = COLOR_GREEN if pct == 100 else COLOR_CYAN
+                dim_color = COLOR_DIM
+                reset = COLOR_RESET
                 bar = fill_color + '█' * filled + dim_color + '█' * (bar_length - filled) + reset
                 bar_str = '%s[%s] %d%% 0x%08x%s' % (fill_color, bar, pct, address + bytes_written, reset)
                 sys.stdout.write(bar_str + ("\n" if pct == 100 else "\r"))
@@ -5706,13 +5720,13 @@ def write_flash(esp, args):
         if compress:
             if t > 0.0:
                 speed_msg = " (effective %.1f kbit/s)" % (uncsize / t * 8 / 1000)
-            print_overwrite('\033[32mWrote %d bytes (%d compressed) at 0x%08x in %.1f seconds%s...\033[0m' % (uncsize,
-                                                                                                bytes_sent,
-                                                                                                address, t, speed_msg), last_line=True)
+            print_overwrite(colorize('Wrote %d bytes (%d compressed) at 0x%08x in %.1f seconds%s...' % (uncsize,
+                                                                                                    bytes_sent,
+                                                                                                    address, t, speed_msg), COLOR_GREEN), last_line=True)
         else:
             if t > 0.0:
                 speed_msg = " (%.1f kbit/s)" % (bytes_written / t * 8 / 1000)
-            print_overwrite('\033[32mWrote %d bytes at 0x%08x in %.1f seconds%s...\033[0m' % (bytes_written, address, t, speed_msg), last_line=True)
+            print_overwrite(colorize('Wrote %d bytes at 0x%08x in %.1f seconds%s...' % (bytes_written, address, t, speed_msg), COLOR_GREEN), last_line=True)
 
         if not encrypted and not esp.secure_download_mode:
             try:
@@ -5723,11 +5737,11 @@ def write_flash(esp, args):
                     print('MD5 of 0xFF is %s' % (hashlib.md5(b'\xFF' * uncsize).hexdigest()))
                     raise FatalError("MD5 of file does not match data in flash!")
                 else:
-                    print('\033[32mHash of data verified.\033[0m')
+                    print(colorize('Hash of data verified.', COLOR_GREEN))
             except NotImplementedInROMError:
                 pass
 
-    print('\n\033[36mLeaving...\033[0m')
+    print(colorize('\nLeaving...', COLOR_CYAN))
 
     if args.verify:
         print('Verifying just-written flash...')
@@ -5900,10 +5914,10 @@ def chip_id(esp, args):
 
 
 def erase_flash(esp, args):
-    print('\033[33mErasing flash (this may take a while)...\033[0m')
+    print(colorize('Erasing flash (this may take a while)...', COLOR_YELLOW))
     t = time.time()
     esp.erase_flash()
-    print('\033[32mChip erase completed successfully in %.1fs\033[0m' % (time.time() - t))
+    print(colorize('Chip erase completed successfully in %.1fs' % (time.time() - t), COLOR_GREEN))
 
 
 def erase_region(esp, args):
