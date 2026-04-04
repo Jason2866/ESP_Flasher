@@ -56,7 +56,7 @@ This works on all platforms (Windows, macOS, Linux) and produces the appropriate
 
 **Option 2: Manual PyInstaller command**
 ```bash
-python -m PyInstaller.__main__ -w -n ESP-Flasher.exe -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
+python -m PyInstaller.__main__ -w -n ESP-Flasher.exe -i icon.ico --hidden-import colorama --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
 ```
 
 The output is `dist\ESP-Flasher\` (a directory containing the executable and all dependencies).

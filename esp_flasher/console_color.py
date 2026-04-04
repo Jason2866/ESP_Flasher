@@ -106,6 +106,7 @@ class ColoredConsole(QObject):
         has_bare_cr = line.endswith("\r") and not line.endswith("\r\n")
         if has_bare_cr:
             self.carriage_return = True
+            line = "\n" + line[:-1]  # own line for bar, strip trailing \r
         
         # Move cursor to end
         cursor = self.text_edit.textCursor()

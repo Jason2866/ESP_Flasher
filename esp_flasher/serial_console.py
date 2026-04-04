@@ -13,6 +13,7 @@ from PyQt5.QtCore import pyqtSignal, QObject, Qt
 from PyQt5.QtGui import QFont
 
 from esp_flasher.console_color import ColoredConsole
+from esp_flasher.own_esptool import colorize, COLOR_RED, COLOR_GREEN, COLOR_CYAN, COLOR_RESET
 
 # Set up logger for this module
 logger = logging.getLogger(__name__)
@@ -102,6 +103,12 @@ class SerialReader(QObject):
             except serial.SerialException as e:
                 self.error_occurred.emit(f"Serial port error: {e}")
                 break
+            except OSError as e:
+                if e.errno == 6:  # Device not configured - WDT reset
+                    self.error_occurred.emit("Port disappeared (WDT reset). Please reconnect manually.")
+                else:
+                    self.error_occurred.emit(f"Unexpected error: {e}")
+                break
             except Exception as e:
                 self.error_occurred.emit(f"Unexpected error: {e}")
                 break
@@ -148,7 +155,7 @@ class SerialReader(QObject):
             time_ = datetime.now().time().strftime("[%H:%M:%S]")
             # Ensure timestamp is always in default color by resetting before and after
             # This prevents any previous line's formatting from affecting the timestamp
-            message = f"\033[0m{time_} {line}"
+            message = f"{COLOR_RESET}{time_} {line}"
         else:
             message = line
         
@@ -235,7 +242,7 @@ class SerialConsoleWidget(QWidget):
                 self.send_button.setEnabled(True)
                 self.input_field.setFocus()
                 
-                self.colored_console.write(f"\033[32mConnected to {port_name} at {baudrate} baud\033[0m\n")
+                self.colored_console.write(colorize(f"Connected to {port_name} at {baudrate} baud", COLOR_GREEN) + "\n")
                 
             except Exception as e:
                 # Clean up on failure
@@ -298,7 +305,7 @@ class SerialConsoleWidget(QWidget):
             self.current_input = ""
             
             # Echo command to console
-            self.colored_console.write(f"\033[36m> {command}\033[0m\n")
+            self.colored_console.write(colorize(f"> {command}", COLOR_CYAN) + "\n")
             
             # Clear input field
             self.input_field.clear()
@@ -363,7 +370,7 @@ class SerialConsoleWidget(QWidget):
     
     def show_error(self, message):
         """Show error message in console"""
-        self.colored_console.write(f"\033[31m{message}\033[0m\n")
+        self.colored_console.write(colorize(message, COLOR_RED) + "\n")
     
     def handle_serial_error(self, message):
         """Handle serial errors by showing message and disconnecting"""

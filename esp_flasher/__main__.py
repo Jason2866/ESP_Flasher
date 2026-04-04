@@ -6,7 +6,7 @@ import sys
 import time
 
 import esp_flasher.own_esptool as esptool
-from esp_flasher.own_esptool import get_port_list
+from esp_flasher.own_esptool import get_port_list, colorize, COLOR_BOLD, COLOR_RESET, COLOR_GREEN, COLOR_CYAN, COLOR_YELLOW
 
 import serial
 
@@ -77,21 +77,24 @@ def parse_args(argv):
     return parser.parse_args(argv[1:])
 
 
-def select_port(args):
+def select_port(args, silent=False):
     if args.port is not None:
-        print(f"Using '{args.port}' as serial port.")
+        if not silent:
+            print(f"Using '{args.port}' as serial port.")
         return args.port
     ports = get_port_list()
     if not ports:
         raise Esp_flasherError("No serial port found!")
     if len(ports) != 1:
-        print("Found more than one serial port:")
-        for port in ports:
-            print(f" * {port}")
-        print("Please choose one with the --port argument.")
+        if not silent:
+            print("Found more than one serial port:")
+            for port in ports:
+                print(f" * {port}")
+            print("Please choose one with the --port argument.")
         raise Esp_flasherError
-    print(f"Auto-detected serial port: {ports}")
-    return ports
+    if not silent:
+        print(f"Auto-detected serial port: {ports[0]}")
+    return ports[0]
 
 
 def show_logs(serial_port):
@@ -115,7 +118,7 @@ def show_logs(serial_port):
 
 def run_esp_flasher(argv, skip_logs=False):
     args = parse_args(argv)
-    port = select_port(args)
+    port = select_port(args, silent=skip_logs)
 
     if args.show_logs:
         serial_port = serial.Serial(port, baudrate=115200)
@@ -131,21 +134,21 @@ def run_esp_flasher(argv, skip_logs=False):
     info = read_chip_info(chip)
 
     print()
-    print("Chip Info:")
-    print(f" - Chip Family: {info.family}")
-    print(f" - Chip Model: {info.model}")
+    print(f"{COLOR_BOLD}{COLOR_CYAN}Chip Info:{COLOR_RESET}")
+    print(f"{COLOR_CYAN} - Chip Family: {COLOR_GREEN}{info.family}{COLOR_RESET}")
+    print(f"{COLOR_CYAN} - Chip Model: {COLOR_GREEN}{info.model}{COLOR_RESET}")
     if isinstance(info, ESP32ChipInfo):
-        print(f" - Number of Cores: {info.num_cores}")
-        print(f" - Max CPU Frequency: {info.cpu_frequency}")
-        print(f" - Has Bluetooth: {'YES' if info.has_bluetooth else 'NO'}")
-        print(f" - Has Embedded Flash: {'YES' if info.has_embedded_flash else 'NO'}")
+        print(f"{COLOR_CYAN} - Number of Cores: {COLOR_GREEN}{info.num_cores}{COLOR_RESET}")
+        print(f"{COLOR_CYAN} - Max CPU Frequency: {COLOR_GREEN}{info.cpu_frequency}{COLOR_RESET}")
+        print(f"{COLOR_CYAN} - Has Bluetooth: {COLOR_GREEN}{'YES' if info.has_bluetooth else 'NO'}{COLOR_RESET}")
+        print(f"{COLOR_CYAN} - Has Embedded Flash: {COLOR_GREEN}{'YES' if info.has_embedded_flash else 'NO'}{COLOR_RESET}")
         print(
-            f" - Has Factory-Calibrated ADC: {'YES' if info.has_factory_calibrated_adc else 'NO'}"
+            f"{COLOR_CYAN} - Has Factory-Calibrated ADC: {COLOR_GREEN}{'YES' if info.has_factory_calibrated_adc else 'NO'}{COLOR_RESET}"
         )
     else:
-        print(f" - Chip ID: {info.chip_id:08X}")
+        print(f"{COLOR_CYAN} - Chip ID: {COLOR_GREEN}{info.chip_id:08X}{COLOR_RESET}")
 
-    print(f" - MAC Address: {info.mac}")
+    print(f"{COLOR_CYAN} - MAC Address: {COLOR_GREEN}{info.mac}{COLOR_RESET}")
 
     stub_chip = chip_run_stub(chip)
     flash_size = None
@@ -164,7 +167,7 @@ def run_esp_flasher(argv, skip_logs=False):
         except Esp_flasherError:
             # Go back to old baud rate by recreating chip instance
             print(
-                f"Chip does not support baud rate {args.upload_baud_rate}, changing to 115200"
+                colorize(f"Chip does not support baud rate {args.upload_baud_rate}, changing to 115200", COLOR_YELLOW)
             )
             # pylint: disable=protected-access
             stub_chip._port.close()
@@ -174,7 +177,7 @@ def run_esp_flasher(argv, skip_logs=False):
     if flash_size is None:
         flash_size = detect_flash_size(stub_chip)
 
-    print(f" - Flash Size: {flash_size}")
+    print(f"{COLOR_CYAN} - Flash Size: {COLOR_GREEN}{flash_size}{COLOR_RESET}")
 
     flag_factory = False
     min_rev = 0
@@ -225,7 +228,7 @@ def run_esp_flasher(argv, skip_logs=False):
     except esptool.FatalError as err:
         raise Esp_flasherError(f"Error while writing flash: {err}") from err
 
-    print("Hard Resetting...")
+    print(colorize("Hard Resetting...", COLOR_CYAN))
     stub_chip.hard_reset()
 
     print("Done! Flashing is complete!")
