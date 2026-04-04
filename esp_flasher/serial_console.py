@@ -101,8 +101,12 @@ class SerialReader(QObject):
                 else:
                     break
             except serial.SerialException as e:
-                err_str = str(e)
-                if "ClearCommError" in err_str or "PermissionError" in err_str or "FileNotFoundError" in err_str:
+                root = e.__cause__ or e.__context__
+                err_str = str(e).lower()
+                if (
+                    isinstance(root, (PermissionError, FileNotFoundError))
+                    or "clearcommerror" in err_str
+                ):
                     self.error_occurred.emit("Port disappeared (WDT reset). Please reconnect manually.")
                 else:
                     self.error_occurred.emit(f"Serial port error: {e}")
