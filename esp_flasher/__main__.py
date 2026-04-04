@@ -77,20 +77,23 @@ def parse_args(argv):
     return parser.parse_args(argv[1:])
 
 
-def select_port(args):
+def select_port(args, silent=False):
     if args.port is not None:
-        print(f"Using '{args.port}' as serial port.")
+        if not silent:
+            print(f"Using '{args.port}' as serial port.")
         return args.port
     ports = get_port_list()
     if not ports:
         raise Esp_flasherError("No serial port found!")
     if len(ports) != 1:
-        print("Found more than one serial port:")
-        for port in ports:
-            print(f" * {port}")
-        print("Please choose one with the --port argument.")
+        if not silent:
+            print("Found more than one serial port:")
+            for port in ports:
+                print(f" * {port}")
+            print("Please choose one with the --port argument.")
         raise Esp_flasherError
-    print(f"Auto-detected serial port: {ports}")
+    if not silent:
+        print(f"Auto-detected serial port: {ports}")
     return ports
 
 
@@ -115,7 +118,7 @@ def show_logs(serial_port):
 
 def run_esp_flasher(argv, skip_logs=False):
     args = parse_args(argv)
-    port = select_port(args)
+    port = select_port(args, silent=skip_logs)
 
     if args.show_logs:
         serial_port = serial.Serial(port, baudrate=115200)

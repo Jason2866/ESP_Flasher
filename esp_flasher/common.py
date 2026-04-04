@@ -7,6 +7,13 @@ from io import BytesIO
 
 import esp_flasher.own_esptool as esptool
 
+
+class NamedBytesIO(io.BytesIO):
+    """BytesIO with a name attribute for display purposes."""
+    def __init__(self, content=b"", name="<memory>"):
+        super().__init__(content)
+        self.name = name
+
 from esp_flasher.const import (
     ESP32_DEFAULT_PARTITIONS,
     ESP32_SAFEBOOT_SERVER,
@@ -233,9 +240,8 @@ def open_downloadable_binary(path):
                 f"Error while retrieving firmware file '{path}': {err}"
             ) from err
 
-        binary = io.BytesIO()
-        binary.write(response.content)
-        binary.seek(0)
+        filename = path.split("/")[-1].split("?")[0] or path
+        binary = NamedBytesIO(response.content, name=filename)
         return binary
 
     try:
@@ -358,7 +364,7 @@ def configure_write_flash_args(
 
             try:
                 with open(output, "rb") as fh:
-                    bootloader = BytesIO(fh.read())
+                    bootloader = NamedBytesIO(fh.read(), name=os.path.basename(output))
             except IOError as err:
                 bootloader=""           # Will be there in second call!
 

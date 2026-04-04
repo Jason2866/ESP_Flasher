@@ -5598,7 +5598,7 @@ def write_flash(esp, args):
             # Print the address range of to-be-erased flash memory region
             # print("\033[36mFlash will be erased from {:#010x} to {:#010x}...\033[0m"
                   # .format(address - bytes_over, div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1))
-            print("\033[33mFlashing %s to 0x%08x - 0x%08x...\033[0m" % (argfile.name, address, write_end - 1))
+            print("\033[33mFlashing %s to 0x%08x - 0x%08x...\033[0m" % (getattr(argfile, 'name', '<memory>'), address, write_end - 1))
 
     """ Create a list describing all the files we have to flash. Each entry holds an "encrypt" flag
     marking whether the file needs encryption or not. This list needs to be sorted.
