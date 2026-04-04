@@ -484,12 +484,12 @@ pip install -e .
 ### macOS
 
 ```bash
-python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.icns --hidden-import colorama --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
 Or using a virtual environment:
 ```bash
-/<path>/ESP_Flasher/.venv/bin/pyinstaller -w -n ESP-Flasher -i icon.icns --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+/<path>/ESP_Flasher/.venv/bin/pyinstaller -w -n ESP-Flasher -i icon.icns --hidden-import colorama --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
 The output is located at `dist/ESP-Flasher.app` (onedir bundle for fast startup).
@@ -501,7 +501,7 @@ Same command as macOS Intel — PyInstaller builds for the native architecture.
 ### Windows
 
 ```bash
-python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
+python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --hidden-import colorama --add-data "esp_flasher/stubs/*.json;esp_flasher/stubs" esp_flasher\__main__.py
 ```
 
 The output is located at `dist\ESP-Flasher\` (directory containing `ESP-Flasher.exe` and dependencies).
@@ -510,7 +510,7 @@ The output is located at `dist\ESP-Flasher\` (directory containing `ESP-Flasher.
 
 ```bash
 sudo apt install libnotify-dev libsdl2-dev
-python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
+python -m PyInstaller.__main__ -w -n ESP-Flasher -i icon.ico --hidden-import colorama --add-data "esp_flasher/stubs/*.json:esp_flasher/stubs" esp_flasher/__main__.py
 ```
 
 The output is located at `dist/ESP-Flasher/` (directory containing the executable and dependencies).

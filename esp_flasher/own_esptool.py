@@ -24,6 +24,8 @@ import struct
 import sys
 import time
 import zlib
+import colorama
+colorama.init()
 
 try:
     import serial
@@ -61,14 +63,14 @@ except Exception:
 
 __version__ = "3.7.0"
 
-# ANSI color constants
-COLOR_RESET = '\033[0m'
-COLOR_BOLD = '\033[1m'
-COLOR_RED = '\033[31m'
-COLOR_GREEN = '\033[32m'
-COLOR_CYAN = '\033[36m'
-COLOR_YELLOW = '\033[33m'
-COLOR_DIM = '\033[30m'
+# Color constants for terminal output
+COLOR_RESET = colorama.Style.RESET_ALL
+COLOR_BOLD = colorama.Style.BRIGHT
+COLOR_RED = colorama.Fore.RED
+COLOR_GREEN = colorama.Fore.GREEN
+COLOR_CYAN = colorama.Fore.CYAN
+COLOR_YELLOW = colorama.Fore.YELLOW
+COLOR_DIM = colorama.Fore.BLACK
 
 
 def colorize(text, color):
