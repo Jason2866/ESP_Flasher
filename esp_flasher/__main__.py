@@ -131,21 +131,21 @@ def run_esp_flasher(argv, skip_logs=False):
     info = read_chip_info(chip)
 
     print()
-    print("Chip Info:")
-    print(f" - Chip Family: {info.family}")
-    print(f" - Chip Model: {info.model}")
+    print("\033[1m\033[36mChip Info:\033[0m")
+    print(f"\033[36m - Chip Family: \033[32m{info.family}\033[0m")
+    print(f"\033[36m - Chip Model: \033[32m{info.model}\033[0m")
     if isinstance(info, ESP32ChipInfo):
-        print(f" - Number of Cores: {info.num_cores}")
-        print(f" - Max CPU Frequency: {info.cpu_frequency}")
-        print(f" - Has Bluetooth: {'YES' if info.has_bluetooth else 'NO'}")
-        print(f" - Has Embedded Flash: {'YES' if info.has_embedded_flash else 'NO'}")
+        print(f"\033[36m - Number of Cores: \033[32m{info.num_cores}\033[0m")
+        print(f"\033[36m - Max CPU Frequency: \033[32m{info.cpu_frequency}\033[0m")
+        print(f"\033[36m - Has Bluetooth: \033[32m{'YES' if info.has_bluetooth else 'NO'}\033[0m")
+        print(f"\033[36m - Has Embedded Flash: \033[32m{'YES' if info.has_embedded_flash else 'NO'}\033[0m")
         print(
-            f" - Has Factory-Calibrated ADC: {'YES' if info.has_factory_calibrated_adc else 'NO'}"
+            f"\033[36m - Has Factory-Calibrated ADC: \033[32m{'YES' if info.has_factory_calibrated_adc else 'NO'}\033[0m"
         )
     else:
-        print(f" - Chip ID: {info.chip_id:08X}")
+        print(f"\033[36m - Chip ID: \033[32m{info.chip_id:08X}\033[0m")
 
-    print(f" - MAC Address: {info.mac}")
+    print(f"\033[36m - MAC Address: \033[32m{info.mac}\033[0m")
 
     stub_chip = chip_run_stub(chip)
     flash_size = None
@@ -164,7 +164,7 @@ def run_esp_flasher(argv, skip_logs=False):
         except Esp_flasherError:
             # Go back to old baud rate by recreating chip instance
             print(
-                f"Chip does not support baud rate {args.upload_baud_rate}, changing to 115200"
+                f"\033[33mChip does not support baud rate {args.upload_baud_rate}, changing to 115200\033[0m"
             )
             # pylint: disable=protected-access
             stub_chip._port.close()
@@ -174,7 +174,7 @@ def run_esp_flasher(argv, skip_logs=False):
     if flash_size is None:
         flash_size = detect_flash_size(stub_chip)
 
-    print(f" - Flash Size: {flash_size}")
+    print(f"\033[36m - Flash Size: \033[32m{flash_size}\033[0m")
 
     flag_factory = False
     min_rev = 0
@@ -225,7 +225,7 @@ def run_esp_flasher(argv, skip_logs=False):
     except esptool.FatalError as err:
         raise Esp_flasherError(f"Error while writing flash: {err}") from err
 
-    print("Hard Resetting...")
+    print("\033[36mHard Resetting...\033[0m")
     stub_chip.hard_reset()
 
     print("Done! Flashing is complete!")

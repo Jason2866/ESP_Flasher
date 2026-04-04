@@ -1423,7 +1423,7 @@ class ESPLoader(object):
         return norm_xtal
 
     def hard_reset(self):
-        print('Hard resetting via RTS pin...')
+        print('\033[36mHard resetting via RTS pin...\033[0m')
         self._setRTS(True)  # EN->LOW
         time.sleep(0.1)
         self._setRTS(False)
@@ -5592,11 +5592,11 @@ def write_flash(esp, args):
             argfile.seek(0)
             bytes_over = address % esp.FLASH_SECTOR_SIZE
             if bytes_over != 0:
-                print("WARNING: Flash address {:#010x} is not aligned to a {:#x} byte flash sector. "
-                      "{:#x} bytes before this address will be erased."
+                print("\033[33mWARNING: Flash address {:#010x} is not aligned to a {:#x} byte flash sector. "
+                      "{:#x} bytes before this address will be erased.\033[0m"
                       .format(address, esp.FLASH_SECTOR_SIZE, bytes_over))
             # Print the address range of to-be-erased flash memory region
-            print("Flash will be erased from {:#010x} to {:#010x}..."
+            print("\033[36mFlash will be erased from {:#010x} to {:#010x}...\033[0m"
                   .format(address - bytes_over, div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1))
 
     """ Create a list describing all the files we have to flash. Each entry holds an "encrypt" flag
@@ -5631,7 +5631,7 @@ def write_flash(esp, args):
             compress = False
 
         if args.no_stub:
-            print('Erasing flash...')
+            print('\033[33mErasing flash...\033[0m')
         image = pad_to(argfile.read(), esp.FLASH_ENCRYPTED_WRITE_ALIGN if encrypted else 4)
         if len(image) == 0:
             print('WARNING: File %s is empty' % argfile.name)
@@ -5706,13 +5706,13 @@ def write_flash(esp, args):
         if compress:
             if t > 0.0:
                 speed_msg = " (effective %.1f kbit/s)" % (uncsize / t * 8 / 1000)
-            print_overwrite('Wrote %d bytes (%d compressed) at 0x%08x in %.1f seconds%s...' % (uncsize,
+            print_overwrite('\033[32mWrote %d bytes (%d compressed) at 0x%08x in %.1f seconds%s...\033[0m' % (uncsize,
                                                                                                 bytes_sent,
                                                                                                 address, t, speed_msg), last_line=True)
         else:
             if t > 0.0:
                 speed_msg = " (%.1f kbit/s)" % (bytes_written / t * 8 / 1000)
-            print_overwrite('Wrote %d bytes at 0x%08x in %.1f seconds%s...' % (bytes_written, address, t, speed_msg), last_line=True)
+            print_overwrite('\033[32mWrote %d bytes at 0x%08x in %.1f seconds%s...\033[0m' % (bytes_written, address, t, speed_msg), last_line=True)
 
         if not encrypted and not esp.secure_download_mode:
             try:
@@ -5723,11 +5723,11 @@ def write_flash(esp, args):
                     print('MD5 of 0xFF is %s' % (hashlib.md5(b'\xFF' * uncsize).hexdigest()))
                     raise FatalError("MD5 of file does not match data in flash!")
                 else:
-                    print('Hash of data verified.')
+                    print('\033[32mHash of data verified.\033[0m')
             except NotImplementedInROMError:
                 pass
 
-    print('\nLeaving...')
+    print('\n\033[36mLeaving...\033[0m')
 
     if args.verify:
         print('Verifying just-written flash...')
@@ -5900,10 +5900,10 @@ def chip_id(esp, args):
 
 
 def erase_flash(esp, args):
-    print('Erasing flash (this may take a while)...')
+    print('\033[33mErasing flash (this may take a while)...\033[0m')
     t = time.time()
     esp.erase_flash()
-    print('Chip erase completed successfully in %.1fs' % (time.time() - t))
+    print('\033[32mChip erase completed successfully in %.1fs\033[0m' % (time.time() - t))
 
 
 def erase_region(esp, args):
