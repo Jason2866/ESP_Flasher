@@ -1076,7 +1076,7 @@ class ESPLoader(object):
         else:
             write_size = erase_blocks * self.FLASH_WRITE_SIZE  # ROM expects rounded up to erase block size
             timeout = timeout_per_mb(ERASE_REGION_TIMEOUT_PER_MB, write_size)  # ROM performs the erase up front
-        print("Compressed %d bytes to %d..." % (size, compsize))
+        # print("Compressed %d bytes to %d..." % (size, compsize))
         params = struct.pack('<IIII', write_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
         if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM,ESP32C5ROM,
                              ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4ROM)) and not self.IS_STUB:
@@ -5596,8 +5596,9 @@ def write_flash(esp, args):
                       "{:#x} bytes before this address will be erased.\033[0m"
                       .format(address, esp.FLASH_SECTOR_SIZE, bytes_over))
             # Print the address range of to-be-erased flash memory region
-            print("\033[36mFlash will be erased from {:#010x} to {:#010x}...\033[0m"
-                  .format(address - bytes_over, div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1))
+            # print("\033[36mFlash will be erased from {:#010x} to {:#010x}...\033[0m"
+                  # .format(address - bytes_over, div_roundup(write_end, esp.FLASH_SECTOR_SIZE) * esp.FLASH_SECTOR_SIZE - 1))
+            print("\033[33mFlashing %s to 0x%08x - 0x%08x...\033[0m" % (argfile.name, address, write_end - 1))
 
     """ Create a list describing all the files we have to flash. Each entry holds an "encrypt" flag
     marking whether the file needs encryption or not. This list needs to be sorted.

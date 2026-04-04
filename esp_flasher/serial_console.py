@@ -102,6 +102,12 @@ class SerialReader(QObject):
             except serial.SerialException as e:
                 self.error_occurred.emit(f"Serial port error: {e}")
                 break
+            except OSError as e:
+                if e.errno == 6:  # Device not configured - WDT reset
+                    self.error_occurred.emit("Port disappeared (WDT reset). Please reconnect manually.")
+                else:
+                    self.error_occurred.emit(f"Unexpected error: {e}")
+                break
             except Exception as e:
                 self.error_occurred.emit(f"Unexpected error: {e}")
                 break
