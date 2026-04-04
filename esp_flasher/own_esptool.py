@@ -5657,8 +5657,18 @@ def write_flash(esp, args):
         timeout = DEFAULT_TIMEOUT
 
         while len(image) > 0:
-            print_overwrite('Writing at 0x%08x... (%d %%)' % (address + bytes_written, 100 * (seq + 1) // blocks))
-            sys.stdout.flush()
+            pct = 100 * (seq + 1) // blocks
+            bar_length = 30
+            filled = int(bar_length * (seq + 1) / blocks)
+            fill_color = '\033[32m' if pct == 100 else '\033[36m'
+            dim_color = '\033[30m'
+            reset = '\033[0m'
+            bar = fill_color + '█' * filled + dim_color + '█' * (bar_length - filled) + reset
+            bar_str = '%s[%s] %d%% 0x%08x%s' % (fill_color, bar, pct, address + bytes_written, reset)
+            if pct == 100:
+                sys.stdout.write(bar_str + "\n")
+            else:
+                sys.stdout.write(bar_str + "\r")
             block = image[0:esp.FLASH_WRITE_SIZE]
             if compress:
                 # feeding each compressed block into the decompressor lets us see block-by-block how much will be written
