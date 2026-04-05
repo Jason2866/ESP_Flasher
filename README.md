@@ -40,34 +40,30 @@ The flashing process is straightforward and consists of a few simple steps:
 #### 1. Select Serial Port
 Connect your ESP device via USB and select the correct serial port from the dropdown menu.
 
-![Select Serial Port](esp_flasher/flasher-pic/flash_1.png)
-
 #### 2. Connect to Device
 Click the "Connect" button to establish a connection with your ESP device. The flasher will detect the chip type automatically.
 
 #### 3. Select Firmware
 Click "Select Firmware" to choose your Tasmota factory firmware file (.bin). The flasher automatically detects the chip type and configures all necessary parameters.
 
-![Select Firmware](esp_flasher/flasher-pic/flash_2.png)
-
 #### 4. Start Flashing
 Click "Flash ESP" to begin the flashing process. The progress bar shows the current status.
-
-![Flashing Progress](esp_flasher/flasher-pic/flash_3.png)
 
 #### 5. Flash Complete
 Once flashing is complete, you'll see a success message. Your device is now ready to use.
 
-![Flash Complete](esp_flasher/flasher-pic/flash_4.png)
 
-#### 6. Serial Console
-Use the built-in serial console to monitor your device, send commands, and configure settings. The console supports full ANSI color output for better readability.
+![Flash](esp_flasher/flasher-pic/flash_1.png)
 
-![Serial Console](esp_flasher/flasher-pic/flash_5.png)
-
-### WiFi Improv Support
+#### 6. WiFi Improv Support
 
 The ESP Flasher includes WiFi Improv protocol support, allowing you to configure WiFi credentials on your ESP device without connecting to a web interface or access point.
+
+![improv 1](esp_flasher/flasher-pic/flash_2.png)
+
+![improv 2](esp_flasher/flasher-pic/flash_3.png)
+
+![improv 3](esp_flasher/flasher-pic/flash_4.png)
 
 **How to use WiFi Improv:**
 
@@ -78,6 +74,10 @@ The ESP Flasher includes WiFi Improv protocol support, allowing you to configure
 5. The `SSID` field will be automatically filled with the selected network name
 6. Enter your password in the `Password` field and click the `Provision` button
 7. The device will connect to your WiFi network and display the assigned IP address
+
+### Serial Console
+
+Use the built-in serial console to monitor your device, send commands, and configure settings. The console supports full ANSI color output for better readability.
 
 **Benefits:**
 - No need to connect to a temporary access point
