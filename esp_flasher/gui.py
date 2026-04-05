@@ -50,9 +50,9 @@ class ImprovDialog(QDialog):
         self.network_list.itemDoubleClicked.connect(self._on_network_selected)
         net_layout.addWidget(self.network_list)
 
-        scan_btn = QPushButton("Scan Networks")
-        scan_btn.clicked.connect(self._scan_networks)
-        net_layout.addWidget(scan_btn)
+        self.scan_btn = QPushButton("Scan Networks")
+        self.scan_btn.clicked.connect(self._scan_networks)
+        net_layout.addWidget(self.scan_btn)
         net_group.setLayout(net_layout)
         layout.addWidget(net_group)
 
@@ -200,6 +200,10 @@ class ImprovDialog(QDialog):
             self.password_input.setFocus()
 
     def _scan_networks(self):
+        if getattr(self, '_scan_in_progress', False):
+            return
+        self._scan_in_progress = True
+        self.scan_btn.setEnabled(False)
         self.network_list.clear()
         self.status_label.setText("Scanning WiFi networks...")
         self.progress.setVisible(True)
@@ -213,6 +217,8 @@ class ImprovDialog(QDialog):
         self._scan_finished.emit(networks)
 
     def _update_network_list(self, networks):
+        self._scan_in_progress = False
+        self.scan_btn.setEnabled(True)
         self.network_list.clear()
         self.progress.setVisible(False)
         if not networks:

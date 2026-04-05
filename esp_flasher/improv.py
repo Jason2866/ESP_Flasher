@@ -161,6 +161,9 @@ class ImprovManager(QObject):
     def stop(self):
         """Stop the Improv receiver thread."""
         self._running = False
+        # Unblock any threads waiting on RPC responses or WiFi scan
+        self._rpc_event.set()
+        self._wifi_scan_done.set()
         if self._thread:
             self._thread.join(timeout=3.0)
             self._thread = None
@@ -220,9 +223,16 @@ class ImprovManager(QObject):
             if self._port and self._port.is_open:
                 self._port.write(data)
                 self._port.flush()
+            else:
+                # Port not available — unblock any waiters so they don't hang
+                self._rpc_event.set()
+                self._wifi_scan_done.set()
         except Exception as e:
             logger.error("Improv write error: %s", e)
             self.log_message.emit(f"Write error: {e}")
+            # Unblock any threads waiting for a response that will never come
+            self._rpc_event.set()
+            self._wifi_scan_done.set()
 
     def _read_loop(self):
         """Background thread: read bytes and detect Improv packets.
@@ -302,10 +312,10 @@ class ImprovManager(QObject):
             self._improv_length = 9 + data_len + 1  # 9 header + data + checksum
             self._is_improv = True
         else:
-            # Not an Improv header — discard and go back to scanning
-            # (JS does: isImprov = false, line = [])
+            # Not an Improv header — discard buffer and skip rest of line
+            # (JS: isImprov = false, line = [] — skip until next newline)
             self._line = []
-            self._is_improv = None
+            self._is_improv = False
 
     def _handle_packet(self, line):
         """Handle a complete Improv packet (including header + checksum)."""
