@@ -102,7 +102,7 @@ class ImprovDialog(QDialog):
         # newline-reset logic, so this is belt-and-suspenders.
         try:
             self._serial_port.reset_input_buffer()
-        except Exception as e:
+        except (OSError, serial.SerialException) as e:
             self.status_label.setText(f"Port error: {e}")
             return
 
@@ -589,9 +589,6 @@ class MainWindow(QMainWindow):
         # and flush the Qt event queue so no stale events remain.
         if self._serial_reader:
             self._serial_reader.stop()  # sets _muted=True and running=False, joins thread
-            # Verify the thread is truly dead before handing the port to Improv
-            if self._serial_reader.thread and self._serial_reader.thread.is_alive():
-                self._serial_reader.thread.join(timeout=2.0)
             self._serial_reader.line_received.disconnect(self.append_log_line)
             self._serial_reader.error_occurred.disconnect(self.handle_serial_error)
             # Flush any already-queued cross-thread events so they are discarded

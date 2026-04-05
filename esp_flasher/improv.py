@@ -243,8 +243,8 @@ class ImprovManager(QObject):
         old_timeout = self._port.timeout
         try:
             self._port.timeout = 0.1
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Could not set serial timeout: %s", e)
         try:
             while self._running:
                 try:
