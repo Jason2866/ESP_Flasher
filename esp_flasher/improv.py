@@ -140,6 +140,7 @@ class ImprovManager(QObject):
         self._improv_length = 0
 
         # RPC response synchronization
+        self._rpc_lock = threading.Lock()  # Serialize RPC calls
         self._rpc_event = threading.Event()
         self._rpc_result = None
         self._rpc_error = None
@@ -200,22 +201,28 @@ class ImprovManager(QObject):
 
     def _send_rpc(self, command, payload=b"", timeout=None):
         """Send an RPC command and wait for the result.
-        timeout=None means wait indefinitely (matches JS behavior for info/scan)."""
-        self._rpc_event.clear()
-        self._rpc_result = None
-        self._rpc_error = None
-        self._rpc_command = command
+        timeout=None means wait indefinitely (matches JS behavior for info/scan).
+        Serializes RPC calls to prevent concurrent RPCs from racing."""
+        with self._rpc_lock:
+            self._rpc_event.clear()
+            self._rpc_result = None
+            self._rpc_error = None
+            self._rpc_command = command
 
-        pkt = _build_rpc(command, payload)
-        self._write(pkt)
+            pkt = _build_rpc(command, payload)
+            self._write(pkt)
 
-        if self._rpc_event.wait(timeout=timeout):
-            if self._rpc_error is not None and self._rpc_error != ERROR_NONE:
-                return None
-            return self._rpc_result
-        self.log_message.emit("RPC timeout")
-        self.error_received.emit(ERROR_TIMEOUT)
-        return None
+            if self._rpc_event.wait(timeout=timeout):
+                if self._rpc_error is not None and self._rpc_error != ERROR_NONE:
+                    self._rpc_command = None
+                    return None
+                result = self._rpc_result
+                self._rpc_command = None
+                return result
+            self.log_message.emit("RPC timeout")
+            self.error_received.emit(ERROR_TIMEOUT)
+            self._rpc_command = None
+            return None
 
     def _write(self, data):
         """Write data to the serial port."""
@@ -350,7 +357,8 @@ class ImprovManager(QObject):
                 if error != ERROR_NONE:
                     self.log_message.emit(f"Device error: {error_name}")
                 self.error_received.emit(error)
-                if error != ERROR_NONE:
+                # Only wake the waiter if there's a pending RPC command
+                if error != ERROR_NONE and self._rpc_command is not None:
                     self._rpc_error = error
                     self._rpc_event.set()
 
@@ -360,10 +368,19 @@ class ImprovManager(QObject):
             command = data[0]
             strings = _parse_tlv_strings(data)
 
+            # Verify result matches pending RPC command to prevent race conditions
+            if self._rpc_command is not None and command != self._rpc_command:
+                logger.warning(
+                    "Ignoring RPC result for command %d (expected %d)",
+                    command, self._rpc_command
+                )
+                return
+
             if command == CMD_REQUEST_INFO:
                 self.device_info_received.emit(strings)
-                self._rpc_result = strings
-                self._rpc_event.set()
+                if self._rpc_command == command:
+                    self._rpc_result = strings
+                    self._rpc_event.set()
 
             elif command == CMD_REQUEST_WIFI_NETWORKS:
                 if not strings:
@@ -383,9 +400,11 @@ class ImprovManager(QObject):
             elif command == CMD_SEND_WIFI_SETTINGS:
                 self.log_message.emit(f"Provisioned: {strings}")
                 self.provisioned.emit(strings)
-                self._rpc_result = strings
-                self._rpc_event.set()
+                if self._rpc_command == command:
+                    self._rpc_result = strings
+                    self._rpc_event.set()
 
             else:
-                self._rpc_result = strings
-                self._rpc_event.set()
+                if self._rpc_command == command:
+                    self._rpc_result = strings
+                    self._rpc_event.set()
