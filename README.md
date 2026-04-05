@@ -42,22 +42,25 @@ Connect your ESP device via USB and select the correct serial port from the drop
 
 ![Select Serial Port](esp_flasher/flasher-pic/flash_1.png)
 
-#### 2. Choose Firmware
-Click "Browse" to select your Tasmota factory firmware file (.bin). The flasher automatically detects the chip type and configures all necessary parameters.
+#### 2. Connect to Device
+Click the "Connect" button to establish a connection with your ESP device. The flasher will detect the chip type automatically.
 
-![Choose Firmware](esp_flasher/flasher-pic/flash_2.png)
+#### 3. Select Firmware
+Click "Select Firmware" to choose your Tasmota factory firmware file (.bin). The flasher automatically detects the chip type and configures all necessary parameters.
 
-#### 3. Start Flashing
+![Select Firmware](esp_flasher/flasher-pic/flash_2.png)
+
+#### 4. Start Flashing
 Click "Flash ESP" to begin the flashing process. The progress bar shows the current status.
 
 ![Flashing Progress](esp_flasher/flasher-pic/flash_3.png)
 
-#### 4. Flash Complete
+#### 5. Flash Complete
 Once flashing is complete, you'll see a success message. Your device is now ready to use.
 
 ![Flash Complete](esp_flasher/flasher-pic/flash_4.png)
 
-#### 5. Serial Console
+#### 6. Serial Console
 Use the built-in serial console to monitor your device, send commands, and configure settings. The console supports full ANSI color output for better readability.
 
 ![Serial Console](esp_flasher/flasher-pic/flash_5.png)
