@@ -209,7 +209,6 @@ class ImprovManager(QObject):
             self.log_message.emit("WiFi scan timeout")
         self._rpc_command = None
         return list(self._wifi_networks)
-        return list(self._wifi_networks)
 
     def send_wifi_settings(self, ssid, password, timeout=PROVISION_TIMEOUT):
         """Send WiFi credentials. Returns result strings or None on error.
