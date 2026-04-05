@@ -78,7 +78,7 @@ The ESP Flasher includes WiFi Improv protocol support, allowing you to configure
 For more details on the Improv protocol, visit [Improv WiFi](https://www.improv-wifi.com/).
 
 ## Documentation
-[Tasmota ESP Flasher Wiki](https://deepwiki.com/Jason2866/ESP_Flasher)
+[Tasmota ESP Flasher](DOCUMENTATION.md) and [Tasmota ESP Flasher Wiki](https://deepwiki.com/Jason2866/ESP_Flasher)
 
 In the odd case of your antivirus going haywire over that application, it's a [false positive.](https://github.com/pyinstaller/pyinstaller/issues/3802)
 
