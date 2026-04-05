@@ -28,6 +28,7 @@ class SerialReader(QObject):
         super().__init__()
         self.serial_port = serial_port
         self.running = False
+        self._muted = False  # When True, suppress all signal emissions
         self.thread = None
         # Use incremental decoder for proper UTF-8 handling
         import codecs
@@ -41,9 +42,11 @@ class SerialReader(QObject):
     
     def stop(self):
         """Stop reading from serial port"""
+        self._muted = True   # Suppress signals immediately, before thread winds down
         self.running = False
         if self.thread:
             self.thread.join(timeout=1.0)
+            self.thread = None
     
     def _read_loop(self):
         """Read loop running in background thread"""
@@ -60,7 +63,7 @@ class SerialReader(QObject):
                             buffer += text
                             
                             # Process complete lines (ending with \n or \r)
-                            while '\n' in buffer or '\r' in buffer:
+                            while self.running and ('\n' in buffer or '\r' in buffer):
                                 # Find the first line ending
                                 idx_n = buffer.find('\n')
                                 idx_r = buffer.find('\r')
@@ -101,6 +104,8 @@ class SerialReader(QObject):
                 else:
                     break
             except serial.SerialException as e:
+                if self._muted:
+                    break
                 root = e.__cause__ or e.__context__
                 err_str = str(e).lower()
                 if (
@@ -112,6 +117,8 @@ class SerialReader(QObject):
                     self.error_occurred.emit(f"Serial port error: {e}")
                 break
             except OSError as e:
+                if self._muted:
+                    break
                 if e.errno in (
                     5,   # EIO - Input/output error (Linux)
                     6,   # ENXIO - No such device or address (macOS/Linux)
@@ -124,11 +131,15 @@ class SerialReader(QObject):
                     self.error_occurred.emit(f"Unexpected error: {e}")
                 break
             except Exception as e:
+                if self._muted:
+                    break
                 self.error_occurred.emit(f"Unexpected error: {e}")
                 break
     
     def _emit_line(self, line):
         """Emit a line with optional timestamp"""
+        if self._muted:
+            return
         # Remove ANSI codes for timestamp detection
         import re
         ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')

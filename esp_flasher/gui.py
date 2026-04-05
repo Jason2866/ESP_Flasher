@@ -2,20 +2,430 @@
 import sys
 import threading
 import os
+import logging
 import platform
+import serial
+import html
 
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout,
-                             QLineEdit)
+                             QLineEdit, QDialog, QListWidget, QListWidgetItem,
+                             QProgressBar, QMessageBox)
 from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtCore import pyqtSignal, QObject, Qt, QSettings
+from PyQt6.QtCore import pyqtSignal, QObject, Qt, QSettings, QTimer
 
 from esp_flasher.own_esptool import get_port_list, colorize, COLOR_RED, COLOR_GREEN, COLOR_CYAN, COLOR_YELLOW
 from esp_flasher.const import (__version__, DEFAULT_WINDOW_WIDTH, 
                                DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_X, 
                                DEFAULT_WINDOW_Y)
 from esp_flasher.console_color import ColoredConsole
+from esp_flasher.serial_console import SerialReader
+
+logger = logging.getLogger(__name__)
+
+class DeviceInfoDialog(QDialog):
+    """Attractive dialog to display device information."""
+    
+    def __init__(self, device_info, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Device Information")
+        self.setMinimumWidth(400)
+        self.setMinimumHeight(250)
+        self._device_info = device_info
+        self._init_ui()
+    
+    def _init_ui(self):
+        layout = QVBoxLayout()
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title
+        title = QLabel("Device Information")
+        title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: white;
+                padding: 10px;
+            }
+        """)
+        layout.addWidget(title)
+        
+        # Info card container
+        card = QWidget()
+        card.setStyleSheet("""
+            QWidget {
+                border-radius: 8px;
+                padding: 15px;
+            }
+        """)
+        card_layout = QVBoxLayout()
+        card_layout.setSpacing(12)
+        
+        labels = ["Firmware", "Version", "Chip", "Name"]
+        
+        for i, val in enumerate(self._device_info):
+            if val and i < len(labels):
+                info_row = QLabel(f"<b>{labels[i]}:</b> {html.escape(val)}")
+                info_row.setStyleSheet("""
+                    QLabel {
+                        font-size: 13px;
+                        padding: 8px;
+                        border-radius: 4px;
+                        border-left: 3px;
+                    }
+                """)
+                info_row.setWordWrap(True)
+                info_row.setTextFormat(Qt.TextFormat.RichText)
+                card_layout.addWidget(info_row)
+        
+        card.setLayout(card_layout)
+        layout.addWidget(card)
+        
+        layout.addStretch()
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                padding: 10px 20px;
+                font-size: 13px;
+                border-radius: 4px;
+                font-weight: bold;
+                border: 1px solid #cccccc;
+            }
+            QPushButton:hover {
+                background-color: #2d5016;
+                color: white;
+                border: 1px solid #2d5016;
+            }
+            QPushButton:pressed {
+                background-color: #1f3a0f;
+                color: white;
+                border: 1px solid #1f3a0f;
+            }
+        """)
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+        
+        self.setLayout(layout)
+
+
+class ImprovDialog(QDialog):
+    """Dialog for Improv WiFi provisioning."""
+    _scan_finished = pyqtSignal(list)  # thread-safe signal for scan results
+    _provision_failed_signal = pyqtSignal()  # thread-safe signal for provision failure
+
+    def __init__(self, serial_port, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Improv WiFi Provisioning")
+        self.setMinimumWidth(420)
+        self._serial_port = serial_port  # reuse already-open port (never close it)
+        self._improv = None
+        self._is_provisioning = False  # True only after we send credentials
+        self._scan_finished.connect(self._update_network_list)
+        self._provision_failed_signal.connect(self._provision_failed)
+        self._init_ui()
+        self._start_improv()
+
+    def _init_ui(self):
+        layout = QVBoxLayout()
+
+        # Device info
+        info_container = QHBoxLayout()
+        self.info_label = QLabel("Detecting Improv device...")
+        self.info_label.setWordWrap(True)
+        info_container.addWidget(self.info_label)
+        self.info_btn = QPushButton("Details")
+        self.info_btn.setVisible(False)
+        self.info_btn.setMaximumWidth(100)
+        self.info_btn.setStyleSheet("""
+            QPushButton {
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-weight: bold;
+                border: 1px solid #cccccc;
+            }
+            QPushButton:hover {
+                background-color: #2d5016;
+                color: white;
+                border: 1px solid #2d5016;
+            }
+            QPushButton:pressed {
+                background-color: #1f3a0f;
+                color: white;
+                border: 1px solid #1f3a0f;
+            }
+        """)
+        self.info_btn.clicked.connect(self._show_device_info_dialog)
+        info_container.addWidget(self.info_btn)
+        layout.addLayout(info_container)
+
+        # WiFi network list
+        net_group = QGroupBox("WiFi Networks")
+        net_layout = QVBoxLayout()
+        self.network_list = QListWidget()
+        self.network_list.itemDoubleClicked.connect(self._on_network_selected)
+        net_layout.addWidget(self.network_list)
+
+        self.scan_btn = QPushButton("Scan Networks")
+        self.scan_btn.clicked.connect(self._scan_networks)
+        net_layout.addWidget(self.scan_btn)
+        net_group.setLayout(net_layout)
+        layout.addWidget(net_group)
+
+        # Credentials
+        cred_group = QGroupBox("WiFi Credentials")
+        cred_layout = QGridLayout()
+        cred_layout.addWidget(QLabel("SSID:"), 0, 0)
+        self.ssid_input = QLineEdit()
+        cred_layout.addWidget(self.ssid_input, 0, 1)
+        cred_layout.addWidget(QLabel("Password:"), 1, 0)
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        cred_layout.addWidget(self.password_input, 1, 1)
+        cred_group.setLayout(cred_layout)
+        layout.addWidget(cred_group)
+
+        # Status / progress
+        self.status_label = QLabel("")
+        layout.addWidget(self.status_label)
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)  # indeterminate
+        self.progress.setVisible(False)
+        layout.addWidget(self.progress)
+
+        # Buttons
+        btn_layout = QHBoxLayout()
+        self.provision_btn = QPushButton("Provision")
+        self.provision_btn.clicked.connect(self._provision)
+        self.provision_btn.setEnabled(False)
+        btn_layout.addWidget(self.provision_btn)
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.close)
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+
+    def _start_improv(self):
+        """Start Improv on the already-open serial port."""
+        if not self._serial_port or not self._serial_port.is_open:
+            self.status_label.setText("Serial port not open")
+            return
+
+        # Drain & discard stale console data so the Improv state-machine
+        # starts clean.  The read-loop also handles stale bytes via its
+        # newline-reset logic, so this is belt-and-suspenders.
+        try:
+            self._serial_port.reset_input_buffer()
+        except (OSError, serial.SerialException) as e:
+            self.status_label.setText(f"Port error: {e}")
+            return
+
+        from esp_flasher.improv import ImprovManager
+        self._improv = ImprovManager(self._serial_port)
+        self._improv.state_changed.connect(self._on_state_changed)
+        self._improv.error_received.connect(self._on_error)
+        self._improv.device_info_received.connect(self._on_device_info)
+        self._improv.log_message.connect(self._on_log)
+        self._improv.provisioned.connect(self._on_provisioned)
+        self._improv.start()
+
+        # Periodically poll for device until it responds
+        self._detect_attempts = 0
+        self._detect_timer = QTimer(self)
+        self._detect_timer.timeout.connect(self._poll_device_state)
+        self._detect_timer.start(1000)
+        # Also send first request immediately
+        QTimer.singleShot(100, self._poll_device_state)
+
+    def _poll_device_state(self):
+        """Send request_current_state until device responds or we give up."""
+        if not self._improv:
+            self._detect_timer.stop()
+            return
+        if self._improv.device_state is not None:
+            # Device has responded, stop polling
+            self._detect_timer.stop()
+            return
+        self._detect_attempts += 1
+        if self._detect_attempts > 15:
+            self._detect_timer.stop()
+            self.status_label.setText("No Improv device detected (timeout)")
+            return
+        self.status_label.setText(
+            f"Detecting Improv device... (attempt {self._detect_attempts}/15)"
+        )
+        self._improv.request_current_state()
+
+    def _on_state_changed(self, state):
+        from esp_flasher.improv import STATE_READY, STATE_PROVISIONING, STATE_PROVISIONED, STATE_NAMES
+        name = STATE_NAMES.get(state, f"Unknown ({state})")
+        self.progress.setVisible(False)
+        if state == STATE_READY:
+            self.status_label.setText(f"State: {name}")
+            self.provision_btn.setEnabled(True)
+            # Auto-request device info
+            improv = self._improv
+            threading.Thread(target=lambda: self._request_info_bg(improv), daemon=True).start()
+        elif state == STATE_PROVISIONING:
+            self.status_label.setText("Connecting to WiFi...")
+            self.provision_btn.setEnabled(False)
+            self.progress.setVisible(True)
+        elif state == STATE_PROVISIONED:
+            if self._is_provisioning:
+                self.status_label.setText("✓ WiFi provisioned successfully!")
+                self.provision_btn.setEnabled(False)
+            else:
+                self.status_label.setText("Device already connected to WiFi")
+                self.provision_btn.setEnabled(True)
+            # Request device info in both cases
+            improv = self._improv
+            threading.Thread(target=lambda: self._request_info_bg(improv), daemon=True).start()
+
+    def _on_error(self, error):
+        from esp_flasher.improv import ERROR_NAMES, ERROR_NONE
+        if error != ERROR_NONE:
+            self.status_label.setText(f"Error: {ERROR_NAMES.get(error, 'Unknown')}")
+            self.progress.setVisible(False)
+            self.provision_btn.setEnabled(True)
+
+    def _on_device_info(self, info):
+        self._device_info = info  # Store for later display
+        
+        if not info or not any(info):
+            self.info_label.setText("Device detected")
+            self.info_btn.setVisible(False)
+            return
+        
+        # Show compact summary
+        name = info[3] if len(info) > 3 and info[3] else "Unknown"
+        chip = info[2] if len(info) > 2 and info[2] else "Unknown"
+        self.info_label.setText(f"{name} ({chip})")
+        self.info_label.setStyleSheet("""
+            QLabel {
+                font-size: 15px;
+                font-weight: bold;
+                color: white;
+                padding: 0px;
+            }
+        """)
+        self.info_btn.setVisible(True)
+    
+    def _show_device_info_dialog(self):
+        """Open the detailed device info dialog."""
+        if hasattr(self, '_device_info') and self._device_info:
+            dialog = DeviceInfoDialog(self._device_info, self)
+            dialog.exec()
+
+    def _on_log(self, msg):
+        """Show Improv status messages in the dialog's status label."""
+        self.status_label.setText(msg)
+
+    def _on_provisioned(self, result):
+        self.progress.setVisible(False)
+        self.provision_btn.setEnabled(False)
+        msg = "✓ WiFi provisioned successfully!"
+        if result:
+            msg += f"\n{', '.join(result)}"
+        self.status_label.setText(msg)
+
+    def _on_network_selected(self, item):
+        ssid = item.data(Qt.ItemDataRole.UserRole)
+        if ssid:
+            self.ssid_input.setText(ssid)
+            self.password_input.setFocus()
+
+    def _scan_networks(self):
+        if getattr(self, '_scan_in_progress', False):
+            return
+        if not self._improv:
+            self.status_label.setText("Improv not initialized")
+            return
+        self._scan_in_progress = True
+        self.scan_btn.setEnabled(False)
+        self.network_list.clear()
+        self.status_label.setText("Scanning WiFi networks...")
+        self.progress.setVisible(True)
+        improv = self._improv
+        threading.Thread(target=lambda: self._scan_bg(improv), daemon=True).start()
+
+    def _scan_bg(self, improv):
+        try:
+            networks = improv.request_wifi_networks()
+            # Sort by RSSI descending
+            networks.sort(key=lambda n: n[1], reverse=True)
+            # Thread-safe: emit signal to update UI on main thread
+            self._scan_finished.emit(networks)
+        except Exception as e:
+            logger.error("WiFi scan error: %s", e)
+            # Emit empty list to reset UI
+            self._scan_finished.emit([])
+
+    def _update_network_list(self, networks):
+        self._scan_in_progress = False
+        self.scan_btn.setEnabled(True)
+        self.network_list.clear()
+        self.progress.setVisible(False)
+        if not networks:
+            self.status_label.setText("No networks found")
+            return
+        for ssid, rssi, secured in networks:
+            lock = "🔒 " if secured else "    "
+            item = QListWidgetItem(f"{lock}{ssid}  ({rssi} dBm)")
+            item.setData(Qt.ItemDataRole.UserRole, ssid)
+            self.network_list.addItem(item)
+        self.status_label.setText(f"Found {len(networks)} networks")
+
+    def _request_info_bg(self, improv):
+        try:
+            improv.request_device_info()
+        except Exception as e:
+            logger.error("Device info request error: %s", e)
+
+    def _provision(self):
+        ssid = self.ssid_input.text().strip()
+        password = self.password_input.text()
+        if not ssid:
+            self.status_label.setText("Please enter an SSID")
+            return
+        if not self._improv:
+            self.status_label.setText("Improv not initialized")
+            return
+        self._is_provisioning = True
+        self.provision_btn.setEnabled(False)
+        self.progress.setVisible(True)
+        self.status_label.setText(f"Provisioning WiFi: {ssid}...")
+        improv = self._improv
+        threading.Thread(target=lambda: self._provision_bg(improv, ssid, password), daemon=True).start()
+
+    def _provision_bg(self, improv, ssid, password):
+        try:
+            result = improv.send_wifi_settings(ssid, password)
+            if result is None:
+                self._provision_failed_signal.emit()
+        except Exception as e:
+            logger.error("Provisioning error: %s", e)
+            self._provision_failed_signal.emit()
+
+    def _provision_failed(self):
+        self._is_provisioning = False
+        self.progress.setVisible(False)
+        self.provision_btn.setEnabled(True)
+        self.status_label.setText("WiFi provisioning failed")
+
+    def closeEvent(self, event):
+        if hasattr(self, '_detect_timer') and self._detect_timer.isActive():
+            self._detect_timer.stop()
+        if self._improv:
+            self._improv.stop()
+            self._improv = None
+        # Do NOT close the serial port — caller owns it and will restart console reader
+        super().closeEvent(event)
+
 
 class FlashingThread(threading.Thread):
     def __init__(self, firmware, port, finished=None, failed=None):
@@ -118,6 +528,9 @@ class MainWindow(QMainWindow):
         self.flash_button = QPushButton("Flash ESP")
         self.flash_button.clicked.connect(self.flash_esp)
         actions_layout.addWidget(self.flash_button)
+        self.improv_button = QPushButton("Improv WiFi")
+        self.improv_button.clicked.connect(self.open_improv)
+        actions_layout.addWidget(self.improv_button)
         actions_group_box.setLayout(actions_layout)
 
         # Console with input field
@@ -237,9 +650,6 @@ class MainWindow(QMainWindow):
         
         # Start serial communication
         try:
-            import serial
-            from esp_flasher.serial_console import SerialReader
-            
             self._serial_port = serial.Serial(self._port, baudrate=115200, timeout=1)
             
             # Start reader thread
@@ -321,6 +731,45 @@ class MainWindow(QMainWindow):
         )
         self._flash_worker.start()
     
+    def open_improv(self):
+        """Open Improv WiFi provisioning dialog.
+        stop console reader, pass open port to Improv, restart reader on close."""
+        if self._is_flashing:
+            self.show_log_error("Cannot use Improv while flashing")
+            return
+        if not self._serial_port or not self._serial_port.is_open:
+            self.show_log_error("Connect to a serial port first")
+            return
+
+        # Stop console reader — mute signals first to prevent cross-thread
+        # queued events from being delivered, then stop thread, then disconnect
+        # and flush the Qt event queue so no stale events remain.
+        if self._serial_reader:
+            self._serial_reader.stop()  # sets _muted=True and running=False, joins thread
+            self._serial_reader.line_received.disconnect(self.append_log_line)
+            self._serial_reader.error_occurred.disconnect(self.handle_serial_error)
+            # Flush any already-queued cross-thread events so they are discarded
+            from PyQt6.QtWidgets import QApplication
+            QApplication.processEvents()
+            self._serial_reader = None
+
+        # Disable console input while in Improv mode
+        self.input_field.setEnabled(False)
+        self.send_button.setEnabled(False)
+
+        # Open Improv dialog with the same open port (port stays open, no ESP reset)
+        dlg = ImprovDialog(self._serial_port, parent=self)
+        dlg.exec()
+
+        # Restart console reader on the same open port (like JS reconnectConsole)
+        if self._serial_port and self._serial_port.is_open:
+            self._serial_reader = SerialReader(self._serial_port)
+            self._serial_reader.line_received.connect(self.append_log_line)
+            self._serial_reader.error_occurred.connect(self.handle_serial_error)
+            self._serial_reader.start()
+            self.input_field.setEnabled(True)
+            self.send_button.setEnabled(True)
+
     def on_flash_finished(self):
         """Called when flashing is complete"""
         print(colorize("\nFlashing complete!", COLOR_GREEN))
