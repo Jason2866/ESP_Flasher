@@ -133,6 +133,7 @@ class ImprovManager(QObject):
         self._port = serial_port
         self._running = False
         self._thread = None
+        self._receiver_dead = False  # Flag to indicate receiver thread has exited
 
         # Receiver state machine (matches JS: undefined/true/false)
         self._line = []
@@ -156,12 +157,14 @@ class ImprovManager(QObject):
     def start(self):
         """Start the Improv receiver thread."""
         self._running = True
+        self._receiver_dead = False
         self._thread = threading.Thread(target=self._read_loop, daemon=True)
         self._thread.start()
 
     def stop(self):
         """Stop the Improv receiver thread."""
         self._running = False
+        self._receiver_dead = True
         # Unblock any threads waiting on RPC responses or WiFi scan
         self._rpc_event.set()
         self._wifi_scan_done.set()
@@ -183,11 +186,17 @@ class ImprovManager(QObject):
 
     def request_wifi_networks(self, timeout=30.0):
         """Scan for WiFi networks. Returns list of (ssid, rssi, secured)."""
+        if not self._running or not self._port or not self._port.is_open:
+            return []
+        if self._receiver_dead:
+            raise RuntimeError("Improv receiver thread has died")
         self._wifi_networks = []
         self._wifi_scan_done.clear()
         pkt = _build_rpc(CMD_REQUEST_WIFI_NETWORKS)
         self._write(pkt)
         if not self._wifi_scan_done.wait(timeout=timeout):
+            if self._receiver_dead:
+                raise RuntimeError("Improv receiver thread died during WiFi scan")
             self.log_message.emit("WiFi scan timeout")
         return list(self._wifi_networks)
 
@@ -203,7 +212,16 @@ class ImprovManager(QObject):
         """Send an RPC command and wait for the result.
         timeout=None means wait indefinitely (matches JS behavior for info/scan).
         Serializes RPC calls to prevent concurrent RPCs from racing."""
+        if not self._running or not self._port or not self._port.is_open:
+            return None
+        if self._receiver_dead:
+            raise RuntimeError("Improv receiver thread has died")
+        
         with self._rpc_lock:
+            # Check again after acquiring lock
+            if self._receiver_dead:
+                raise RuntimeError("Improv receiver thread has died")
+            
             self._rpc_event.clear()
             self._rpc_result = None
             self._rpc_error = None
@@ -213,12 +231,16 @@ class ImprovManager(QObject):
             self._write(pkt)
 
             if self._rpc_event.wait(timeout=timeout):
+                if self._receiver_dead:
+                    raise RuntimeError("Improv receiver thread died during RPC")
                 if self._rpc_error is not None and self._rpc_error != ERROR_NONE:
                     self._rpc_command = None
                     return None
                 result = self._rpc_result
                 self._rpc_command = None
                 return result
+            if self._receiver_dead:
+                raise RuntimeError("Improv receiver thread died during RPC")
             self.log_message.emit("RPC timeout")
             self.error_received.emit(ERROR_TIMEOUT)
             self._rpc_command = None
@@ -257,6 +279,9 @@ class ImprovManager(QObject):
                 try:
                     if not self._port or not self._port.is_open:
                         self.log_message.emit("Serial port closed")
+                        self._running = False
+                        self._rpc_event.set()
+                        self._wifi_scan_done.set()
                         break
                     # Blocking read — returns 1 byte or b'' on timeout
                     raw = self._port.read(1)
@@ -274,8 +299,15 @@ class ImprovManager(QObject):
                     if self._running:
                         logger.error("Improv read error: %s", e)
                         self.log_message.emit(f"Read error: {e}")
+                    self._running = False
+                    self._rpc_event.set()
+                    self._wifi_scan_done.set()
                     break
         finally:
+            # Mark receiver as dead and wake all waiters
+            self._receiver_dead = True
+            self._rpc_event.set()
+            self._wifi_scan_done.set()
             try:
                 self._port.timeout = old_timeout
             except Exception:

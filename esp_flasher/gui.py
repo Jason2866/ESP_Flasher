@@ -3,6 +3,7 @@ import sys
 import threading
 import os
 import platform
+import serial
 
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
@@ -17,6 +18,7 @@ from esp_flasher.const import (__version__, DEFAULT_WINDOW_WIDTH,
                                DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_X, 
                                DEFAULT_WINDOW_Y)
 from esp_flasher.console_color import ColoredConsole
+from esp_flasher.serial_console import SerialReader
 
 
 class DeviceInfoDialog(QDialog):
@@ -60,7 +62,7 @@ class DeviceInfoDialog(QDialog):
         card_layout.setSpacing(12)
         
         labels = ["Firmware", "Version", "Chip", "Name"]
-        icons = ["⚙️", "🔢", "🔌", "📛"]
+        icons = ["⚙️", "🔢", "🧠", "🏷️"]
         
         for i, val in enumerate(self._device_info):
             if val and i < len(labels):
@@ -262,7 +264,8 @@ class ImprovDialog(QDialog):
             self.status_label.setText(f"State: {name}")
             self.provision_btn.setEnabled(True)
             # Auto-request device info
-            threading.Thread(target=self._request_info_bg, daemon=True).start()
+            improv = self._improv
+            threading.Thread(target=lambda: self._request_info_bg(improv), daemon=True).start()
         elif state == STATE_PROVISIONING:
             self.status_label.setText("Connecting to WiFi...")
             self.provision_btn.setEnabled(False)
@@ -275,7 +278,8 @@ class ImprovDialog(QDialog):
                 self.status_label.setText("Device already connected to WiFi")
                 self.provision_btn.setEnabled(True)
             # Request device info in both cases
-            threading.Thread(target=self._request_info_bg, daemon=True).start()
+            improv = self._improv
+            threading.Thread(target=lambda: self._request_info_bg(improv), daemon=True).start()
 
     def _on_error(self, error):
         from esp_flasher.improv import ERROR_NAMES, ERROR_NONE
@@ -330,10 +334,11 @@ class ImprovDialog(QDialog):
         self.network_list.clear()
         self.status_label.setText("Scanning WiFi networks...")
         self.progress.setVisible(True)
-        threading.Thread(target=self._scan_bg, daemon=True).start()
+        improv = self._improv
+        threading.Thread(target=lambda: self._scan_bg(improv), daemon=True).start()
 
-    def _scan_bg(self):
-        networks = self._improv.request_wifi_networks()
+    def _scan_bg(self, improv):
+        networks = improv.request_wifi_networks()
         # Sort by RSSI descending
         networks.sort(key=lambda n: n[1], reverse=True)
         # Thread-safe: emit signal to update UI on main thread
@@ -354,8 +359,8 @@ class ImprovDialog(QDialog):
             self.network_list.addItem(item)
         self.status_label.setText(f"Found {len(networks)} networks")
 
-    def _request_info_bg(self):
-        self._improv.request_device_info()
+    def _request_info_bg(self, improv):
+        improv.request_device_info()
 
     def _provision(self):
         ssid = self.ssid_input.text().strip()
@@ -367,10 +372,11 @@ class ImprovDialog(QDialog):
         self.provision_btn.setEnabled(False)
         self.progress.setVisible(True)
         self.status_label.setText(f"Provisioning WiFi: {ssid}...")
-        threading.Thread(target=self._provision_bg, args=(ssid, password), daemon=True).start()
+        improv = self._improv
+        threading.Thread(target=lambda: self._provision_bg(improv, ssid, password), daemon=True).start()
 
-    def _provision_bg(self, ssid, password):
-        result = self._improv.send_wifi_settings(ssid, password)
+    def _provision_bg(self, improv, ssid, password):
+        result = improv.send_wifi_settings(ssid, password)
         if result is None:
             self._provision_failed_signal.emit()
 
@@ -613,9 +619,6 @@ class MainWindow(QMainWindow):
         
         # Start serial communication
         try:
-            import serial
-            from esp_flasher.serial_console import SerialReader
-            
             self._serial_port = serial.Serial(self._port, baudrate=115200, timeout=1)
             
             # Start reader thread
@@ -729,7 +732,6 @@ class MainWindow(QMainWindow):
 
         # Restart console reader on the same open port (like JS reconnectConsole)
         if self._serial_port and self._serial_port.is_open:
-            from esp_flasher.serial_console import SerialReader
             self._serial_reader = SerialReader(self._serial_port)
             self._serial_reader.line_received.connect(self.append_log_line)
             self._serial_reader.error_occurred.connect(self.handle_serial_error)
