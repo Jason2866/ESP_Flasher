@@ -60,7 +60,7 @@ class DeviceInfoDialog(QDialog):
         card_layout.setSpacing(12)
         
         labels = ["Firmware", "Version", "Chip", "Name"]
-        icons = ["🔧", "📋", "💾", "🏷️"]
+        icons = ["⚙️", "🔢", "🔌", "📛"]
         
         for i, val in enumerate(self._device_info):
             if val and i < len(labels):
