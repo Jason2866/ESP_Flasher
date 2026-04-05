@@ -5,6 +5,7 @@ import os
 import logging
 import platform
 import serial
+import html
 
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
@@ -66,7 +67,7 @@ class DeviceInfoDialog(QDialog):
         
         for i, val in enumerate(self._device_info):
             if val and i < len(labels):
-                info_row = QLabel(f"<b>{labels[i]}:</b> {val}")
+                info_row = QLabel(f"<b>{labels[i]}:</b> {html.escape(val)}")
                 info_row.setStyleSheet("""
                     QLabel {
                         font-size: 13px;
@@ -131,7 +132,7 @@ class ImprovDialog(QDialog):
     def _init_ui(self):
         layout = QVBoxLayout()
 
-        # Device info - now with a button to show details
+        # Device info
         info_container = QHBoxLayout()
         self.info_label = QLabel("Detecting Improv device...")
         self.info_label.setWordWrap(True)
@@ -210,7 +211,7 @@ class ImprovDialog(QDialog):
         self.setLayout(layout)
 
     def _start_improv(self):
-        """Start Improv on the already-open serial port (same as JS: port stays open)."""
+        """Start Improv on the already-open serial port."""
         if not self._serial_port or not self._serial_port.is_open:
             self.status_label.setText("Serial port not open")
             return
@@ -732,7 +733,7 @@ class MainWindow(QMainWindow):
     
     def open_improv(self):
         """Open Improv WiFi provisioning dialog.
-        Matches JS: stop console reader, pass open port to Improv, restart reader on close."""
+        stop console reader, pass open port to Improv, restart reader on close."""
         if self._is_flashing:
             self.show_log_error("Cannot use Improv while flashing")
             return

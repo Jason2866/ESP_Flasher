@@ -1,6 +1,5 @@
 """
 Improv Wi-Fi Serial Protocol implementation for ESP-Flasher.
-Based on the Improv Serial specification and esp32tool js/improv.js reference.
 """
 
 import time
@@ -55,7 +54,6 @@ CMD_REQUEST_CURRENT_STATE = 0x02
 CMD_REQUEST_INFO = 0x03
 CMD_REQUEST_WIFI_NETWORKS = 0x04
 
-# Timeouts (match esp32tool js/improv.js)
 PROVISION_TIMEOUT = 30.0
 
 
@@ -114,7 +112,7 @@ def _parse_tlv_strings(data):
 class ImprovManager(QObject):
     """Manages Improv serial communication with an ESP device.
 
-    Receiver state machine mirrors the JS reference (esp32tool js/improv.js):
+    Receiver state machine:
       - is_improv=None   (scanning: accumulate bytes, check at 9 bytes)
       - is_improv=True   (reading improv packet body + checksum)
       - is_improv=False  (skip non-improv line until newline)
@@ -135,7 +133,7 @@ class ImprovManager(QObject):
         self._thread = None
         self._receiver_dead = False  # Flag to indicate receiver thread has exited
 
-        # Receiver state machine (matches JS: undefined/true/false)
+        # Receiver state machine
         self._line = []
         self._is_improv = None  # None=scanning, True=reading packet, False=skip line
         self._improv_length = 0
@@ -191,7 +189,7 @@ class ImprovManager(QObject):
         if self._receiver_dead:
             raise RuntimeError("Improv receiver thread has died")
         
-        # Acquire lock to reserve RPC slot
+        # Hold lock across entire send-and-wait sequence to prevent race conditions
         self._rpc_lock.acquire()
         try:
             self._wifi_networks = []
@@ -199,20 +197,21 @@ class ImprovManager(QObject):
             self._rpc_command = CMD_REQUEST_WIFI_NETWORKS
             pkt = _build_rpc(CMD_REQUEST_WIFI_NETWORKS)
             self._write(pkt)
+            
+            # Wait for scan completion while holding lock
+            if not self._wifi_scan_done.wait(timeout=timeout):
+                if self._receiver_dead:
+                    raise RuntimeError("Improv receiver thread died during WiFi scan")
+                self.log_message.emit("WiFi scan timeout")
+            self._rpc_command = None
+            return list(self._wifi_networks)
         finally:
+            # Release lock after wait completes or times out
             self._rpc_lock.release()
-        
-        # Wait for scan completion without holding lock
-        if not self._wifi_scan_done.wait(timeout=timeout):
-            if self._receiver_dead:
-                raise RuntimeError("Improv receiver thread died during WiFi scan")
-            self.log_message.emit("WiFi scan timeout")
-        self._rpc_command = None
-        return list(self._wifi_networks)
 
     def send_wifi_settings(self, ssid, password, timeout=PROVISION_TIMEOUT):
         """Send WiFi credentials. Returns result strings or None on error.
-        30s timeout — matches JS provision(ssid, password, 30000)."""
+        30s timeout — (ssid, password, 30000)."""
         payload = _build_wifi_payload(ssid, password)
         return self._send_rpc(CMD_SEND_WIFI_SETTINGS, payload, timeout=timeout)
 
@@ -220,14 +219,14 @@ class ImprovManager(QObject):
 
     def _send_rpc(self, command, payload=b"", timeout=None):
         """Send an RPC command and wait for the result.
-        timeout=None means wait indefinitely (matches JS behavior for info/scan).
+        timeout=None means wait indefinitely.
         Serializes RPC calls to prevent concurrent RPCs from racing."""
         if not self._running or not self._port or not self._port.is_open:
             return None
         if self._receiver_dead:
             raise RuntimeError("Improv receiver thread has died")
         
-        # Acquire lock only to send request and register waiter
+        # Hold lock across entire send-and-wait sequence to prevent race conditions
         self._rpc_lock.acquire()
         try:
             # Check again after acquiring lock
@@ -241,26 +240,26 @@ class ImprovManager(QObject):
 
             pkt = _build_rpc(command, payload)
             self._write(pkt)
-        finally:
-            # Release lock before waiting so other RPCs can queue
-            self._rpc_lock.release()
-        
-        # Wait for response without holding the lock
-        if self._rpc_event.wait(timeout=timeout):
+            
+            # Wait for response while holding the lock
+            if self._rpc_event.wait(timeout=timeout):
+                if self._receiver_dead:
+                    raise RuntimeError("Improv receiver thread died during RPC")
+                if self._rpc_error is not None and self._rpc_error != ERROR_NONE:
+                    self._rpc_command = None
+                    return None
+                result = self._rpc_result
+                self._rpc_command = None
+                return result
             if self._receiver_dead:
                 raise RuntimeError("Improv receiver thread died during RPC")
-            if self._rpc_error is not None and self._rpc_error != ERROR_NONE:
-                self._rpc_command = None
-                return None
-            result = self._rpc_result
+            self.log_message.emit("RPC timeout")
+            self.error_received.emit(ERROR_TIMEOUT)
             self._rpc_command = None
-            return result
-        if self._receiver_dead:
-            raise RuntimeError("Improv receiver thread died during RPC")
-        self.log_message.emit("RPC timeout")
-        self.error_received.emit(ERROR_TIMEOUT)
-        self._rpc_command = None
-        return None
+            return None
+        finally:
+            # Release lock after wait completes or times out
+            self._rpc_lock.release()
 
     def _write(self, data):
         """Write data to the serial port."""
@@ -281,8 +280,7 @@ class ImprovManager(QObject):
 
     def _read_loop(self):
         """Background thread: read bytes and detect Improv packets.
-        Uses blocking read(1) instead of in_waiting polling — mirrors
-        the JS 'await reader.read()' approach and avoids macOS issues
+        Uses blocking read(1) instead of in_waiting polling — avoids macOS issues
         where in_waiting may return 0 after tcflush/reset_input_buffer."""
         # Use short timeout so stop() isn't blocked for too long
         old_timeout = self._port.timeout
@@ -330,7 +328,7 @@ class ImprovManager(QObject):
                 logger.debug("Could not restore serial timeout: %s", e)
 
     def _process_byte(self, byte):
-        """Process a single byte — exact port of JS _processInput state machine."""
+        """Process a single byte."""
 
         # State: is_improv=False → skip non-improv line until newline
         if self._is_improv is False:
@@ -368,7 +366,6 @@ class ImprovManager(QObject):
             self._is_improv = True
         else:
             # Not an Improv header — discard buffer and skip rest of line
-            # (JS: isImprov = false, line = [] — skip until next newline)
             self._line = []
             self._is_improv = False
 
@@ -432,7 +429,7 @@ class ImprovManager(QObject):
 
             elif command == CMD_REQUEST_WIFI_NETWORKS:
                 if not strings:
-                    # Empty result = scan complete (matches JS: receivedData done)
+                    # Empty result = scan complete
                     self.log_message.emit(f"WiFi scan complete: {len(self._wifi_networks)} networks")
                     self._wifi_scan_done.set()
                 else:
