@@ -38,10 +38,10 @@ The flashing process is straightforward and consists of a few simple steps:
 Connect your ESP device via USB and select the correct serial port from the dropdown menu.
 
 #### 2. Connect to Device
-Click the "Connect" button to establish a connection with your ESP device. The flasher will detect the chip type automatically.
+Click the "Connect" button to establish a connection with your ESP device.
 
 #### 3. Select Firmware
-Click "Select Firmware" to choose your Tasmota (factory) firmware file (.bin). The flasher automatically detects the chip type and configures all necessary parameters.
+Click "Select Firmware" to choose the matching Tasmota (factory) firmware file (.bin) to the connected espressif MCU.
 
 #### 4. Start Flashing
 Click "Flash ESP" to begin the flashing process. The progress bar shows the current status.
