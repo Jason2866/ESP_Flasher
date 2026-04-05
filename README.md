@@ -10,7 +10,7 @@ Tasmota-ESP-Flasher is an app for ESP8266 / ESP32 designed to make flashing Tasm
  * All necessary options (bootloader, flash mode, safeboot) are set automatically
  * Flashing is lightning fast
  * Full ANSI color support for colored terminal output
- * Interactive serial monitor with command input support
+ * Interactive serial monitor with command input support (with history buffer)
 
 The flashing process is done using [esptool](https://github.com/espressif/esptool) from espressif.
 
@@ -68,10 +68,6 @@ The ESP Flasher includes WiFi Improv protocol support, allowing you to configure
 5. The `SSID` field will be automatically filled with the selected network name
 6. Enter your password in the `Password` field and click the `Provision` button
 7. The device will connect to your WiFi network and display the assigned IP address
-
-### Serial Console
-
-Use the built-in serial console to monitor your device, send commands, and configure settings. The console supports full ANSI color output for better readability.
 
 **Benefits:**
 - No need to connect to a temporary access point
