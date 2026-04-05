@@ -64,17 +64,17 @@ Use the built-in serial console to monitor your device, send commands, and confi
 
 ### WiFi Improv Support
 
-The ESP Flasher includes WiFi Improv protocol support, which allows you to configure WiFi credentials on your ESP device without needing to connect to a web interface or access point.
+The ESP Flasher includes WiFi Improv protocol support, allowing you to configure WiFi credentials on your ESP device without connecting to a web interface or access point.
 
 **How to use WiFi Improv:**
 
 1. After flashing your device, keep it connected via USB
-2. Pressing `Improv WiFi` button starts the `IMPROV` client
-3. Click the `Scan Networks` button to start the search for available WiFi networks
-4. Double click the found WiFi network you want to use
-5. The `SSID` field will be filled with the selected network
-6. Enter the password in `Password` field and click button `Provision`
-7. The device will connect to your WiFi network and the assigned IP address will be shown
+2. Click the `Improv WiFi` button to launch the Improv client
+3. Click the `Scan Networks` button to search for available WiFi networks
+4. Double-click the WiFi network you want to connect to
+5. The `SSID` field will be automatically filled with the selected network name
+6. Enter your password in the `Password` field and click the `Provision` button
+7. The device will connect to your WiFi network and display the assigned IP address
 
 **Benefits:**
 - No need to connect to a temporary access point
