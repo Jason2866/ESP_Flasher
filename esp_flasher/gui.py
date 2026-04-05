@@ -88,8 +88,18 @@ class ImprovDialog(QDialog):
 
     def _start_improv(self):
         """Start Improv on the already-open serial port (same as JS: port stays open)."""
-        # Flush stale console data from buffer
-        self._serial_port.reset_input_buffer()
+        if not self._serial_port or not self._serial_port.is_open:
+            self.status_label.setText("Serial port not open")
+            return
+
+        # Drain & discard stale console data so the Improv state-machine
+        # starts clean.  The read-loop also handles stale bytes via its
+        # newline-reset logic, so this is belt-and-suspenders.
+        try:
+            self._serial_port.reset_input_buffer()
+        except Exception as e:
+            self.status_label.setText(f"Port error: {e}")
+            return
 
         from esp_flasher.improv import ImprovManager
         self._improv = ImprovManager(self._serial_port)
@@ -562,14 +572,19 @@ class MainWindow(QMainWindow):
             self.show_log_error("Connect to a serial port first")
             return
 
-        # Stop console reader — disconnect signals first, then stop thread
+        # Stop console reader — mute signals first to prevent cross-thread
+        # queued events from being delivered, then stop thread, then disconnect
+        # and flush the Qt event queue so no stale events remain.
         if self._serial_reader:
+            self._serial_reader.stop()  # sets _muted=True and running=False, joins thread
+            # Verify the thread is truly dead before handing the port to Improv
+            if self._serial_reader.thread and self._serial_reader.thread.is_alive():
+                self._serial_reader.thread.join(timeout=2.0)
             self._serial_reader.line_received.disconnect(self.append_log_line)
             self._serial_reader.error_occurred.disconnect(self.handle_serial_error)
-            self._serial_reader.stop()
-            # Wait until thread is truly dead
-            if self._serial_reader.thread and self._serial_reader.thread.is_alive():
-                self._serial_reader.thread.join(timeout=3.0)
+            # Flush any already-queued cross-thread events so they are discarded
+            from PyQt6.QtWidgets import QApplication
+            QApplication.processEvents()
             self._serial_reader = None
 
         # Disable console input while in Improv mode

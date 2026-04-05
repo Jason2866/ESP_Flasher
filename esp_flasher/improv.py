@@ -105,7 +105,7 @@ def _parse_tlv_strings(data):
         idx += 1
         if idx + str_len > len(data):
             break
-        s = data[idx:idx + str_len].decode("utf-8", errors="replace")
+        s = bytes(data[idx:idx + str_len]).decode("utf-8", errors="replace")
         strings.append(s)
         idx += str_len
     return strings
@@ -162,7 +162,7 @@ class ImprovManager(QObject):
         """Stop the Improv receiver thread."""
         self._running = False
         if self._thread:
-            self._thread.join(timeout=2.0)
+            self._thread.join(timeout=3.0)
             self._thread = None
 
     # --- Public API ---
@@ -225,21 +225,44 @@ class ImprovManager(QObject):
             self.log_message.emit(f"Write error: {e}")
 
     def _read_loop(self):
-        """Background thread: read bytes and detect Improv packets."""
-        while self._running:
-            try:
-                if not self._port or not self._port.is_open:
+        """Background thread: read bytes and detect Improv packets.
+        Uses blocking read(1) instead of in_waiting polling — mirrors
+        the JS 'await reader.read()' approach and avoids macOS issues
+        where in_waiting may return 0 after tcflush/reset_input_buffer."""
+        # Use short timeout so stop() isn't blocked for too long
+        old_timeout = self._port.timeout
+        try:
+            self._port.timeout = 0.1
+        except Exception:
+            pass
+        try:
+            while self._running:
+                try:
+                    if not self._port or not self._port.is_open:
+                        self.log_message.emit("Serial port closed")
+                        break
+                    # Blocking read — returns 1 byte or b'' on timeout
+                    raw = self._port.read(1)
+                    if raw:
+                        # Got one byte; also grab anything else already buffered
+                        try:
+                            remaining = self._port.in_waiting
+                            if remaining > 0:
+                                raw += self._port.read(remaining)
+                        except OSError:
+                            pass
+                        for b in raw:
+                            self._process_byte(b)
+                except Exception as e:
+                    if self._running:
+                        logger.error("Improv read error: %s", e)
+                        self.log_message.emit(f"Read error: {e}")
                     break
-                if self._port.in_waiting > 0:
-                    raw = self._port.read(self._port.in_waiting)
-                    for b in raw:
-                        self._process_byte(b)
-                else:
-                    time.sleep(0.01)
-            except Exception as e:
-                if self._running:
-                    logger.error("Improv read error: %s", e)
-                break
+        finally:
+            try:
+                self._port.timeout = old_timeout
+            except Exception:
+                pass
 
     def _process_byte(self, byte):
         """Process a single byte — exact port of JS _processInput state machine."""
