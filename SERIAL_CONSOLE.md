@@ -1,8 +1,48 @@
-# Interactive Serial Console
+# Interactive Serial Console & WiFi Improv
 
-ESP-Flasher now includes an interactive serial console with command input support.
+ESP-Flasher includes an interactive serial console with command input support and WiFi Improv protocol for easy WiFi configuration.
 
-## Features
+## WiFi Improv Support
+
+### Overview
+
+WiFi Improv is a protocol that allows you to configure WiFi credentials on your ESP device over USB without needing to connect to a web interface or temporary access point.
+
+### Features
+
+- **Network Scanning** — Discover available WiFi networks
+- **Easy Selection** — Double-click to select a network
+- **Secure Provisioning** — Credentials sent securely over USB
+- **Instant Feedback** — See assigned IP address immediately
+- **No Web Interface** — Configure directly from the flasher GUI
+
+### Usage
+
+1. **Flash your device** — Complete the normal flashing process
+2. **Keep connected** — Leave the device connected via USB
+3. **Click "Improv WiFi"** — Opens the Improv client window
+4. **Click "Scan Networks"** — Searches for available WiFi networks
+5. **Double-click network** — Select the network you want to use
+6. **Enter password** — Type your WiFi password in the Password field
+7. **Click "Provision"** — Device connects and displays IP address
+
+### Benefits
+
+- Faster setup than web-based configuration
+- No need to connect to temporary access point
+- Works immediately after flashing
+- Secure credential transfer over USB
+- Perfect for initial device setup
+
+### Protocol Details
+
+For more information about the Improv WiFi protocol, visit [Improv WiFi](https://www.improv-wifi.com/).
+
+---
+
+## Serial Console
+
+### Features
 
 ### Console Output
 - **ANSI color support** — Full support for colored and formatted text

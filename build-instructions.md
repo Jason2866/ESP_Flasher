@@ -135,9 +135,11 @@ The output is `dist/ESP-Flasher/` (a directory containing the executable and all
 | Platform | Output |
 |----------|--------|
 | Windows | `dist\ESP-Flasher\ESP-Flasher.exe` |
+| Windows (ARM) | `dist\ESP-Flasher\ESP-Flasher.exe` |
 | macOS (Intel) | `dist/ESP-Flasher.app` (onedir bundle) |
 | macOS (ARM) | `dist/ESP-Flasher.app` (onedir bundle) |
 | Linux | `dist/ESP-Flasher/ESP-Flasher` |
+| Linux (ARM) | `dist/ESP-Flasher/ESP-Flasher` |
 
 ---
 

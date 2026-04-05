@@ -1,5 +1,41 @@
 # New Features Summary
 
+## WiFi Improv Protocol Support
+
+ESP-Flasher now includes WiFi Improv protocol support for easy WiFi configuration over USB.
+
+### Key Features
+
+#### 1. Easy WiFi Setup
+- **No Access Point Required** — Configure WiFi directly over USB
+- **Network Scanning** — Scan and select from available WiFi networks
+- **Secure Provisioning** — Credentials transferred securely over USB
+- **Instant Feedback** — See assigned IP address immediately
+
+#### 2. Simple Workflow
+1. Click `Improv WiFi` button to launch the client
+2. Click `Scan Networks` to find available networks
+3. Double-click your network to select it
+4. Enter password and click `Provision`
+5. Device connects and displays IP address
+
+#### 3. Benefits
+- Faster initial setup compared to web interface
+- Works immediately after flashing
+- No need for temporary access points
+- Secure credential transfer
+
+### Usage
+
+After flashing your device:
+1. Keep it connected via USB
+2. Click the `Improv WiFi` button in the GUI
+3. Follow the on-screen instructions to provision WiFi
+
+For more details, visit [Improv WiFi](https://www.improv-wifi.com/).
+
+---
+
 ## Interactive Serial Console with ANSI Color Support
 
 ESP-Flasher now includes a fully-featured interactive serial console:

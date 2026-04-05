@@ -1,6 +1,6 @@
 # ESP-Flasher Documentation
 
-**Version:** 4.1.1 
+**Version:** 4.4.0 
 **License:** MIT  
 **Author:** Jason2866 (Johann Obermeier)  
 **Repository:** [github.com/Jason2866/ESP_Flasher](https://github.com/Jason2866/ESP_Flasher)
@@ -83,6 +83,7 @@ The tool wraps [esptool](https://github.com/espressif/esptool) functionality in 
 - **Configurable baud rate** (default: 1,500,000 for ESP32, falls back to 115,200 if unsupported)
 - **Flash erase** before writing (can be disabled with `--no-erase`)
 - **Interactive serial monitor** with command input support, ANSI colors, and timestamps
+- **WiFi Improv protocol support** — configure WiFi credentials over USB without web interface
 - **ANSI color support** — full support for colored and formatted terminal output (bold, italic, underline, colors)
 - **Dynamic console interface** — input field appears when viewing logs for sending commands
 - **Dark-themed GUI** built with PyQt5 using the Fusion style
@@ -209,6 +210,28 @@ esp_flasher --port /dev/ttyUSB0 tasmota.bin
 | `--input` | Custom bootloader ELF file to flash (ESP32x only) | — |
 | `--no-erase` | Do not erase flash before flashing | `false` |
 | `--show-logs` | Only show serial logs (no flashing) | `false` |
+
+### WiFi Improv
+
+The ESP Flasher includes WiFi Improv protocol support for easy WiFi configuration over USB.
+
+**How to use:**
+
+1. After flashing your device, keep it connected via USB
+2. Click the `Improv WiFi` button to launch the Improv client
+3. Click the `Scan Networks` button to search for available WiFi networks
+4. Double-click the WiFi network you want to connect to
+5. The `SSID` field will be automatically filled with the selected network name
+6. Enter your password in the `Password` field and click the `Provision` button
+7. The device will connect to your WiFi network and display the assigned IP address
+
+**Benefits:**
+- No need to connect to a temporary access point
+- Secure credential transfer over USB
+- Faster initial setup process
+- Works immediately after flashing
+
+For more details on the Improv protocol, visit [Improv WiFi](https://www.improv-wifi.com/).
 
 ---
 
