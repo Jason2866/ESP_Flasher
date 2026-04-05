@@ -18,6 +18,97 @@ from esp_flasher.const import (__version__, DEFAULT_WINDOW_WIDTH,
                                DEFAULT_WINDOW_Y)
 from esp_flasher.console_color import ColoredConsole
 
+
+class DeviceInfoDialog(QDialog):
+    """Attractive dialog to display device information."""
+    
+    def __init__(self, device_info, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Device Information")
+        self.setMinimumWidth(400)
+        self.setMinimumHeight(250)
+        self._device_info = device_info
+        self._init_ui()
+    
+    def _init_ui(self):
+        layout = QVBoxLayout()
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title
+        title = QLabel("📱 Device Information")
+        title.setStyleSheet("""
+            QLabel {
+                font-size: 18px;
+                font-weight: bold;
+                color: #2196F3;
+                padding: 10px;
+            }
+        """)
+        layout.addWidget(title)
+        
+        # Info card container
+        card = QWidget()
+        card.setStyleSheet("""
+            QWidget {
+                background-color: #f5f5f5;
+                border-radius: 8px;
+                padding: 15px;
+            }
+        """)
+        card_layout = QVBoxLayout()
+        card_layout.setSpacing(12)
+        
+        labels = ["Firmware", "Version", "Chip", "Name"]
+        icons = ["🔧", "📋", "💾", "🏷️"]
+        
+        for i, val in enumerate(self._device_info):
+            if val and i < len(labels):
+                info_row = QLabel(f"{icons[i]} <b>{labels[i]}:</b> {val}")
+                info_row.setStyleSheet("""
+                    QLabel {
+                        font-size: 13px;
+                        padding: 8px;
+                        background-color: white;
+                        color: #333333;
+                        border-radius: 4px;
+                        border-left: 3px solid #2196F3;
+                    }
+                """)
+                info_row.setWordWrap(True)
+                info_row.setTextFormat(Qt.TextFormat.RichText)
+                card_layout.addWidget(info_row)
+        
+        card.setLayout(card_layout)
+        layout.addWidget(card)
+        
+        layout.addStretch()
+        
+        # Close button
+        close_btn = QPushButton("Close")
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                font-size: 13px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #0D47A1;
+            }
+        """)
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+        
+        self.setLayout(layout)
+
+
 class ImprovDialog(QDialog):
     """Dialog for Improv WiFi provisioning."""
     _scan_finished = pyqtSignal(list)  # thread-safe signal for scan results
@@ -38,10 +129,31 @@ class ImprovDialog(QDialog):
     def _init_ui(self):
         layout = QVBoxLayout()
 
-        # Device info
+        # Device info - now with a button to show details
+        info_container = QHBoxLayout()
         self.info_label = QLabel("Detecting Improv device...")
         self.info_label.setWordWrap(True)
-        layout.addWidget(self.info_label)
+        info_container.addWidget(self.info_label)
+        
+        self.info_btn = QPushButton("ℹ️ Details")
+        self.info_btn.setVisible(False)
+        self.info_btn.setMaximumWidth(100)
+        self.info_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        self.info_btn.clicked.connect(self._show_device_info_dialog)
+        info_container.addWidget(self.info_btn)
+        layout.addLayout(info_container)
 
         # WiFi network list
         net_group = QGroupBox("WiFi Networks")
@@ -173,13 +285,24 @@ class ImprovDialog(QDialog):
             self.provision_btn.setEnabled(True)
 
     def _on_device_info(self, info):
-        parts = []
-        labels = ["Firmware", "Version", "Chip", "Name"]
-        for i, val in enumerate(info):
-            if val:
-                label = labels[i] if i < len(labels) else f"Field{i}"
-                parts.append(f"{label}: {val}")
-        self.info_label.setText(" | ".join(parts) if parts else "Device detected")
+        self._device_info = info  # Store for later display
+        
+        if not info or not any(info):
+            self.info_label.setText("Device detected")
+            self.info_btn.setVisible(False)
+            return
+        
+        # Show compact summary
+        name = info[3] if len(info) > 3 and info[3] else "Unknown"
+        chip = info[2] if len(info) > 2 and info[2] else "Unknown"
+        self.info_label.setText(f"📱 Device: {name} ({chip})")
+        self.info_btn.setVisible(True)
+    
+    def _show_device_info_dialog(self):
+        """Open the detailed device info dialog."""
+        if hasattr(self, '_device_info') and self._device_info:
+            dialog = DeviceInfoDialog(self._device_info, self)
+            dialog.exec()
 
     def _on_log(self, msg):
         """Show Improv status messages in the dialog's status label."""
