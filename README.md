@@ -59,11 +59,8 @@ Once flashing is complete, you'll see a success message. Your device is now read
 
 The ESP Flasher includes WiFi Improv protocol support, allowing you to configure WiFi credentials on your ESP device without connecting to a web interface or access point.
 
-![improv 1](esp_flasher/flasher-pic/flash_2.png)
+![Improv](esp_flasher/flasher-pic/flash_2.png)
 
-![improv 2](esp_flasher/flasher-pic/flash_3.png)
-
-![improv 3](esp_flasher/flasher-pic/flash_4.png)
 
 **How to use WiFi Improv:**
 
