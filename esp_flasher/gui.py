@@ -329,6 +329,9 @@ class ImprovDialog(QDialog):
     def _scan_networks(self):
         if getattr(self, '_scan_in_progress', False):
             return
+        if not self._improv:
+            self.status_label.setText("Improv not initialized")
+            return
         self._scan_in_progress = True
         self.scan_btn.setEnabled(False)
         self.network_list.clear()
@@ -367,6 +370,9 @@ class ImprovDialog(QDialog):
         password = self.password_input.text()
         if not ssid:
             self.status_label.setText("Please enter an SSID")
+            return
+        if not self._improv:
+            self.status_label.setText("Improv not initialized")
             return
         self._is_provisioning = True
         self.provision_btn.setEnabled(False)

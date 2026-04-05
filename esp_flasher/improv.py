@@ -310,8 +310,8 @@ class ImprovManager(QObject):
             self._wifi_scan_done.set()
             try:
                 self._port.timeout = old_timeout
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Could not restore serial timeout: %s", e)
 
     def _process_byte(self, byte):
         """Process a single byte — exact port of JS _processInput state machine."""
