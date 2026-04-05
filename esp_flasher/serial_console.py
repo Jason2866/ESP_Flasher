@@ -44,6 +44,7 @@ class SerialReader(QObject):
         self.running = False
         if self.thread:
             self.thread.join(timeout=1.0)
+            self.thread = None
     
     def _read_loop(self):
         """Read loop running in background thread"""
