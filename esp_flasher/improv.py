@@ -177,14 +177,14 @@ class ImprovManager(QObject):
         No timeout — matches JS where requestInfo() waits indefinitely."""
         return self._send_rpc(CMD_REQUEST_INFO)
 
-    def request_wifi_networks(self):
-        """Scan for WiFi networks. Returns list of (ssid, rssi, secured).
-        No timeout — matches JS where scan() waits indefinitely."""
+    def request_wifi_networks(self, timeout=30.0):
+        """Scan for WiFi networks. Returns list of (ssid, rssi, secured)."""
         self._wifi_networks = []
         self._wifi_scan_done.clear()
         pkt = _build_rpc(CMD_REQUEST_WIFI_NETWORKS)
         self._write(pkt)
-        self._wifi_scan_done.wait()
+        if not self._wifi_scan_done.wait(timeout=timeout):
+            self.log_message.emit("WiFi scan timeout")
         return list(self._wifi_networks)
 
     def send_wifi_settings(self, ssid, password, timeout=PROVISION_TIMEOUT):
@@ -351,18 +351,23 @@ class ImprovManager(QObject):
             strings = _parse_tlv_strings(data)
 
             if command == CMD_REQUEST_INFO:
-                self.log_message.emit(f"Device info: {strings}")
                 self.device_info_received.emit(strings)
                 self._rpc_result = strings
                 self._rpc_event.set()
 
             elif command == CMD_REQUEST_WIFI_NETWORKS:
                 if not strings:
+                    # Empty result = scan complete (matches JS: receivedData done)
+                    self.log_message.emit(f"WiFi scan complete: {len(self._wifi_networks)} networks")
                     self._wifi_scan_done.set()
                 else:
                     if len(strings) >= 3:
+                        try:
+                            rssi = int(strings[1])
+                        except (ValueError, IndexError):
+                            rssi = 0
                         self._wifi_networks.append(
-                            (strings[0], int(strings[1]), strings[2] == "YES")
+                            (strings[0], rssi, strings[2] == "YES")
                         )
 
             elif command == CMD_SEND_WIFI_SETTINGS:

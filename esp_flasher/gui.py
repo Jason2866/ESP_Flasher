@@ -20,6 +20,8 @@ from esp_flasher.console_color import ColoredConsole
 
 class ImprovDialog(QDialog):
     """Dialog for Improv WiFi provisioning."""
+    _scan_finished = pyqtSignal(list)  # thread-safe signal for scan results
+    _provision_failed_signal = pyqtSignal()  # thread-safe signal for provision failure
 
     def __init__(self, serial_port, parent=None):
         super().__init__(parent)
@@ -28,6 +30,8 @@ class ImprovDialog(QDialog):
         self._serial_port = serial_port  # reuse already-open port (never close it)
         self._improv = None
         self._is_provisioning = False  # True only after we send credentials
+        self._scan_finished.connect(self._update_network_list)
+        self._provision_failed_signal.connect(self._provision_failed)
         self._init_ui()
         self._start_improv()
 
@@ -36,6 +40,7 @@ class ImprovDialog(QDialog):
 
         # Device info
         self.info_label = QLabel("Detecting Improv device...")
+        self.info_label.setWordWrap(True)
         layout.addWidget(self.info_label)
 
         # WiFi network list
@@ -177,6 +182,7 @@ class ImprovDialog(QDialog):
         self.info_label.setText(" | ".join(parts) if parts else "Device detected")
 
     def _on_log(self, msg):
+        """Show Improv status messages in the dialog's status label."""
         self.status_label.setText(msg)
 
     def _on_provisioned(self, result):
@@ -203,8 +209,8 @@ class ImprovDialog(QDialog):
         networks = self._improv.request_wifi_networks()
         # Sort by RSSI descending
         networks.sort(key=lambda n: n[1], reverse=True)
-        # Update UI from main thread via signal
-        QTimer.singleShot(0, lambda: self._update_network_list(networks))
+        # Thread-safe: emit signal to update UI on main thread
+        self._scan_finished.emit(networks)
 
     def _update_network_list(self, networks):
         self.network_list.clear()
@@ -237,7 +243,7 @@ class ImprovDialog(QDialog):
     def _provision_bg(self, ssid, password):
         result = self._improv.send_wifi_settings(ssid, password)
         if result is None:
-            QTimer.singleShot(0, lambda: self._provision_failed())
+            self._provision_failed_signal.emit()
 
     def _provision_failed(self):
         self._is_provisioning = False
