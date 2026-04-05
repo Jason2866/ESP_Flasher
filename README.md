@@ -1,6 +1,3 @@
-
-[![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
-
 # Tasmota-ESP-Flasher for Tasmota v13 and later (Safeboot partition scheme)
 
 [![GitHub Releases](https://img.shields.io/github/downloads/Jason2866/ESP_Flasher/total?label=downloads&color=%231FA3EC&style=for-the-badge)](https://github.com/Jason2866/ESP_Flasher/releases/latest)
@@ -44,7 +41,7 @@ Connect your ESP device via USB and select the correct serial port from the drop
 Click the "Connect" button to establish a connection with your ESP device. The flasher will detect the chip type automatically.
 
 #### 3. Select Firmware
-Click "Select Firmware" to choose your Tasmota factory firmware file (.bin). The flasher automatically detects the chip type and configures all necessary parameters.
+Click "Select Firmware" to choose your Tasmota (factory) firmware file (.bin). The flasher automatically detects the chip type and configures all necessary parameters.
 
 #### 4. Start Flashing
 Click "Flash ESP" to begin the flashing process. The progress bar shows the current status.
@@ -118,6 +115,8 @@ Driver: https://www.silabs.com/documents/public/software/Mac_OSX_VCP_Driver.zip
 ## License
 
 [MIT](http://opensource.org/licenses/MIT) © Otto Winter, Michael Kandziora, Johann Obermeier
+
+[![Build_special_firmware](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
 ### Powered by
 [![CLion logo.](https://resources.jetbrains.com/storage/products/company/brand/logos/CLion.svg)](https://jb.gg/OpenSourceSupport)
