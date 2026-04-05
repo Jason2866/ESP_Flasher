@@ -179,10 +179,10 @@ class ImprovManager(QObject):
         pkt = _build_rpc(CMD_REQUEST_CURRENT_STATE)
         self._write(pkt)
 
-    def request_device_info(self):
+    def request_device_info(self, timeout=10.0):
         """Request device info. Returns [firmware, version, chip, name] or None.
-        No timeout — matches JS where requestInfo() waits indefinitely."""
-        return self._send_rpc(CMD_REQUEST_INFO)
+        Uses a 10s timeout to prevent indefinite blocking."""
+        return self._send_rpc(CMD_REQUEST_INFO, timeout=timeout)
 
     def request_wifi_networks(self, timeout=30.0):
         """Scan for WiFi networks. Returns list of (ssid, rssi, secured)."""
@@ -190,14 +190,25 @@ class ImprovManager(QObject):
             return []
         if self._receiver_dead:
             raise RuntimeError("Improv receiver thread has died")
-        self._wifi_networks = []
-        self._wifi_scan_done.clear()
-        pkt = _build_rpc(CMD_REQUEST_WIFI_NETWORKS)
-        self._write(pkt)
+        
+        # Acquire lock to reserve RPC slot
+        self._rpc_lock.acquire()
+        try:
+            self._wifi_networks = []
+            self._wifi_scan_done.clear()
+            self._rpc_command = CMD_REQUEST_WIFI_NETWORKS
+            pkt = _build_rpc(CMD_REQUEST_WIFI_NETWORKS)
+            self._write(pkt)
+        finally:
+            self._rpc_lock.release()
+        
+        # Wait for scan completion without holding lock
         if not self._wifi_scan_done.wait(timeout=timeout):
             if self._receiver_dead:
                 raise RuntimeError("Improv receiver thread died during WiFi scan")
             self.log_message.emit("WiFi scan timeout")
+        self._rpc_command = None
+        return list(self._wifi_networks)
         return list(self._wifi_networks)
 
     def send_wifi_settings(self, ssid, password, timeout=PROVISION_TIMEOUT):
@@ -217,7 +228,9 @@ class ImprovManager(QObject):
         if self._receiver_dead:
             raise RuntimeError("Improv receiver thread has died")
         
-        with self._rpc_lock:
+        # Acquire lock only to send request and register waiter
+        self._rpc_lock.acquire()
+        try:
             # Check again after acquiring lock
             if self._receiver_dead:
                 raise RuntimeError("Improv receiver thread has died")
@@ -229,22 +242,26 @@ class ImprovManager(QObject):
 
             pkt = _build_rpc(command, payload)
             self._write(pkt)
-
-            if self._rpc_event.wait(timeout=timeout):
-                if self._receiver_dead:
-                    raise RuntimeError("Improv receiver thread died during RPC")
-                if self._rpc_error is not None and self._rpc_error != ERROR_NONE:
-                    self._rpc_command = None
-                    return None
-                result = self._rpc_result
-                self._rpc_command = None
-                return result
+        finally:
+            # Release lock before waiting so other RPCs can queue
+            self._rpc_lock.release()
+        
+        # Wait for response without holding the lock
+        if self._rpc_event.wait(timeout=timeout):
             if self._receiver_dead:
                 raise RuntimeError("Improv receiver thread died during RPC")
-            self.log_message.emit("RPC timeout")
-            self.error_received.emit(ERROR_TIMEOUT)
+            if self._rpc_error is not None and self._rpc_error != ERROR_NONE:
+                self._rpc_command = None
+                return None
+            result = self._rpc_result
             self._rpc_command = None
-            return None
+            return result
+        if self._receiver_dead:
+            raise RuntimeError("Improv receiver thread died during RPC")
+        self.log_message.emit("RPC timeout")
+        self.error_received.emit(ERROR_TIMEOUT)
+        self._rpc_command = None
+        return None
 
     def _write(self, data):
         """Write data to the serial port."""

@@ -341,11 +341,16 @@ class ImprovDialog(QDialog):
         threading.Thread(target=lambda: self._scan_bg(improv), daemon=True).start()
 
     def _scan_bg(self, improv):
-        networks = improv.request_wifi_networks()
-        # Sort by RSSI descending
-        networks.sort(key=lambda n: n[1], reverse=True)
-        # Thread-safe: emit signal to update UI on main thread
-        self._scan_finished.emit(networks)
+        try:
+            networks = improv.request_wifi_networks()
+            # Sort by RSSI descending
+            networks.sort(key=lambda n: n[1], reverse=True)
+            # Thread-safe: emit signal to update UI on main thread
+            self._scan_finished.emit(networks)
+        except Exception as e:
+            logger.error("WiFi scan error: %s", e)
+            # Emit empty list to reset UI
+            self._scan_finished.emit([])
 
     def _update_network_list(self, networks):
         self._scan_in_progress = False
@@ -363,7 +368,10 @@ class ImprovDialog(QDialog):
         self.status_label.setText(f"Found {len(networks)} networks")
 
     def _request_info_bg(self, improv):
-        improv.request_device_info()
+        try:
+            improv.request_device_info()
+        except Exception as e:
+            logger.error("Device info request error: %s", e)
 
     def _provision(self):
         ssid = self.ssid_input.text().strip()
@@ -382,8 +390,12 @@ class ImprovDialog(QDialog):
         threading.Thread(target=lambda: self._provision_bg(improv, ssid, password), daemon=True).start()
 
     def _provision_bg(self, improv, ssid, password):
-        result = improv.send_wifi_settings(ssid, password)
-        if result is None:
+        try:
+            result = improv.send_wifi_settings(ssid, password)
+            if result is None:
+                self._provision_failed_signal.emit()
+        except Exception as e:
+            logger.error("Provisioning error: %s", e)
             self._provision_failed_signal.emit()
 
     def _provision_failed(self):
