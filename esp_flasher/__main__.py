@@ -34,6 +34,7 @@ def parse_args(argv):
     group.add_argument("--esp32", action="store_true")
     group.add_argument("--esp32s2", action="store_true")
     group.add_argument("--esp32s3", action="store_true")
+    group.add_argument("--esp32s31", action="store_true")
     group.add_argument("--esp32c2", action="store_true")
     group.add_argument("--esp32c3", action="store_true")
     group.add_argument("--esp32c5", action="store_true")
@@ -130,7 +131,20 @@ def run_esp_flasher(argv, skip_logs=False):
         firmware = open(args.binary, "rb")
     except IOError as err:
         raise Esp_flasherError(f"Error opening binary: {err}") from err
-    chip = detect_chip(port, args.esp8266, args.esp32)
+    chip = detect_chip(
+        port,
+        force_esp8266=args.esp8266,
+        force_esp32=args.esp32,
+        force_esp32s2=args.esp32s2,
+        force_esp32s3=args.esp32s3,
+        force_esp32s31=args.esp32s31,
+        force_esp32c2=args.esp32c2,
+        force_esp32c3=args.esp32c3,
+        force_esp32c5=args.esp32c5,
+        force_esp32c6=args.esp32c6,
+        force_esp32c61=args.esp32c61,
+        force_esp32p4=args.esp32p4,
+    )
     info = read_chip_info(chip)
 
     print()
@@ -171,7 +185,20 @@ def run_esp_flasher(argv, skip_logs=False):
             )
             # pylint: disable=protected-access
             stub_chip._port.close()
-            chip = detect_chip(port, args.esp8266, args.esp32)
+            chip = detect_chip(
+                port,
+                force_esp8266=args.esp8266,
+                force_esp32=args.esp32,
+                force_esp32s2=args.esp32s2,
+                force_esp32s3=args.esp32s3,
+                force_esp32s31=args.esp32s31,
+                force_esp32c2=args.esp32c2,
+                force_esp32c3=args.esp32c3,
+                force_esp32c5=args.esp32c5,
+                force_esp32c6=args.esp32c6,
+                force_esp32c61=args.esp32c61,
+                force_esp32p4=args.esp32p4,
+            )
             stub_chip = chip_run_stub(chip)
 
     if flash_size is None:

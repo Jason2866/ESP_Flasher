@@ -315,6 +315,10 @@ def configure_write_flash_args(
                 # Fallback if revision cannot be parsed (assume RC1)
                 model = "esp32p4"
                 safeboot = "tasmota32p4-safeboot.bin"
+        elif "ESP32-S31" in info.model:
+            model = "esp32s31"
+            safeboot = "tasmota32s31-safeboot.bin"
+            ofs_bootloader = 0x2000
         elif "ESP32-S3" in info.model:
             model = "esp32s3"
             safeboot = "tasmota32s3-safeboot.bin"
@@ -392,8 +396,8 @@ def configure_write_flash_args(
                            min_rev, min_rev_full, max_rev_full, elf_sha256_offset, use_segments, flash_mmu_page_size, pad_to_size, spi_connection, output)
 
 
-def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=False, force_esp32s3=False, force_esp32c2=False, force_esp32c3=False, force_esp32c5=False, force_esp32c6=False, force_esp32c61=False, force_esp32p4=False):
-    if force_esp8266 or force_esp32 or force_esp32s2 or force_esp32s3 or force_esp32c2 or force_esp32c3 or force_esp32c5 or force_esp32c6 or force_esp32c61 or force_esp32p4:
+def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=False, force_esp32s3=False, force_esp32s31=False, force_esp32c2=False, force_esp32c3=False, force_esp32c5=False, force_esp32c6=False, force_esp32c61=False, force_esp32p4=False):
+    if force_esp8266 or force_esp32 or force_esp32s2 or force_esp32s3 or force_esp32s31 or force_esp32c2 or force_esp32c3 or force_esp32c5 or force_esp32c6 or force_esp32c61 or force_esp32p4:
         if force_esp8266:
             klass = esptool.ESP8266ROM
         elif force_esp32:
@@ -402,6 +406,8 @@ def detect_chip(port, force_esp8266=False, force_esp32=False, force_esp32s2=Fals
             klass = esptool.ESP32S2ROM
         elif force_esp32s3:
             klass = esptool.ESP32S3ROM
+        elif force_esp32s31:
+            klass = esptool.ESP32S31ROM
         elif force_esp32c2:
             klass = esptool.ESP32C2ROM
         elif force_esp32c3:
