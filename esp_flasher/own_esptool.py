@@ -3583,7 +3583,7 @@ class ESP32S31ROM(ESP32C5ROM):
 
     def hard_reset(self):
         if (not self.secure_download_mode) and self.uses_usb():
-            self.watchdog_reset()
+            self.rtc_wdt_reset()
         else:
             ESPLoader.hard_reset(self)
 
