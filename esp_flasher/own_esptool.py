@@ -3391,6 +3391,10 @@ class ESP32S31ROM(ESP32C5ROM):
     RTC_CNTL_WDTCONFIG1_REG = DR_REG_LP_WDT_BASE + 0x4
     RTC_CNTL_WDTWPROTECT_REG = DR_REG_LP_WDT_BASE + 0x18
     RTC_CNTL_WDT_WKEY = 0x50D83AA1
+    RTC_CNTL_SWD_CONF_REG = DR_REG_LP_WDT_BASE + 0x001C    # LP_WDT_SWD_CONFIG_REG
+    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 18
+    RTC_CNTL_SWD_WPROTECT_REG = DR_REG_LP_WDT_BASE + 0x0020  # LP_WDT_SWD_WPROTECT_REG
+    RTC_CNTL_SWD_WKEY = 0x50D83AA1
 
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # EFUSE_RD_REPEAT_DATA0_REG
 
@@ -3424,6 +3428,10 @@ class ESP32S31ROM(ESP32C5ROM):
     PURPOSE_VAL_XTS_AES128_KEY = 4
 
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
+
+    # USB port IDs sourced from esp_rom_caps.h (differ from ESP32C5ROM's values)
+    UARTDEV_BUF_NO_USB = 4           # ESP_ROM_USB_OTG_NUM
+    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 5  # ESP_ROM_USB_SERIAL_DEVICE_NUM
 
     MEMORY_MAP = [
         [0x00000000, 0x00010000, "PADDING"],
@@ -3568,7 +3576,22 @@ class ESP32S31ROM(ESP32C5ROM):
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
 
+    def disable_watchdogs(self):
+        # UARTDEV_BUF_NO address for ESP32-S31 is not confirmed; the inherited
+        # ESP32C5ROM address (0x4085F514) maps to unmapped memory on S31 and
+        # would cause a bus fault. Disable watchdogs unconditionally instead.
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)
+        self.write_reg(self.RTC_CNTL_WDTCONFIG0_REG, 0)
+        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)
+        self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
+        self.write_reg(
+            self.RTC_CNTL_SWD_CONF_REG,
+            self.read_reg(self.RTC_CNTL_SWD_CONF_REG) | self.RTC_CNTL_SWD_AUTO_FEED_EN,
+        )
+        self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
+
     def _post_connect(self):
+        super()._post_connect()  # runs disable_watchdogs() if not stub-detected
         if self.uses_usb():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
