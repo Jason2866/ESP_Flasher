@@ -4257,6 +4257,7 @@ class ESP32P4StubLoader(ESP32P4ROM):
         
         if rom_loader.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
+            self.FLASH_WRITE_SIZE = self.USB_RAM_BLOCK
 
 
 ESP32P4ROM.STUB_CLASS = ESP32P4StubLoader
@@ -4277,6 +4278,7 @@ class ESP32P4RC1StubLoader(ESP32P4RC1ROM):
         
         if rom_loader.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
+            self.FLASH_WRITE_SIZE = self.USB_RAM_BLOCK
 
 
 ESP32P4RC1ROM.STUB_CLASS = ESP32P4RC1StubLoader
