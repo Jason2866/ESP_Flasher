@@ -2701,7 +2701,7 @@ class ESP32C3ROM(ESP32ROM):
         return 40
 
     def get_flash_voltage(self):
-        pass  # not supported on ESP32-C3
+        raise NotSupportedError(self, "Reading flash voltage")
 
     def override_vddsdio(self, new_voltage):
         raise NotImplementedInROMError(
@@ -3437,7 +3437,7 @@ class ESP32S31ROM(ESP32C5ROM):
         return 40
 
     def get_flash_voltage(self):
-        pass  # not supported on ESP32-S31
+        raise NotSupportedError(self, "Reading flash voltage")
 
     def override_vddsdio(self, new_voltage):
         raise NotImplementedInROMError(
