@@ -397,7 +397,8 @@ class ESPLoader(object):
     # Response to ESP_SYNC might indicate that flasher stub is running instead of the ROM bootloader
     sync_stub_detected = False
 
-    # Device PIDs
+    # Device VIDs/PIDs
+    ESPRESSIF_VID = 0x303A
     USB_JTAG_SERIAL_PID = 0x1001
 
     # Chip IDs that are no longer supported by esptool
@@ -696,28 +697,47 @@ class ESPLoader(object):
         # request is sent with the updated RTS state and the same DTR state
         self._port.setDTR(self._port.dtr)
 
-    def _get_pid(self):
+    def get_usb_vid_pid(self):
+        if getattr(self, '_usb_vid_pid_cache', None) is not None:
+            return self._usb_vid_pid_cache
         if list_ports is None:
-            print("\nListing all serial ports is currently not available. Can't get device PID.")
-            return
+            self._usb_vid_pid_cache = (None, None)
+            return self._usb_vid_pid_cache
         active_port = self._port.port
 
         # Pyserial only identifies regular ports, URL handlers are not supported
         if not active_port.lower().startswith(("com", "/dev/")):
-            print("\nDevice PID identification is only supported on COM and /dev/ serial ports.")
-            return
+            self._usb_vid_pid_cache = (None, None)
+            return self._usb_vid_pid_cache
         # Return the real path if the active port is a symlink
         if active_port.startswith("/dev/") and os.path.islink(active_port):
             active_port = os.path.realpath(active_port)
 
         # The "cu" (call-up) device has to be used for outgoing communication on MacOS
         if sys.platform == "darwin" and "tty" in active_port:
-            active_port = [active_port, active_port.replace("tty", "cu")]
+            active_ports = [active_port, active_port.replace("tty", "cu")]
+        else:
+            active_ports = [active_port]
         ports = list_ports.comports()
         for p in ports:
-            if p.device in active_port:
-                return p.pid
-        print("\nFailed to get PID of a device on {}, using standard reset sequence.".format(active_port))
+            if p.device in active_ports:
+                self._usb_vid_pid_cache = (p.vid, p.pid)
+                return self._usb_vid_pid_cache
+        print("\nFailed to get VID/PID of a device on {}, using standard reset sequence.".format(active_port))
+        self._usb_vid_pid_cache = (None, None)
+        return self._usb_vid_pid_cache
+
+    def uses_usb_jtag_serial(self):
+        """True if the host sees this port as Espressif USB Serial/JTAG (VID/PID match)."""
+        if self.secure_download_mode:
+            return False
+        return self.get_usb_vid_pid() == (self.ESPRESSIF_VID, self.USB_JTAG_SERIAL_PID)
+
+    def uses_usb_otg(self):
+        """True if the host sees this port as Espressif USB-OTG (VID/PID match)."""
+        if self.secure_download_mode:
+            return False
+        return self.get_usb_vid_pid() == (self.ESPRESSIF_VID, self.IMAGE_CHIP_ID)
 
     def bootloader_reset(self, usb_jtag_serial=False, extra_delay=False):
         """ Issue a reset-to-bootloader, with USB-JTAG-Serial custom reset sequence option
@@ -815,7 +835,7 @@ class ESPLoader(object):
         sys.stdout.flush()
         last_error = None
 
-        usb_jtag_serial = (mode == 'usb_reset') or (self._get_pid() == self.USB_JTAG_SERIAL_PID)
+        usb_jtag_serial = (mode == 'usb_reset') or self.uses_usb_jtag_serial()
 
         try:
             for _, extra_delay in zip(range(attempts) if attempts > 0 else itertools.count(), itertools.cycle((False, True))):
@@ -2017,9 +2037,6 @@ class ESP32S2ROM(ESP32ROM):
     PURPOSE_VAL_XTS_AES256_KEY_2 = 3
     PURPOSE_VAL_XTS_AES128_KEY = 4
 
-    UARTDEV_BUF_NO = 0x3FFFFD14  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB = 2  # Value of the above indicating that USB-OTG is in use
-
     USB_RAM_BLOCK = 0x800  # Max block size USB-OTG is used
 
     GPIO_STRAP_REG = 0x3F404038
@@ -2192,16 +2209,8 @@ class ESP32S2ROM(ESP32ROM):
             p == self.PURPOSE_VAL_XTS_AES256_KEY_2 for p in purposes
         )
 
-    def uses_usb(self, _cache=[]):
-        if self.secure_download_mode:
-            return False  # can't detect native USB in secure download mode
-        if not _cache:
-            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB)
-        return _cache[0]
-
     def _post_connect(self):
-        if self.uses_usb():
+        if self.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
     def rtc_wdt_reset(self):
@@ -2214,7 +2223,7 @@ class ESP32S2ROM(ESP32ROM):
         self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
 
     def hard_reset(self):
-        if self.uses_usb():
+        if self.uses_usb_otg():
             # Check the strapping register to see if we can perform RTC WDT reset
             strap_reg = self.read_reg(self.GPIO_STRAP_REG)
             force_dl_reg = self.read_reg(self.RTC_CNTL_OPTION1_REG)
@@ -2227,7 +2236,7 @@ class ESP32S2ROM(ESP32ROM):
 
         print('Hard resetting via RTS pin...')
         self._setRTS(True)  # EN->LOW
-        if self.uses_usb():
+        if self.uses_usb_otg():
             # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
             time.sleep(0.2)
             self._setRTS(False)
@@ -2303,10 +2312,6 @@ class ESP32S3ROM(ESP32ROM):
     PURPOSE_VAL_XTS_AES256_KEY_1 = 2
     PURPOSE_VAL_XTS_AES256_KEY_2 = 3
     PURPOSE_VAL_XTS_AES128_KEY = 4
-
-    UARTDEV_BUF_NO = 0x3FCEF14C  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB = 3  # The above var when USB-OTG is used
-    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 4  # The above var when USB-JTAG/Serial is used
 
     RTCCNTL_BASE_REG = 0x60008000
     RTC_CNTL_SWD_CONF_REG = RTCCNTL_BASE_REG + 0x00B4
@@ -2487,27 +2492,8 @@ class ESP32S3ROM(ESP32ROM):
         except TypeError:  # Python 3, bitstring elements are already bytes
             return tuple(bitstring)
 
-    def uses_usb(self, _cache=[]):
-        if self.secure_download_mode:
-            return False  # can't detect native USB in secure download mode
-        if not _cache:
-            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB)
-        return _cache[0]
-
-    def uses_usb_jtag_serial(self, _cache=[]):
-        """
-        Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used
-        """
-        if self.secure_download_mode:
-            return False  # can't detect USB-JTAG/Serial in secure download mode
-        if not _cache:
-            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL)
-        return _cache[0]
-
     def _post_connect(self):
-        if self.uses_usb():
+        if self.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
     def rtc_wdt_reset(self):
@@ -2529,7 +2515,7 @@ class ESP32S3ROM(ESP32ROM):
         except Exception:
             # Skip if response was not valid and proceed to reset; e.g. when monitoring while resetting
             pass
-        uses_usb_otg = self.uses_usb()
+        uses_usb_otg = self.uses_usb_otg()
         if uses_usb_otg or self.uses_usb_jtag_serial():
             # Check the strapping register to see if we can perform RTC WDT reset
             strap_reg = self.read_reg(self.GPIO_STRAP_REG)
@@ -2543,7 +2529,7 @@ class ESP32S3ROM(ESP32ROM):
 
         print('Hard resetting via RTS pin...')
         self._setRTS(True)  # EN->LOW
-        if self.uses_usb():
+        if self.uses_usb_otg():
             # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
             time.sleep(0.2)
             self._setRTS(False)
@@ -2615,9 +2601,6 @@ class ESP32C3ROM(ESP32ROM):
     SUPPORTS_ENCRYPTED_FLASH = True
 
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
-
-    UARTDEV_BUF_NO = 0x3FCDF07C  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 3  # The above var when USB-JTAG/Serial is used
 
     RTCCNTL_BASE_REG = 0x60008000
     RTC_CNTL_SWD_CONF_REG = RTCCNTL_BASE_REG + 0x00AC
@@ -2767,17 +2750,6 @@ class ESP32C3ROM(ESP32ROM):
 
         return any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes)
 
-    def uses_usb_jtag_serial(self, _cache=[]):
-        """
-        Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used
-        """
-        if self.secure_download_mode:
-            return False  # can't detect USB-JTAG/Serial in secure download mode
-        if not _cache:
-            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL)
-        return _cache[0]
-
     def disable_watchdogs(self):
         # When USB-JTAG/Serial is used, the RTC WDT and SWD watchdog are not reset
         # and can then reset the board during flashing. Disable or autofeed them.
@@ -2875,9 +2847,6 @@ class ESP32C6ROM(ESP32C3ROM):
     SUPPORTS_ENCRYPTED_FLASH = True
 
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
-
-    UARTDEV_BUF_NO = 0x4087F580  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 3  # The above var when USB-JTAG/Serial is used
 
     DR_REG_LP_WDT_BASE = 0x600B1C00
     RTC_CNTL_WDTCONFIG0_REG = DR_REG_LP_WDT_BASE + 0x0  # LP_WDT_RWDT_CONFIG0_REG
@@ -3071,19 +3040,6 @@ class ESP32C61ROM(ESP32C6ROM):
     EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x034
     EFUSE_SECURE_BOOT_EN_MASK = 1 << 26
 
-    # Variable in ROM .bss which indicates the port in use
-    @property
-    def UARTDEV_BUF_NO(self):
-        """Variable .bss.UartDev.buff_uart_no in ROM .bss
-        which indicates the port in use.
-        """
-        return 0x4084F5EC if self.get_chip_revision() <= 2 else 0x4084F5E4
-
-    @property
-    def UARTDEV_BUF_NO_USB_JTAG_SERIAL(self):
-        """The above var when USB-JTAG/Serial is used."""
-        return 3 if self.get_chip_revision() <= 2 else 4
-
     FLASH_FREQUENCY = {
         "80m": 0xF,
         "40m": 0x0,
@@ -3203,10 +3159,6 @@ class ESP32C5ROM(ESP32C6ROM):
     PCR_SYSCLK_XTAL_FREQ_V = 0x7F << 24
     PCR_SYSCLK_XTAL_FREQ_S = 24
 
-    UARTDEV_BUF_NO = 0x4085F514  # Variable in ROM .bss which indicates the port in use
-    UARTDEV_BUF_NO_USB = 3  # The above var when USB-OTG is used
-    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 4  # The above var when USB-JTAG/Serial is used
-
     FLASH_FREQUENCY = {
         "80m": 0xF,
         "40m": 0x0,
@@ -3283,25 +3235,6 @@ class ESP32C5ROM(ESP32C6ROM):
         return (
             self.read_reg(self.PCR_SYSCLK_CONF_REG) & self.PCR_SYSCLK_XTAL_FREQ_V
         ) >> self.PCR_SYSCLK_XTAL_FREQ_S
-
-    def uses_usb(self, _cache=[]):
-        if self.secure_download_mode:
-            return False  # can't detect native USB in secure download mode
-        if not _cache:
-            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB)
-        return _cache[0]
-
-    def uses_usb_jtag_serial(self, _cache=[]):
-        """
-        Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used
-        """
-        if self.secure_download_mode:
-            return False  # can't detect USB-JTAG/Serial in secure download mode
-        if not _cache:
-            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-            _cache.append(buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL)
-        return _cache[0]
 
     def disable_watchdogs(self):
         # When USB-JTAG/Serial is used, the RTC WDT and SWD watchdog are not reset
@@ -3428,10 +3361,6 @@ class ESP32S31ROM(ESP32C5ROM):
     PURPOSE_VAL_XTS_AES128_KEY = 4
 
     FLASH_ENCRYPTED_WRITE_ALIGN = 16
-
-    # USB port IDs sourced from esp_rom_caps.h (differ from ESP32C5ROM's values)
-    UARTDEV_BUF_NO_USB = 4           # ESP_ROM_USB_OTG_NUM
-    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 5  # ESP_ROM_USB_SERIAL_DEVICE_NUM
 
     MEMORY_MAP = [
         [0x00000000, 0x00010000, "PADDING"],
@@ -3576,23 +3505,9 @@ class ESP32S31ROM(ESP32C5ROM):
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
 
-    def disable_watchdogs(self):
-        # UARTDEV_BUF_NO address for ESP32-S31 is not confirmed; the inherited
-        # ESP32C5ROM address (0x4085F514) maps to unmapped memory on S31 and
-        # would cause a bus fault. Disable watchdogs unconditionally instead.
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)
-        self.write_reg(self.RTC_CNTL_WDTCONFIG0_REG, 0)
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)
-        self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
-        self.write_reg(
-            self.RTC_CNTL_SWD_CONF_REG,
-            self.read_reg(self.RTC_CNTL_SWD_CONF_REG) | self.RTC_CNTL_SWD_AUTO_FEED_EN,
-        )
-        self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
-
     def _post_connect(self):
-        super()._post_connect()  # calls disable_watchdogs() above if not stub-detected
-        if self.uses_usb():
+        super()._post_connect()  # calls C5ROM's disable_watchdogs() via MRO if not stub-detected
+        if self.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
     def check_spi_connection(self, spi_connection):
@@ -3605,7 +3520,7 @@ class ESP32S31ROM(ESP32C5ROM):
             )
 
     def hard_reset(self):
-        if (not self.secure_download_mode) and self.uses_usb():
+        if (not self.secure_download_mode) and self.uses_usb_otg():
             self.rtc_wdt_reset()
         else:
             ESP32C5ROM.hard_reset(self)
@@ -3695,22 +3610,6 @@ class ESP32P4ROM(ESP32ROM):
     PMU_0P1A_FORCE_TIEH_SEL_0 = 1 << 7
     PMU_DATE_REG = DR_REG_PMU_BASE + 0x3FC
 
-    @property
-    def UARTDEV_BUF_NO(self):
-        """Variable .bss.UartDev.buff_uart_no in ROM .bss
-        which indicates the port in use.
-        """
-        BUF_UART_NO_OFFSET = 24
-
-        BSS_UART_DEV_ADDR = 0x4FF3FEB0 if self.get_chip_full_revision() < 300 else 0x4FFBFEB0
-        return BSS_UART_DEV_ADDR + BUF_UART_NO_OFFSET
-
-    # The value from UARTDEV_BUF_NO when USB-OTG is used
-    UARTDEV_BUF_NO_USB_OTG = 5
-
-    # The value from UARTDEV_BUF_NO when USB-JTAG/Serial is used
-    UARTDEV_BUF_NO_USB_JTAG_SERIAL = 6
-
     MEMORY_MAP = [
         [0x00000000, 0x00010000, "PADDING"],
         [0x40000000, 0x4C000000, "DROM"],
@@ -3786,18 +3685,9 @@ class ESP32P4ROM(ESP32ROM):
     def get_chip_full_revision(self):
         return self.get_major_chip_version() * 100 + self.get_minor_chip_version()
 
-    def uses_usb(self, _cache=[]):
-        """Check if USB-OTG or USB-JTAG/Serial is being used"""
-        if self.secure_download_mode:
-            return False  # can't detect native USB in secure download mode
-        if not _cache:
-            buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-            _cache.append(buf_no in [self.UARTDEV_BUF_NO_USB_OTG, self.UARTDEV_BUF_NO_USB_JTAG_SERIAL])
-        return _cache[0]
-
     def _post_connect(self):
-        # Set USB RAM block if USB is being used
-        if self.uses_usb():
+        # Set USB RAM block if USB-OTG is being used
+        if self.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
         
         if not self.secure_download_mode:
@@ -3824,13 +3714,6 @@ class ESP32P4ROM(ESP32ROM):
                 | self.RTC_CNTL_SWD_AUTO_FEED_EN,
             )
             self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
-
-    def uses_usb_jtag_serial(self):
-        """Check the UARTDEV_BUF_NO register to see if USB-JTAG/Serial is being used"""
-        if self.secure_download_mode:
-            return False
-        buf_no = self.read_reg(self.UARTDEV_BUF_NO) & 0xff
-        return buf_no == self.UARTDEV_BUF_NO_USB_JTAG_SERIAL
 
     def get_crystal_freq(self):
         # ESP32P4 XTAL is fixed to 40MHz
@@ -3909,7 +3792,7 @@ class ESP32P4ROM(ESP32ROM):
         time.sleep(0.5)  # wait for reset to take effect
 
     def hard_reset(self):
-        if self.uses_usb():
+        if self.uses_usb_otg():
             self.rtc_wdt_reset()
         else:
             print('Hard resetting via RTS pin...')
@@ -4219,7 +4102,7 @@ class ESP32S2StubLoader(ESP32S2ROM):
         self._trace_enabled = rom_loader._trace_enabled
         self.flush_input()  # resets _slip_reader
 
-        if rom_loader.uses_usb():
+        if rom_loader.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
             self.FLASH_WRITE_SIZE = self.USB_RAM_BLOCK
 
@@ -4243,7 +4126,7 @@ class ESP32S3StubLoader(ESP32S3ROM):
         self._trace_enabled = rom_loader._trace_enabled
         self.flush_input()  # resets _slip_reader
 
-        if rom_loader.uses_usb():
+        if rom_loader.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
             self.FLASH_WRITE_SIZE = self.USB_RAM_BLOCK
 
@@ -4264,7 +4147,7 @@ class ESP32S31StubLoader(ESP32S31ROM):
         self._trace_enabled = rom_loader._trace_enabled
         self.flush_input()  # resets _slip_reader
 
-        if rom_loader.uses_usb():
+        if rom_loader.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
             self.FLASH_WRITE_SIZE = self.USB_RAM_BLOCK
 
@@ -4372,13 +4255,8 @@ class ESP32P4StubLoader(ESP32P4ROM):
         self._trace_enabled = rom_loader._trace_enabled
         self.flush_input()  # resets _slip_reader
         
-        # Cache USB status from ROM loader
-        self._uses_usb = rom_loader.uses_usb()
-        if self._uses_usb:
+        if rom_loader.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
-    
-    def uses_usb(self):
-        return self._uses_usb
 
 
 ESP32P4ROM.STUB_CLASS = ESP32P4StubLoader
@@ -4397,13 +4275,8 @@ class ESP32P4RC1StubLoader(ESP32P4RC1ROM):
         self._trace_enabled = rom_loader._trace_enabled
         self.flush_input()  # resets _slip_reader
         
-        # Cache USB status from ROM loader
-        self._uses_usb = rom_loader.uses_usb()
-        if self._uses_usb:
+        if rom_loader.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
-    
-    def uses_usb(self):
-        return self._uses_usb
 
 
 ESP32P4RC1ROM.STUB_CLASS = ESP32P4RC1StubLoader
