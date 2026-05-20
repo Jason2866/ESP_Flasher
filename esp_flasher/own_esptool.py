@@ -3576,22 +3576,7 @@ class ESP32S31ROM(ESP32C5ROM):
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
 
-    def disable_watchdogs(self):
-        # UARTDEV_BUF_NO address for ESP32-S31 is not confirmed; the inherited
-        # ESP32C5ROM address (0x4085F514) maps to unmapped memory on S31 and
-        # would cause a bus fault. Disable watchdogs unconditionally instead.
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)
-        self.write_reg(self.RTC_CNTL_WDTCONFIG0_REG, 0)
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)
-        self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, self.RTC_CNTL_SWD_WKEY)
-        self.write_reg(
-            self.RTC_CNTL_SWD_CONF_REG,
-            self.read_reg(self.RTC_CNTL_SWD_CONF_REG) | self.RTC_CNTL_SWD_AUTO_FEED_EN,
-        )
-        self.write_reg(self.RTC_CNTL_SWD_WPROTECT_REG, 0)
-
     def _post_connect(self):
-        super()._post_connect()  # runs disable_watchdogs() if not stub-detected
         if self.uses_usb():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
