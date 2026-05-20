@@ -34,6 +34,7 @@ def parse_args(argv):
     group.add_argument("--esp32", action="store_true")
     group.add_argument("--esp32s2", action="store_true")
     group.add_argument("--esp32s3", action="store_true")
+    group.add_argument("--esp32s31", action="store_true")
     group.add_argument("--esp32c2", action="store_true")
     group.add_argument("--esp32c3", action="store_true")
     group.add_argument("--esp32c5", action="store_true")
