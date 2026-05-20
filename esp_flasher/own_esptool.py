@@ -3593,7 +3593,7 @@ class ESP32S31ROM(ESP32C5ROM):
         if (not self.secure_download_mode) and self.uses_usb():
             self.rtc_wdt_reset()
         else:
-            ESPLoader.hard_reset(self)
+            ESP32C5ROM.hard_reset(self)
 
 
 class ESP32P4ROM(ESP32ROM):
