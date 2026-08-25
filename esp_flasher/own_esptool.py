@@ -1064,8 +1064,8 @@ class ESPLoader(object):
             if not self.secure_download_mode:
                 revision = self.get_chip_revision()
                 if revision < 300:
-                    # Use ESP32P4RC1ROM stub code and stub class for revisions below 3.0
-                    self.STUB_CODE = load_stub("esp32p4rc1")
+                    # Use the ESP32-P4 rev1 stub code and stub class for older P4 revisions.
+                    self.STUB_CODE = load_stub("esp32p4-rev1")
                     self.STUB_CLASS = ESP32P4RC1ROM.STUB_CLASS
                     print(f"Detected ESP32-P4 revision {revision // 100}.{revision % 100}, using RC1 stub")
         
@@ -6887,7 +6887,7 @@ ESP32C61ROM.STUB_CODE = load_stub("esp32c61")
 ESP32H2ROM.STUB_CODE = load_stub("esp32h2")
 ESP32C2ROM.STUB_CODE = load_stub("esp32c2")
 ESP32P4ROM.STUB_CODE = load_stub("esp32p4")
-ESP32P4RC1ROM.STUB_CODE = load_stub("esp32p4rc1")
+ESP32P4RC1ROM.STUB_CODE = load_stub("esp32p4-rev1")
 
 def _main():
     try:
