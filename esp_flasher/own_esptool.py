@@ -3426,10 +3426,10 @@ class ESP32S31ROM(ESP32C5ROM):
     def get_chip_features(self):
         return [
             "Wi-Fi 6",
-            "BT 5.4 (LE)",
+            "BT 5.4 (LE) + classic",
             "IEEE802.15.4",
             "Dual Core + LP Core",
-            "300MHz",
+            "320MHz",
         ]
 
     def get_crystal_freq(self):
