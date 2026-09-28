@@ -1002,10 +1002,10 @@ class ESPLoader(object):
                     raise
 
     """ Leave flash mode and run/reboot """
-    def flash_finish(self, reboot=False):
+    def flash_finish(self, reboot=False, timeout=DEFAULT_TIMEOUT):
         pkt = struct.pack('<I', int(not reboot))
         # stub sends a reply to this command
-        self.check_command("leave Flash mode", self.ESP_FLASH_END, pkt)
+        self.check_command("leave Flash mode", self.ESP_FLASH_END, pkt, timeout=timeout)
 
     """ Run application code in flash """
     def run(self, reboot=False):
@@ -1148,13 +1148,13 @@ class ESPLoader(object):
 
     """ Leave compressed flash mode and run/reboot """
     @stub_and_esp32_function_only
-    def flash_defl_finish(self, reboot=False):
+    def flash_defl_finish(self, reboot=False, timeout=DEFAULT_TIMEOUT):
         if not reboot and not self.IS_STUB:
             # skip sending flash_finish to ROM loader, as this
             # exits the bootloader. Stub doesn't do this.
             return
         pkt = struct.pack('<I', int(not reboot))
-        self.check_command("leave compressed flash mode", self.ESP_FLASH_DEFL_END, pkt)
+        self.check_command("leave compressed flash mode", self.ESP_FLASH_DEFL_END, pkt, timeout=timeout)
         self.in_bootloader = False
 
     @stub_and_esp32_function_only
@@ -5881,9 +5881,9 @@ def write_flash(esp, args):
         # until the last block has actually been written out to flash
         if esp.IS_STUB:
             if compress and not encrypted:
-                esp.flash_defl_finish(reboot=False)
+                esp.flash_defl_finish(reboot=False, timeout=START_FLASH_TIMEOUT)
             else:
-                esp.flash_finish(reboot=False)
+                esp.flash_finish(reboot=False, timeout=START_FLASH_TIMEOUT)
 
         t = time.time() - t
         speed_msg = ""
