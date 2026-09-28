@@ -1,6 +1,6 @@
 import re
 
-__version__ = "4.5.1"
+__version__ = "4.5.2"
 
 # Default window geometry
 DEFAULT_WINDOW_WIDTH = 800
