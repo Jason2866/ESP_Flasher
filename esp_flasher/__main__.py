@@ -41,7 +41,7 @@ def parse_args(argv):
     group.add_argument("--esp32c6", action="store_true")
     group.add_argument("--esp32c61", action="store_true")
     group.add_argument("--esp32p4", action="store_true")
-    group.add_argument(
+    parser.add_argument(
         "--upload-baud-rate",
         type=int,
         default=1500000,
@@ -244,7 +244,9 @@ def run_esp_flasher(argv, skip_logs=False):
     except esptool.FatalError as err:
         raise Esp_flasherError(f"Error setting flash parameters: {err}") from err
 
-    if not args.no_erase:
+    if args.no_erase:
+        print(colorize("Skipping flash erase", COLOR_YELLOW))
+    else:
         try:
             esptool.erase_flash(stub_chip, mock_args)
         except esptool.FatalError as err:
