@@ -574,10 +574,15 @@ class ESPLoader(object):
         chk=0,
         wait_response=True,
         timeout=DEFAULT_TIMEOUT,
+        max_timeout=MAX_TIMEOUT,
     ):
-        """Send a request and read the response"""
+        """Send a request and read the response
+
+        max_timeout caps the timeout (MAX_TIMEOUT by default), commands with a
+        size based timeout can raise it.
+        """
         saved_timeout = self._port.timeout
-        new_timeout = min(timeout, MAX_TIMEOUT)
+        new_timeout = min(timeout, max_timeout)
         if new_timeout != saved_timeout:
             self._port.timeout = new_timeout
 
@@ -644,14 +649,15 @@ class ESPLoader(object):
 
         raise FatalError("Response doesn't match request.")
 
-    def check_command(self, op_description, op=None, data=b'', chk=0, timeout=DEFAULT_TIMEOUT):
+    def check_command(self, op_description, op=None, data=b'', chk=0, timeout=DEFAULT_TIMEOUT,
+                      max_timeout=MAX_TIMEOUT):
         """
         Execute a command with 'command', check the result code and throw an appropriate
         FatalError if it fails.
 
         Returns the "result" of a successful command.
         """
-        val, data = self.command(op, data, chk, timeout=timeout)
+        val, data = self.command(op, data, chk, timeout=timeout, max_timeout=max_timeout)
 
         # things are a bit weird here, bear with us
 
@@ -1002,10 +1008,12 @@ class ESPLoader(object):
                     raise
 
     """ Leave flash mode and run/reboot """
-    def flash_finish(self, reboot=False):
+    def flash_finish(self, reboot=False, timeout=DEFAULT_TIMEOUT):
         pkt = struct.pack('<I', int(not reboot))
         # stub sends a reply to this command
-        self.check_command("leave Flash mode", self.ESP_FLASH_END, pkt)
+        # Timeout is size based (pending blocks), do not cap it to MAX_TIMEOUT
+        self.check_command("leave Flash mode", self.ESP_FLASH_END, pkt, timeout=timeout,
+                           max_timeout=max(timeout, MAX_TIMEOUT))
 
     """ Run application code in flash """
     def run(self, reboot=False):
@@ -1148,13 +1156,15 @@ class ESPLoader(object):
 
     """ Leave compressed flash mode and run/reboot """
     @stub_and_esp32_function_only
-    def flash_defl_finish(self, reboot=False):
+    def flash_defl_finish(self, reboot=False, timeout=DEFAULT_TIMEOUT):
         if not reboot and not self.IS_STUB:
             # skip sending flash_finish to ROM loader, as this
             # exits the bootloader. Stub doesn't do this.
             return
         pkt = struct.pack('<I', int(not reboot))
-        self.check_command("leave compressed flash mode", self.ESP_FLASH_DEFL_END, pkt)
+        # Timeout is size based (pending blocks), do not cap it to MAX_TIMEOUT
+        self.check_command("leave compressed flash mode", self.ESP_FLASH_DEFL_END, pkt, timeout=timeout,
+                           max_timeout=max(timeout, MAX_TIMEOUT))
         self.in_bootloader = False
 
     @stub_and_esp32_function_only
@@ -5838,6 +5848,9 @@ def write_flash(esp, args):
         t = time.time()
 
         timeout = DEFAULT_TIMEOUT
+        # Timeout needed to finish the blocks still being written by the stub
+        pending_timeout = DEFAULT_TIMEOUT
+        prev_block_timeout = 0
 
         while len(image) > 0:
             if not getattr(args, 'no_progress', False):
@@ -5864,6 +5877,9 @@ def write_flash(esp, args):
                 esp.flash_defl_block(block, seq, timeout=timeout)
                 if esp.IS_STUB:
                     timeout = block_timeout  # Stub ACKs when block is received, then writes to flash while receiving the block after it
+                # The last (up to two) blocks may still be pending in the stub when sending the final command
+                pending_timeout = max(DEFAULT_TIMEOUT, block_timeout + prev_block_timeout)
+                prev_block_timeout = block_timeout
             else:
                 # Pad the last block
                 block = block + b'\xff' * (esp.FLASH_WRITE_SIZE - len(block))
@@ -5880,10 +5896,12 @@ def write_flash(esp, args):
         # so do a final operation which will not be 'ack'ed
         # until the last block has actually been written out to flash
         if esp.IS_STUB:
+            # Use a size based timeout: a well compressed block can expand to several MB
+            # which takes much longer than DEFAULT_TIMEOUT to erase and write
             if compress and not encrypted:
-                esp.flash_defl_finish(reboot=False)
+                esp.flash_defl_finish(reboot=False, timeout=pending_timeout)
             else:
-                esp.flash_finish(reboot=False)
+                esp.flash_finish(reboot=False, timeout=pending_timeout)
 
         t = time.time() - t
         speed_msg = ""
