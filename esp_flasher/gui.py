@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout,
                              QLineEdit, QDialog, QListWidget, QListWidgetItem,
-                             QProgressBar, QMessageBox, QCheckBox)
+                             QProgressBar, QMessageBox, QCheckBox, QStyle)
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtCore import pyqtSignal, QObject, Qt, QSettings, QTimer
 
@@ -476,6 +476,7 @@ class MainWindow(QMainWindow):
 
         self._firmware = None
         self._port = None
+        self._known_ports = None  # Ports found by the last scan (None = never scanned)
         self._colored_console = None
         self._serial_reader = None
         self._serial_port = None
@@ -512,18 +513,37 @@ class MainWindow(QMainWindow):
         vbox = QVBoxLayout()
 
         port_group_box = QGroupBox("Serial Port")
+        self.port_group_box = port_group_box
+
+        # Advanced mode shows the refresh button and the extra flash options
+        # (persisted in QSettings). The checkbox is overlaid on the right of the
+        # "Serial Port" title line, see _place_advanced_checkbox()
+        self.advanced_checkbox = QCheckBox("Advanced", port_group_box)
+        self.advanced_checkbox.setToolTip("Show advanced options")
+        # Text first, box last (the line ends with the checkbox)
+        self.advanced_checkbox.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         port_layout = QGridLayout()
         port_label = QLabel("Select Port:")
         self.port_combobox = QComboBox()
         self.port_combobox.currentIndexChanged.connect(self.on_port_changed)
         
+        # Refresh button to rescan serial ports (e.g. after plugging a device)
+        self.refresh_button = QPushButton()
+        self.refresh_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
+        self.refresh_button.setToolTip("Refresh serial ports")
+        self.refresh_button.setFixedWidth(self.refresh_button.sizeHint().height() + 8)
+        self.refresh_button.clicked.connect(self.reload_ports)
+
         # Connect button to establish connection (also reloads ports if needed)
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.toggle_connection)
         
         port_layout.addWidget(port_label, 0, 0)
-        port_layout.addWidget(self.port_combobox, 0, 1)
-        port_layout.addWidget(self.connect_button, 0, 2)
+        port_layout.addWidget(self.refresh_button, 0, 1)
+        port_layout.addWidget(self.port_combobox, 0, 2)
+        port_layout.addWidget(self.connect_button, 0, 3)
+        # Give the extra width to the port list (long port names on macOS)
+        port_layout.setColumnStretch(2, 1)
         port_group_box.setLayout(port_layout)
 
         firmware_group_box = QGroupBox("Firmware")
@@ -558,6 +578,19 @@ class MainWindow(QMainWindow):
             lambda _: self.settings.setValue('flash/baud_rate', self.baud_combobox.currentData()))
         options_layout.addWidget(self.baud_combobox)
         options_group_box.setLayout(options_layout)
+        self.options_group_box = options_group_box
+
+        if self.settings.contains('ui/advanced'):
+            advanced = self.settings.value('ui/advanced', False, type=bool)
+        else:
+            # First start with Advanced mode: enable it if flash options saved by a
+            # previous version differ from the defaults, so they are not silently ignored
+            advanced = (not self.erase_checkbox.isChecked()
+                        or self.baud_combobox.currentData() != DEFAULT_UPLOAD_BAUD_RATE)
+        self.advanced_checkbox.setChecked(advanced)
+        self.options_group_box.setVisible(advanced)
+        self.refresh_button.setVisible(advanced)
+        self.advanced_checkbox.toggled.connect(self.on_advanced_toggled)
 
         actions_group_box = QGroupBox("Actions")
         actions_layout = QHBoxLayout()
@@ -589,6 +622,8 @@ class MainWindow(QMainWindow):
         self.input_field.setEnabled(False)
         # Install event filter to catch arrow key presses
         self.input_field.installEventFilter(self)
+        # Reposition the Advanced checkbox when the Serial Port box is resized
+        self.port_group_box.installEventFilter(self)
         
         self.send_button = QPushButton("Send")
         self.send_button.clicked.connect(self.send_command)
@@ -618,27 +653,49 @@ class MainWindow(QMainWindow):
         self.reload_ports()
 
     def reload_ports(self):
-        """Load available serial ports into combobox"""
+        """Load available serial ports into combobox
+
+        Never silently switch to another device when the selected port is gone:
+        - selected port still present: keep it
+        - first scan: select the first port (single device use case)
+        - otherwise select the only port that appeared since the last scan
+          (device swapped when mass flashing), or leave no port selected so
+          the user has to choose one before Connect/Flash
+        """
         current_port = self._port
-        self.port_combobox.clear()
+        previous_ports = self._known_ports
         ports = get_port_list()
+        self._known_ports = ports
+
+        # Avoid on_port_changed() updating self._port while repopulating
+        self.port_combobox.blockSignals(True)
+        self.port_combobox.clear()
         if ports:
             self.port_combobox.addItems(ports)
-            # Try to select the previously selected port
+            new_ports = [p for p in ports if p not in (previous_ports or [])]
             if current_port and current_port in ports:
-                index = ports.index(current_port)
-                self.port_combobox.setCurrentIndex(index)
-            else:
+                self._port = current_port
+            elif previous_ports is None:
                 self._port = ports[0]
+            elif len(new_ports) == 1:
+                self._port = new_ports[0]
+            else:
+                self._port = None
+            if self._port:
+                self.port_combobox.setCurrentIndex(ports.index(self._port))
+            else:
+                self.port_combobox.setCurrentIndex(-1)
+                self.port_combobox.setPlaceholderText("Select a port...")
         else:
             self.port_combobox.addItem("No ports found")
             self._port = None  # Clear port when none found
+        self.port_combobox.blockSignals(False)
 
     def on_port_changed(self, index):
         """Called when port selection changes in combobox"""
         # Only update port if not connected
         if not (self._serial_port and self._serial_port.is_open):
-            self._port = self.port_combobox.itemText(index)
+            self._port = self.port_combobox.itemText(index) if index >= 0 else None
     
     def toggle_connection(self):
         """Toggle connection on/off when Connect button is clicked"""
@@ -656,6 +713,9 @@ class MainWindow(QMainWindow):
             
             if self._port:
                 self.connect_to_port()
+            elif self._known_ports:
+                # Ports found but the previously selected one is gone
+                self._colored_console.write(colorize("Please select a serial port.", COLOR_YELLOW) + "\n")
             else:
                 # No ports found - inform user that rescan was performed
                 self._colored_console.write(colorize("No serial ports found. Please connect a device and click Connect again.", COLOR_YELLOW) + "\n")
@@ -670,6 +730,7 @@ class MainWindow(QMainWindow):
         
         # Re-enable port selection
         self.port_combobox.setEnabled(True)
+        self.refresh_button.setEnabled(True)
         
         # Update button appearance
         self.connect_button.setText("Connect")
@@ -702,6 +763,7 @@ class MainWindow(QMainWindow):
             
             # Disable port selection while connected
             self.port_combobox.setEnabled(False)
+            self.refresh_button.setEnabled(False)
             
             # Update button appearance - green background when connected
             self.connect_button.setText("Disconnect")
@@ -715,6 +777,7 @@ class MainWindow(QMainWindow):
             self.connect_button.setText("Connect")
             self.connect_button.setStyleSheet("")
             self.port_combobox.setEnabled(True)
+            self.refresh_button.setEnabled(True)
 
     def pick_file(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Select Firmware File", "", "Binary Files (*.bin);;All Files (*)")
@@ -734,6 +797,11 @@ class MainWindow(QMainWindow):
                 print(colorize("No firmware file selected!", COLOR_RED))
             return
         
+        # Capture the flash target now, the port/firmware selection must not
+        # change during the disconnect delay below
+        flash_port = self._port
+        flash_firmware = self._firmware
+
         # Remember if we were connected
         self._was_connected_before_flash = self._serial_port and self._serial_port.is_open
         
@@ -741,33 +809,35 @@ class MainWindow(QMainWindow):
         if self._was_connected_before_flash:
             print(colorize("Disconnecting from serial port for flashing...", COLOR_YELLOW))
             self.disconnect_from_port()
-            
-            # Give the OS time to release the port
-            from PyQt6.QtCore import QTimer
-            # Wait 500ms then start flashing
-            QTimer.singleShot(500, self._start_flash_worker)
-        else:
-            self._start_flash_worker()
-    
-    def _start_flash_worker(self):
-        """Start the flashing worker thread"""
-        self._colored_console.clear()
-        
-        # Set flashing flag and disable UI
+
+        # Set flashing flag and disable UI right away (disconnect re-enables port selection)
         self._is_flashing = True
         self.flash_button.setEnabled(False)
         self.connect_button.setEnabled(False)
         self.port_combobox.setEnabled(False)
+        self.refresh_button.setEnabled(False)
         self._set_flash_options_enabled(False)
+
+        if self._was_connected_before_flash:
+            # Give the OS time to release the port
+            from PyQt6.QtCore import QTimer
+            # Wait 500ms then start flashing
+            QTimer.singleShot(500, lambda: self._start_flash_worker(flash_port, flash_firmware))
+        else:
+            self._start_flash_worker(flash_port, flash_firmware)
+    
+    def _start_flash_worker(self, flash_port, flash_firmware):
+        """Start the flashing worker thread on the port/firmware captured by flash_esp()"""
+        self._colored_console.clear()
         
         # Create worker and connect its signals
         self._flash_worker = FlashingThread(
-            self._firmware, 
-            self._port,
+            flash_firmware,
+            flash_port,
             finished=self.flash_finished,
             failed=self.flash_failed,
-            erase=self.erase_checkbox.isChecked(),
-            baud_rate=self.baud_combobox.currentData()
+            erase=self._flash_erase(),
+            baud_rate=self._flash_baud_rate()
         )
         self._flash_worker.start()
     
@@ -810,8 +880,25 @@ class MainWindow(QMainWindow):
             self.input_field.setEnabled(True)
             self.send_button.setEnabled(True)
 
+    def on_advanced_toggled(self, checked):
+        """Show/hide advanced options (refresh button and flash options)"""
+        self.settings.setValue('ui/advanced', checked)
+        self.options_group_box.setVisible(checked)
+        self.refresh_button.setVisible(checked)
+
+    def _flash_erase(self):
+        """Erase flash option, default (erase) when advanced options are hidden"""
+        return self.erase_checkbox.isChecked() if self.advanced_checkbox.isChecked() else True
+
+    def _flash_baud_rate(self):
+        """Upload baud rate, default when advanced options are hidden"""
+        if self.advanced_checkbox.isChecked():
+            return self.baud_combobox.currentData()
+        return DEFAULT_UPLOAD_BAUD_RATE
+
     def _set_flash_options_enabled(self, enabled):
         """Enable/disable flash option widgets (locked during flashing)"""
+        self.advanced_checkbox.setEnabled(enabled)
         self.erase_checkbox.setEnabled(enabled)
         self.baud_combobox.setEnabled(enabled)
 
@@ -826,6 +913,7 @@ class MainWindow(QMainWindow):
         self.connect_button.setEnabled(True)
         if not (self._serial_port and self._serial_port.is_open):
             self.port_combobox.setEnabled(True)
+            self.refresh_button.setEnabled(True)
         
         # Reconnect immediately if we were connected before
         if self._was_connected_before_flash:
@@ -842,12 +930,14 @@ class MainWindow(QMainWindow):
         self.connect_button.setEnabled(True)
         if not (self._serial_port and self._serial_port.is_open):
             self.port_combobox.setEnabled(True)
+            self.refresh_button.setEnabled(True)
     
     def _reconnect_after_flash(self):
         """Reconnect to serial port after flash"""
         self.connect_to_port()
         if not (self._serial_port and self._serial_port.is_open):
             self.port_combobox.setEnabled(True)
+            self.refresh_button.setEnabled(True)
     
     def stop_serial(self):
         """Stop serial communication"""
@@ -866,12 +956,16 @@ class MainWindow(QMainWindow):
             
             # Schedule cleanup after port release using non-blocking timer
             from PyQt6.QtCore import QTimer
-            QTimer.singleShot(100, self._finish_serial_cleanup)
+            port = self._serial_port
+            QTimer.singleShot(100, lambda: self._finish_serial_cleanup(port))
         else:
             self._finish_serial_cleanup()
     
-    def _finish_serial_cleanup(self):
+    def _finish_serial_cleanup(self, expected_port=None):
         """Complete serial port cleanup after release delay"""
+        # A new connection may have been opened during the delay, do not clear it
+        if expected_port is not None and self._serial_port is not expected_port:
+            return
         self._serial_port = None
         
         # Disable input controls (check if they exist first)
@@ -915,8 +1009,17 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.handle_serial_error(f"Failed to send command: {e}")
     
+    def _place_advanced_checkbox(self):
+        """Keep the Advanced checkbox on the right of the Serial Port title line"""
+        cb = self.advanced_checkbox
+        cb.adjustSize()
+        cb.move(self.port_group_box.width() - cb.width() - 4, 0)
+        cb.raise_()
+
     def eventFilter(self, obj, event):
         """Filter events to catch arrow key presses in input field"""
+        if obj is getattr(self, 'port_group_box', None) and event.type() in (event.Type.Resize, event.Type.Show):
+            self._place_advanced_checkbox()
         if obj == self.input_field and event.type() == event.Type.KeyPress:
             
             if event.key() == Qt.Key.Key_Up:
@@ -977,6 +1080,7 @@ class MainWindow(QMainWindow):
         self.show_log_error(message)
         self.stop_serial()
         self.port_combobox.setEnabled(True)
+        self.refresh_button.setEnabled(True)
         self.connect_button.setText("Connect")
         self.connect_button.setStyleSheet("")
     
