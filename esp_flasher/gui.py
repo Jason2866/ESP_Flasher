@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QComboBox,
                              QFileDialog, QTextEdit, QGroupBox, QGridLayout,
                              QLineEdit, QDialog, QListWidget, QListWidgetItem,
-                             QProgressBar, QMessageBox)
+                             QProgressBar, QMessageBox, QCheckBox)
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtCore import pyqtSignal, QObject, Qt, QSettings, QTimer
 
@@ -427,12 +427,20 @@ class ImprovDialog(QDialog):
         super().closeEvent(event)
 
 
+# Upload baud rates selectable in the GUI (ESP8266 always flashes at 115200)
+UPLOAD_BAUD_RATES = [115200, 230400, 460800, 921600, 1500000, 2000000]
+DEFAULT_UPLOAD_BAUD_RATE = 1500000
+
+
 class FlashingThread(threading.Thread):
-    def __init__(self, firmware, port, finished=None, failed=None):
+    def __init__(self, firmware, port, finished=None, failed=None,
+                 erase=True, baud_rate=DEFAULT_UPLOAD_BAUD_RATE):
         threading.Thread.__init__(self)
         self.daemon = True
         self._firmware = firmware
         self._port = port
+        self._erase = erase
+        self._baud_rate = baud_rate
         self.finished = finished
         self.failed = failed
 
@@ -440,7 +448,11 @@ class FlashingThread(threading.Thread):
         try:
             from esp_flasher.__main__ import run_esp_flasher
 
-            argv = ['esp_flasher', '--port', self._port, self._firmware]
+            argv = ['esp_flasher', '--port', self._port,
+                    '--upload-baud-rate', str(self._baud_rate)]
+            if not self._erase:
+                argv.append('--no-erase')
+            argv.append(self._firmware)
             
             # Call with skip_logs=True so it returns after flashing
             run_esp_flasher(argv, skip_logs=True)
@@ -523,6 +535,30 @@ class MainWindow(QMainWindow):
         firmware_layout.addWidget(self.firmware_button, 0, 1)
         firmware_group_box.setLayout(firmware_layout)
 
+        # Flash options (persisted in QSettings)
+        options_group_box = QGroupBox("Flash Options")
+        options_layout = QHBoxLayout()
+        self.erase_checkbox = QCheckBox("Erase flash")
+        self.erase_checkbox.setToolTip("Erase the whole flash before writing")
+        self.erase_checkbox.setChecked(self.settings.value('flash/erase', True, type=bool))
+        self.erase_checkbox.toggled.connect(lambda v: self.settings.setValue('flash/erase', v))
+        options_layout.addWidget(self.erase_checkbox)
+        options_layout.addStretch()
+        options_layout.addWidget(QLabel("Flash speed:"))
+        self.baud_combobox = QComboBox()
+        self.baud_combobox.setToolTip("Upload baud rate (ESP32 family only, ESP8266 uses 115200)")
+        for baud in UPLOAD_BAUD_RATES:
+            self.baud_combobox.addItem(f"{baud} baud", baud)
+        saved_baud = self.settings.value('flash/baud_rate', DEFAULT_UPLOAD_BAUD_RATE, type=int)
+        index = self.baud_combobox.findData(saved_baud)
+        if index < 0:
+            index = self.baud_combobox.findData(DEFAULT_UPLOAD_BAUD_RATE)
+        self.baud_combobox.setCurrentIndex(index)
+        self.baud_combobox.currentIndexChanged.connect(
+            lambda _: self.settings.setValue('flash/baud_rate', self.baud_combobox.currentData()))
+        options_layout.addWidget(self.baud_combobox)
+        options_group_box.setLayout(options_layout)
+
         actions_group_box = QGroupBox("Actions")
         actions_layout = QHBoxLayout()
         self.flash_button = QPushButton("Flash ESP")
@@ -572,6 +608,7 @@ class MainWindow(QMainWindow):
 
         vbox.addWidget(port_group_box)
         vbox.addWidget(firmware_group_box)
+        vbox.addWidget(options_group_box)
         vbox.addWidget(actions_group_box)
         vbox.addWidget(console_group_box)
 
@@ -721,13 +758,16 @@ class MainWindow(QMainWindow):
         self.flash_button.setEnabled(False)
         self.connect_button.setEnabled(False)
         self.port_combobox.setEnabled(False)
+        self._set_flash_options_enabled(False)
         
         # Create worker and connect its signals
         self._flash_worker = FlashingThread(
             self._firmware, 
             self._port,
             finished=self.flash_finished,
-            failed=self.flash_failed
+            failed=self.flash_failed,
+            erase=self.erase_checkbox.isChecked(),
+            baud_rate=self.baud_combobox.currentData()
         )
         self._flash_worker.start()
     
@@ -770,6 +810,11 @@ class MainWindow(QMainWindow):
             self.input_field.setEnabled(True)
             self.send_button.setEnabled(True)
 
+    def _set_flash_options_enabled(self, enabled):
+        """Enable/disable flash option widgets (locked during flashing)"""
+        self.erase_checkbox.setEnabled(enabled)
+        self.baud_combobox.setEnabled(enabled)
+
     def on_flash_finished(self):
         """Called when flashing is complete"""
         print(colorize("\nFlashing complete!", COLOR_GREEN))
@@ -777,6 +822,7 @@ class MainWindow(QMainWindow):
         # Clear flashing flag and re-enable UI
         self._is_flashing = False
         self.flash_button.setEnabled(True)
+        self._set_flash_options_enabled(True)
         self.connect_button.setEnabled(True)
         if not (self._serial_port and self._serial_port.is_open):
             self.port_combobox.setEnabled(True)
@@ -792,6 +838,7 @@ class MainWindow(QMainWindow):
         # Clear flashing flag and re-enable UI
         self._is_flashing = False
         self.flash_button.setEnabled(True)
+        self._set_flash_options_enabled(True)
         self.connect_button.setEnabled(True)
         if not (self._serial_port and self._serial_port.is_open):
             self.port_combobox.setEnabled(True)
