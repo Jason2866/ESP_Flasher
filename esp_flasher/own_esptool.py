@@ -3130,6 +3130,13 @@ class ESP32C5ROM(ESP32C6ROM):
     CHIP_NAME = "ESP32-C5"
     IMAGE_CHIP_ID = 23
 
+    USB_OTG_SUPPORTED = False
+    USB_SERIAL_JTAG_SUPPORTED = True
+    WATCHDOG_RESET_SUPPORTED = True
+    SECURITY_INFO_SUPPORTED = True
+    CUSTOM_SPI_FLASH_PINS_SUPPORTED = False
+    USES_MAGIC_VALUE = False
+
     BOOTLOADER_FLASH_OFFSET = 0x2000
 
     EFUSE_BASE = 0x600B4800
@@ -3138,27 +3145,31 @@ class ESP32C5ROM(ESP32C6ROM):
 
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
 
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_REG = EFUSE_BASE + 0x34
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_SHIFT = 10
+    FORCE_USE_KEY_MANAGER_VAL_XTS_AES_KEY = 2
+
     EFUSE_PURPOSE_KEY0_REG = EFUSE_BASE + 0x34
-    EFUSE_PURPOSE_KEY0_SHIFT = 24
+    EFUSE_PURPOSE_KEY0_SHIFT = 22
     EFUSE_PURPOSE_KEY1_REG = EFUSE_BASE + 0x34
-    EFUSE_PURPOSE_KEY1_SHIFT = 28
+    EFUSE_PURPOSE_KEY1_SHIFT = 27
     EFUSE_PURPOSE_KEY2_REG = EFUSE_BASE + 0x38
     EFUSE_PURPOSE_KEY2_SHIFT = 0
     EFUSE_PURPOSE_KEY3_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY3_SHIFT = 4
+    EFUSE_PURPOSE_KEY3_SHIFT = 5
     EFUSE_PURPOSE_KEY4_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY4_SHIFT = 8
+    EFUSE_PURPOSE_KEY4_SHIFT = 10
     EFUSE_PURPOSE_KEY5_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY5_SHIFT = 12
+    EFUSE_PURPOSE_KEY5_SHIFT = 15
 
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 20
 
     EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x034
-    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 16
 
     EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x038
-    EFUSE_SECURE_BOOT_EN_MASK = 1 << 20
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 25
 
     IROM_MAP_START = 0x42000000
     IROM_MAP_END = 0x44000000
@@ -3194,8 +3205,6 @@ class ESP32C5ROM(ESP32C6ROM):
     KEY_PURPOSES: dict[int, str] = {
         0: "USER/EMPTY",
         1: "ECDSA_KEY",
-        2: "XTS_AES_256_KEY_1",
-        3: "XTS_AES_256_KEY_2",
         4: "XTS_AES_128_KEY",
         5: "HMAC_DOWN_ALL",
         6: "HMAC_DOWN_JTAG",
@@ -3205,6 +3214,10 @@ class ESP32C5ROM(ESP32C6ROM):
         10: "SECURE_BOOT_DIGEST1",
         11: "SECURE_BOOT_DIGEST2",
         12: "KM_INIT_KEY",
+        15: "XTS_AES_128_PSRAM_KEY",
+        16: "ECDSA_KEY_P192",
+        17: "ECDSA_KEY_P384_L",
+        18: "ECDSA_KEY_P384_H",
     }
 
     def get_pkg_version(self):
@@ -3277,15 +3290,29 @@ class ESP32C5ROM(ESP32C6ROM):
                 "consider using other pins for SPI flash connection."
             )
 
-    def rtc_wdt_reset(self):
-        print("Hard resetting with RTC WDT...")
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)  # unlock
-        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 5000)  # set WDT timeout
-        self.write_reg(
-            self.RTC_CNTL_WDTCONFIG0_REG, (1 << 31) | (5 << 28) | (1 << 8) | 2
-        )  # enable WDT
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
-        time.sleep(0.5)  # wait for reset to take effect
+    def watchdog_reset(self):
+        # Re-enable watchdog reset (disabled in parent ESP32-C6 ROM)
+        ESP32C3ROM.watchdog_reset(self)
+
+    def uses_key_manager_for_flash_encryption(self):
+        return bool(
+            (
+                self.read_reg(self.EFUSE_FORCE_USE_KEY_MANAGER_KEY_REG)
+                >> self.EFUSE_FORCE_USE_KEY_MANAGER_KEY_SHIFT
+            )
+            & self.FORCE_USE_KEY_MANAGER_VAL_XTS_AES_KEY
+        )
+
+    def is_flash_encryption_key_valid(self):
+        # Need to see an AES-128 key
+        purposes = [
+            self.get_key_block_purpose(b) for b in range(self.EFUSE_MAX_KEY + 1)
+        ]
+
+        if any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes):
+            return True
+
+        return self.uses_key_manager_for_flash_encryption()
 
     def change_baud(self, baud):
         if self.secure_download_mode or self.IS_STUB:
@@ -3319,18 +3346,7 @@ class ESP32C5ROM(ESP32C6ROM):
             self.flush_input()
 
     def hard_reset(self):
-        # Use standard reset with USB-JTAG-Serial support
-        uses_usb_jtag = self.uses_usb_jtag_serial()
-        print('Hard resetting via RTS pin...')
-        self._setRTS(True)  # EN->LOW
-        if uses_usb_jtag:
-            # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
-            time.sleep(0.2)
-            self._setRTS(False)
-            time.sleep(0.2)
-        else:
-            time.sleep(0.1)
-            self._setRTS(False)
+        ESPLoader.hard_reset(self, self.uses_usb_jtag_serial())
 
 
 class ESP32S31ROM(ESP32C5ROM):
