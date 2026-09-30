@@ -3287,6 +3287,37 @@ class ESP32C5ROM(ESP32C6ROM):
         self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
         time.sleep(0.5)  # wait for reset to take effect
 
+    def change_baud(self, baud):
+        if self.secure_download_mode or self.IS_STUB:
+            # Registers can't be read in SDM, assume 48 MHz XTAL
+            # (the only one supported in mass production)
+            ESPLoader.change_baud(self, baud)
+        else:
+            crystal_freq_rom_expect = self.get_crystal_freq_rom_expect()
+            crystal_freq_detect = self.get_crystal_freq()
+            print(
+                f"ROM expects crystal freq: {crystal_freq_rom_expect} MHz, "
+                f"detected {crystal_freq_detect} MHz."
+            )
+            baud_rate = baud
+            # If detect the XTAL is 48MHz, but the ROM code expects it to be 40MHz
+            if crystal_freq_detect == 48 and crystal_freq_rom_expect == 40:
+                baud_rate = baud * 40 // 48
+            # If detect the XTAL is 40MHz, but the ROM code expects it to be 48MHz
+            elif crystal_freq_detect == 40 and crystal_freq_rom_expect == 48:
+                baud_rate = baud * 48 // 40
+            else:
+                ESPLoader.change_baud(self, baud_rate)
+                return
+            print(f"Changing baud rate to {baud_rate}...")
+            self.command(
+                self.ESP_CHANGE_BAUDRATE, struct.pack("<II", baud_rate, 0)
+            )
+            print("Changed.")
+            self._set_port_baudrate(baud)
+            time.sleep(0.05)  # get rid of garbage sent during baud rate change
+            self.flush_input()
+
     def hard_reset(self):
         # Use standard reset with USB-JTAG-Serial support
         uses_usb_jtag = self.uses_usb_jtag_serial()
