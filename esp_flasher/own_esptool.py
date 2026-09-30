@@ -3306,6 +3306,13 @@ class ESP32S31ROM(ESP32C5ROM):
     CHIP_NAME = "ESP32-S31"
     IMAGE_CHIP_ID = 32
 
+    USB_OTG_SUPPORTED = True
+    USB_SERIAL_JTAG_SUPPORTED = True
+    WATCHDOG_RESET_SUPPORTED = True
+    SECURITY_INFO_SUPPORTED = True
+    CUSTOM_SPI_FLASH_PINS_SUPPORTED = False
+    USES_MAGIC_VALUE = False
+
     IROM_MAP_START = 0x40000000
     IROM_MAP_END = 0x54000000
     DROM_MAP_START = 0x40000000
@@ -3334,10 +3341,6 @@ class ESP32S31ROM(ESP32C5ROM):
     RTC_CNTL_WDTCONFIG1_REG = DR_REG_LP_WDT_BASE + 0x4
     RTC_CNTL_WDTWPROTECT_REG = DR_REG_LP_WDT_BASE + 0x18
     RTC_CNTL_WDT_WKEY = 0x50D83AA1
-    RTC_CNTL_SWD_CONF_REG = DR_REG_LP_WDT_BASE + 0x001C    # LP_WDT_SWD_CONFIG_REG
-    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 18
-    RTC_CNTL_SWD_WPROTECT_REG = DR_REG_LP_WDT_BASE + 0x0020  # LP_WDT_SWD_WPROTECT_REG
-    RTC_CNTL_SWD_WKEY = 0x50D83AA1
 
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # EFUSE_RD_REPEAT_DATA0_REG
 
@@ -3387,8 +3390,6 @@ class ESP32S31ROM(ESP32C5ROM):
 
     UF2_FAMILY_ID = 0x3101F7C1
 
-    USB_RAM_BLOCK = 0x800  # Max block size USB-OTG is used
-
     EFUSE_MAX_KEY = 4
     KEY_PURPOSES: dict[int, str] = {
         0: "USER/EMPTY",
@@ -3436,7 +3437,7 @@ class ESP32S31ROM(ESP32C5ROM):
     def get_chip_features(self):
         return [
             "Wi-Fi 6",
-            "BT 5.4 (LE) + classic",
+            "BT 5.4 (LE)",
             "IEEE802.15.4",
             "Dual Core + LP Core",
             "320MHz",
@@ -3515,25 +3516,12 @@ class ESP32S31ROM(ESP32C5ROM):
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
 
-    def _post_connect(self):
-        super()._post_connect()  # calls C5ROM's disable_watchdogs() via MRO if not stub-detected
-        if self.uses_usb_otg():
-            self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
-
-    def check_spi_connection(self, spi_connection):
-        if not set(spi_connection).issubset(set(range(0, 61))):
-            raise FatalError("SPI Pin numbers must be in the range 0-60.")
-        if any([v for v in spi_connection if v in [33, 34]]):
-            print(
-                "GPIO pins 33 and 34 are used by USB-Serial/JTAG, "
-                "consider using other pins for SPI flash connection."
-            )
-
     def hard_reset(self):
-        if (not self.secure_download_mode) and self.uses_usb_otg():
-            self.rtc_wdt_reset()
-        else:
-            ESP32C5ROM.hard_reset(self)
+        (
+            self.watchdog_reset()
+            if (not self.secure_download_mode and self.uses_usb_otg())
+            else ESPLoader.hard_reset(self)
+        )
 
 
 class ESP32P4ROM(ESP32ROM):
