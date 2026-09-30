@@ -1464,7 +1464,14 @@ class ESPLoader(object):
         #   or double the crystal frequency (ESP8266). See the self.XTAL_CLK_DIVIDER parameter for this factor.
         uart_div = self.read_reg(self.UART_CLKDIV_REG) & self.UART_CLKDIV_MASK
         est_xtal = (self._port.baudrate * uart_div) / 1e6 / self.XTAL_CLK_DIVIDER
-        norm_xtal = 40 if est_xtal > 33 else 26
+
+        if est_xtal > 45:
+            norm_xtal = 48
+        elif est_xtal > 33:
+            norm_xtal = 40
+        else:
+            norm_xtal = 26
+
         if abs(norm_xtal - est_xtal) > 1:
             print("WARNING: Detected crystal freq %.2fMHz is quite different to normalized freq %dMHz. Unsupported crystal in use?" % (est_xtal, norm_xtal))
         return norm_xtal
@@ -3130,6 +3137,13 @@ class ESP32C5ROM(ESP32C6ROM):
     CHIP_NAME = "ESP32-C5"
     IMAGE_CHIP_ID = 23
 
+    USB_OTG_SUPPORTED = False
+    USB_SERIAL_JTAG_SUPPORTED = True
+    WATCHDOG_RESET_SUPPORTED = True
+    SECURITY_INFO_SUPPORTED = True
+    CUSTOM_SPI_FLASH_PINS_SUPPORTED = False
+    USES_MAGIC_VALUE = False
+
     BOOTLOADER_FLASH_OFFSET = 0x2000
 
     EFUSE_BASE = 0x600B4800
@@ -3138,27 +3152,31 @@ class ESP32C5ROM(ESP32C6ROM):
 
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
 
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_REG = EFUSE_BASE + 0x34
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_SHIFT = 10
+    FORCE_USE_KEY_MANAGER_VAL_XTS_AES_KEY = 2
+
     EFUSE_PURPOSE_KEY0_REG = EFUSE_BASE + 0x34
-    EFUSE_PURPOSE_KEY0_SHIFT = 24
+    EFUSE_PURPOSE_KEY0_SHIFT = 22
     EFUSE_PURPOSE_KEY1_REG = EFUSE_BASE + 0x34
-    EFUSE_PURPOSE_KEY1_SHIFT = 28
+    EFUSE_PURPOSE_KEY1_SHIFT = 27
     EFUSE_PURPOSE_KEY2_REG = EFUSE_BASE + 0x38
     EFUSE_PURPOSE_KEY2_SHIFT = 0
     EFUSE_PURPOSE_KEY3_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY3_SHIFT = 4
+    EFUSE_PURPOSE_KEY3_SHIFT = 5
     EFUSE_PURPOSE_KEY4_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY4_SHIFT = 8
+    EFUSE_PURPOSE_KEY4_SHIFT = 10
     EFUSE_PURPOSE_KEY5_REG = EFUSE_BASE + 0x38
-    EFUSE_PURPOSE_KEY5_SHIFT = 12
+    EFUSE_PURPOSE_KEY5_SHIFT = 15
 
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
     EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 20
 
     EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x034
-    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 16
 
     EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x038
-    EFUSE_SECURE_BOOT_EN_MASK = 1 << 20
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 25
 
     IROM_MAP_START = 0x42000000
     IROM_MAP_END = 0x44000000
@@ -3194,8 +3212,6 @@ class ESP32C5ROM(ESP32C6ROM):
     KEY_PURPOSES: dict[int, str] = {
         0: "USER/EMPTY",
         1: "ECDSA_KEY",
-        2: "XTS_AES_256_KEY_1",
-        3: "XTS_AES_256_KEY_2",
         4: "XTS_AES_128_KEY",
         5: "HMAC_DOWN_ALL",
         6: "HMAC_DOWN_JTAG",
@@ -3205,7 +3221,26 @@ class ESP32C5ROM(ESP32C6ROM):
         10: "SECURE_BOOT_DIGEST1",
         11: "SECURE_BOOT_DIGEST2",
         12: "KM_INIT_KEY",
+        15: "XTS_AES_128_PSRAM_KEY",
+        16: "ECDSA_KEY_P192",
+        17: "ECDSA_KEY_P384_L",
+        18: "ECDSA_KEY_P384_H",
     }
+
+    def get_key_block_purpose(self, key_block):
+        if key_block < 0 or key_block > self.EFUSE_MAX_KEY:
+            raise FatalError(
+                f"Valid key block numbers must be in range 0-{self.EFUSE_MAX_KEY}"
+            )
+        reg, shift = [
+            (self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
+            (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
+            (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
+            (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
+            (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
+            (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT),
+        ][key_block]
+        return (self.read_reg(reg) >> shift) & 0x1F
 
     def get_pkg_version(self):
         num_word = 2
@@ -3277,34 +3312,78 @@ class ESP32C5ROM(ESP32C6ROM):
                 "consider using other pins for SPI flash connection."
             )
 
-    def rtc_wdt_reset(self):
-        print("Hard resetting with RTC WDT...")
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, self.RTC_CNTL_WDT_WKEY)  # unlock
-        self.write_reg(self.RTC_CNTL_WDTCONFIG1_REG, 5000)  # set WDT timeout
-        self.write_reg(
-            self.RTC_CNTL_WDTCONFIG0_REG, (1 << 31) | (5 << 28) | (1 << 8) | 2
-        )  # enable WDT
-        self.write_reg(self.RTC_CNTL_WDTWPROTECT_REG, 0)  # lock
-        time.sleep(0.5)  # wait for reset to take effect
+    def watchdog_reset(self):
+        # Re-enable watchdog reset (disabled in parent ESP32-C6 ROM)
+        ESP32C3ROM.rtc_wdt_reset(self)
+
+    def uses_key_manager_for_flash_encryption(self):
+        return bool(
+            (
+                self.read_reg(self.EFUSE_FORCE_USE_KEY_MANAGER_KEY_REG)
+                >> self.EFUSE_FORCE_USE_KEY_MANAGER_KEY_SHIFT
+            )
+            & self.FORCE_USE_KEY_MANAGER_VAL_XTS_AES_KEY
+        )
+
+    def is_flash_encryption_key_valid(self):
+        # Need to see an AES-128 key
+        purposes = [
+            self.get_key_block_purpose(b) for b in range(self.EFUSE_MAX_KEY + 1)
+        ]
+
+        if any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes):
+            return True
+
+        return self.uses_key_manager_for_flash_encryption()
+
+    def change_baud(self, baud):
+        if self.secure_download_mode or self.IS_STUB:
+            # Registers can't be read in SDM, assume 48 MHz XTAL
+            # (the only one supported in mass production)
+            ESPLoader.change_baud(self, baud)
+        else:
+            crystal_freq_rom_expect = self.get_crystal_freq_rom_expect()
+            crystal_freq_detect = self.get_crystal_freq()
+            print(
+                f"ROM expects crystal freq: {crystal_freq_rom_expect} MHz, "
+                f"detected {crystal_freq_detect} MHz."
+            )
+            baud_rate = baud
+            # If detect the XTAL is 48MHz, but the ROM code expects it to be 40MHz
+            if crystal_freq_detect == 48 and crystal_freq_rom_expect == 40:
+                baud_rate = baud * 40 // 48
+            # If detect the XTAL is 40MHz, but the ROM code expects it to be 48MHz
+            elif crystal_freq_detect == 40 and crystal_freq_rom_expect == 48:
+                baud_rate = baud * 48 // 40
+            else:
+                ESPLoader.change_baud(self, baud_rate)
+                return
+            print(f"Changing baud rate to {baud_rate}...")
+            self.command(
+                self.ESP_CHANGE_BAUDRATE, struct.pack("<II", baud_rate, 0)
+            )
+            print("Changed.")
+            self._set_port_baudrate(baud)
+            time.sleep(0.05)  # get rid of garbage sent during baud rate change
+            self.flush_input()
 
     def hard_reset(self):
-        # Use standard reset with USB-JTAG-Serial support
-        uses_usb_jtag = self.uses_usb_jtag_serial()
-        print('Hard resetting via RTS pin...')
-        self._setRTS(True)  # EN->LOW
-        if uses_usb_jtag:
-            # Give the chip some time to come out of reset, to be able to handle further DTR/RTS transitions
-            time.sleep(0.2)
-            self._setRTS(False)
-            time.sleep(0.2)
+        if self.uses_usb_jtag_serial():
+            self.rtc_wdt_reset()
         else:
-            time.sleep(0.1)
-            self._setRTS(False)
+            ESPLoader.hard_reset(self)
 
 
 class ESP32S31ROM(ESP32C5ROM):
     CHIP_NAME = "ESP32-S31"
     IMAGE_CHIP_ID = 32
+
+    USB_OTG_SUPPORTED = True
+    USB_SERIAL_JTAG_SUPPORTED = True
+    WATCHDOG_RESET_SUPPORTED = True
+    SECURITY_INFO_SUPPORTED = True
+    CUSTOM_SPI_FLASH_PINS_SUPPORTED = False
+    USES_MAGIC_VALUE = False
 
     IROM_MAP_START = 0x40000000
     IROM_MAP_END = 0x54000000
@@ -3436,7 +3515,7 @@ class ESP32S31ROM(ESP32C5ROM):
     def get_chip_features(self):
         return [
             "Wi-Fi 6",
-            "BT 5.4 (LE) + classic",
+            "BT 5.4 (LE)",
             "IEEE802.15.4",
             "Dual Core + LP Core",
             "320MHz",
@@ -3520,20 +3599,12 @@ class ESP32S31ROM(ESP32C5ROM):
         if self.uses_usb_otg():
             self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
 
-    def check_spi_connection(self, spi_connection):
-        if not set(spi_connection).issubset(set(range(0, 61))):
-            raise FatalError("SPI Pin numbers must be in the range 0-60.")
-        if any([v for v in spi_connection if v in [33, 34]]):
-            print(
-                "GPIO pins 33 and 34 are used by USB-Serial/JTAG, "
-                "consider using other pins for SPI flash connection."
-            )
-
     def hard_reset(self):
-        if (not self.secure_download_mode) and self.uses_usb_otg():
+        (
             self.rtc_wdt_reset()
-        else:
-            ESP32C5ROM.hard_reset(self)
+            if (not self.secure_download_mode and self.uses_usb_otg())
+            else ESPLoader.hard_reset(self)
+        )
 
 
 class ESP32P4ROM(ESP32ROM):
