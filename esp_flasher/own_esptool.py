@@ -3583,6 +3583,11 @@ class ESP32S31ROM(ESP32C5ROM):
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
 
+    def _post_connect(self):
+        super()._post_connect()  # calls C5ROM's disable_watchdogs() via MRO if not stub-detected
+        if self.uses_usb_otg():
+            self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
+
     def hard_reset(self):
         (
             self.rtc_wdt_reset()
