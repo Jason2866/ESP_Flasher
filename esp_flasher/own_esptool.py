@@ -3220,6 +3220,21 @@ class ESP32C5ROM(ESP32C6ROM):
         18: "ECDSA_KEY_P384_H",
     }
 
+    def get_key_block_purpose(self, key_block):
+        if key_block < 0 or key_block > self.EFUSE_MAX_KEY:
+            raise FatalError(
+                f"Valid key block numbers must be in range 0-{self.EFUSE_MAX_KEY}"
+            )
+        reg, shift = [
+            (self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
+            (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
+            (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
+            (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
+            (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
+            (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT),
+        ][key_block]
+        return (self.read_reg(reg) >> shift) & 0x1F
+
     def get_pkg_version(self):
         num_word = 2
         return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 26) & 0x07
@@ -3292,7 +3307,7 @@ class ESP32C5ROM(ESP32C6ROM):
 
     def watchdog_reset(self):
         # Re-enable watchdog reset (disabled in parent ESP32-C6 ROM)
-        ESP32C3ROM.watchdog_reset(self)
+        ESP32C3ROM.rtc_wdt_reset(self)
 
     def uses_key_manager_for_flash_encryption(self):
         return bool(
@@ -3346,7 +3361,10 @@ class ESP32C5ROM(ESP32C6ROM):
             self.flush_input()
 
     def hard_reset(self):
-        ESPLoader.hard_reset(self, self.uses_usb_jtag_serial())
+        if self.uses_usb_jtag_serial():
+            self.rtc_wdt_reset()
+        else:
+            ESPLoader.hard_reset(self)
 
 
 class ESP32S31ROM(ESP32C5ROM):
@@ -3565,7 +3583,7 @@ class ESP32S31ROM(ESP32C5ROM):
 
     def hard_reset(self):
         (
-            self.watchdog_reset()
+            self.rtc_wdt_reset()
             if (not self.secure_download_mode and self.uses_usb_otg())
             else ESPLoader.hard_reset(self)
         )
