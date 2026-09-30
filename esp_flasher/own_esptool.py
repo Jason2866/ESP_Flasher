@@ -3455,6 +3455,8 @@ class ESP32S31ROM(ESP32C5ROM):
 
     UF2_FAMILY_ID = 0x3101F7C1
 
+    USB_RAM_BLOCK = 0x800  # Max block size USB-OTG is used
+
     EFUSE_MAX_KEY = 4
     KEY_PURPOSES: dict[int, str] = {
         0: "USER/EMPTY",
