@@ -346,7 +346,8 @@ def configure_write_flash_args(
             model = "esp32"
             safeboot = "tasmota32solo1-safeboot.bin"
             ofs_bootloader = 0x1000
-        elif model in ("esp32h2", "esp32h4", "esp32h21") and not flag_factory:
+
+        if model in ("esp32h2", "esp32h4", "esp32h21") and not flag_factory:
             raise Esp_flasherError(
                 f"Only factory images are supported for {model.upper()}"
             )
