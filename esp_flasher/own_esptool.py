@@ -2350,7 +2350,7 @@ class ESP32S2ROM(ESP32ROM):
                 strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
                 and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
             ):
-                self.watchdog_reset()
+                self.rtc_wdt_reset()
                 return
 
         ESPLoader.hard_reset(self, uses_usb_otg)
@@ -2775,7 +2775,7 @@ class ESP32S3ROM(ESP32ROM):
                 strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0
                 and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
             ):
-                self.watchdog_reset()
+                self.rtc_wdt_reset()
                 return
 
         ESPLoader.hard_reset(self, uses_usb_otg)
@@ -3048,12 +3048,9 @@ class ESP32C3ROM(ESP32ROM):
 
     def hard_reset(self):
         if self.uses_usb_jtag_serial():
-            self.watchdog_reset()
+            self.rtc_wdt_reset()
         else:
-            print('Hard resetting via RTS pin...')
-            self._setRTS(True)  # EN->LOW
-            time.sleep(0.1)
-            self._setRTS(False)
+            ESPLoader.hard_reset(self)
 
 
 class ESP32C6ROM(ESP32C3ROM):
@@ -3668,6 +3665,10 @@ class ESP32S31ROM(ESP32C5ROM):
     RTC_CNTL_WDTCONFIG1_REG = DR_REG_LP_WDT_BASE + 0x4
     RTC_CNTL_WDTWPROTECT_REG = DR_REG_LP_WDT_BASE + 0x18
     RTC_CNTL_WDT_WKEY = 0x50D83AA1
+    RTC_CNTL_SWD_CONF_REG = DR_REG_LP_WDT_BASE + 0x001C    # LP_WDT_SWD_CONFIG_REG
+    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 18
+    RTC_CNTL_SWD_WPROTECT_REG = DR_REG_LP_WDT_BASE + 0x0020  # LP_WDT_SWD_WPROTECT_REG
+    RTC_CNTL_SWD_WKEY = 0x50D83AA1
 
     EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # EFUSE_RD_REPEAT_DATA0_REG
 
@@ -3716,6 +3717,8 @@ class ESP32S31ROM(ESP32C5ROM):
     ]
 
     UF2_FAMILY_ID = 0x3101F7C1
+
+    USB_RAM_BLOCK = 0x800  # Max block size USB-OTG is used
 
     EFUSE_MAX_KEY = 4
     KEY_PURPOSES: dict[int, str] = {
@@ -3843,9 +3846,14 @@ class ESP32S31ROM(ESP32C5ROM):
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
 
+    def _post_connect(self):
+        super()._post_connect()  # calls C5ROM's disable_watchdogs() via MRO if not stub-detected
+        if self.uses_usb_otg():
+            self.ESP_RAM_BLOCK = self.USB_RAM_BLOCK
+
     def hard_reset(self):
         (
-            self.watchdog_reset()
+            self.rtc_wdt_reset()
             if (not self.secure_download_mode and self.uses_usb_otg())
             else ESPLoader.hard_reset(self)
         )
@@ -4125,12 +4133,9 @@ class ESP32P4ROM(ESP32ROM):
 
     def hard_reset(self):
         if self.uses_usb_otg():
-            self.watchdog_reset()
+            self.rtc_wdt_reset()
         else:
-            print('Hard resetting via RTS pin...')
-            self._setRTS(True)  # EN->LOW
-            time.sleep(0.1)
-            self._setRTS(False)
+            else ESPLoader.hard_reset(self)
 
     def power_on_flash(self):
         """Power on the flash chip by setting the appropriate regs."""
