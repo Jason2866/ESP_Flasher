@@ -317,6 +317,12 @@ def configure_write_flash_args(
             flash_freq = "48m"  # For Tasmota we use only fastest
         elif "ESP32-P4" in info.model:
             ofs_bootloader = 0x2000
+
+        if model in ("esp32h2", "esp32h4", "esp32h21") and not flag_factory:
+            raise Esp_flasherError(
+                f"Only factory images are supported for {model.upper()}"
+            )
+
             # Check chip revision for P4 (rev 3.0 and above use different bootloader and safeboot)
             # Model format: "ESP32-P4 (revision vX.Y)"
             revision_match = re.search(r'revision v(\d+)\.(\d+)', info.model)
