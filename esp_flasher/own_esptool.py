@@ -1877,7 +1877,7 @@ class ESP32ROM(ESPLoader):
 
     def get_secure_boot_enabled(self):
         efuses = self.read_reg(self.EFUSE_RD_ABS_DONE_REG)
-        rev = self.get_chip_revision()
+        rev = self.get_chip_full_revision()
         return efuses & self.EFUSE_RD_ABS_DONE_0_MASK or (
             rev >= 300 and efuses & self.EFUSE_RD_ABS_DONE_1_MASK
         )
@@ -1929,6 +1929,7 @@ class ESP32ROM(ESPLoader):
             0: "ESP32-S0WDQ6" if sc else "ESP32-D0WDQ6-V3" if rev3 else "ESP32-D0WDQ6",
             1: "ESP32-S0WD" if sc else "ESP32-D0WD-V3" if rev3 else "ESP32-D0WD",
             2: "ESP32-D2WD",
+            3: "ESP32-S0WD-OEM" if single_core else "ESP32-D0WD-OEM",
             4: "ESP32-U4WDH",
             5: "ESP32-PICO-V3" if rev3 else "ESP32-PICO-D4",
             6: "ESP32-PICO-V3-02",
@@ -2072,8 +2073,11 @@ class ESP32ROM(ESPLoader):
         return cali_val * 15625 * clk_8M_freq / 40
 
     def change_baud(self, baud):
-        assert self.CHIP_NAME == "ESP32", "This workaround should only apply to ESP32"
-        # Workaround to avoid ESP32 CK_8M frequency drift
+        if self.IS_STUB or self.CHIP_NAME != "ESP32":
+            # Stubs and non-ESP32 chips don't need the CK_8M drift workaround
+            ESPLoader.change_baud(self, baud)
+            return
+        # Workaround to avoid ESP32 ROM CK_8M frequency drift
         rom_calculated_freq = self.get_rom_cal_crystal_freq()
         valid_freq = 40000000 if rom_calculated_freq > 33000000 else 26000000
         false_rom_baud = int(baud * rom_calculated_freq // valid_freq)
@@ -2350,7 +2354,7 @@ class ESP32S2ROM(ESP32ROM):
                 strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0  # GPIO0 low
                 and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
             ):
-                self.rtc_wdt_reset()
+                self.watchdog_reset()
                 return
 
         ESPLoader.hard_reset(self, uses_usb_otg)
@@ -2366,6 +2370,8 @@ class ESP32S2ROM(ESP32ROM):
                 "GPIO pins 19 and 20 are used by USB-OTG, "
                 "consider using other pins for SPI flash connection."
             )
+
+    def read_mac(self, mac_type="BASE_MAC"):
         """Read MAC from EFUSE region"""
         if mac_type != "BASE_MAC":
             return None
@@ -2433,6 +2439,8 @@ class ESP32S3ROM(ESP32ROM):
     SECURITY_INFO_SUPPORTED = True
     CUSTOM_SPI_FLASH_PINS_SUPPORTED = True
     USES_MAGIC_VALUE = False
+
+    EFUSE_MAX_KEY = 5
 
     FPGA_SLOW_BOOT = False
 
@@ -2775,7 +2783,7 @@ class ESP32S3ROM(ESP32ROM):
                 strap_reg & self.GPIO_STRAP_SPI_BOOT_MASK == 0
                 and force_dl_reg & self.RTC_CNTL_FORCE_DOWNLOAD_BOOT_MASK == 0
             ):
-                self.rtc_wdt_reset()
+                self.watchdog_reset()
                 return
 
         ESPLoader.hard_reset(self, uses_usb_otg)
@@ -3048,7 +3056,7 @@ class ESP32C3ROM(ESP32ROM):
 
     def hard_reset(self):
         if self.uses_usb_jtag_serial():
-            self.rtc_wdt_reset()
+            self.watchdog_reset()
         else:
             ESPLoader.hard_reset(self)
 
@@ -3261,8 +3269,8 @@ class ESP32C6ROM(ESP32C3ROM):
 
     def watchdog_reset(self):
         # Bug in the USB-Serial/JTAG controller can cause the port to disappear
-        # if watchdog reset happens, disable it on ESP32-C6
-        ESPLoader.watchdog_reset(self)
+        # if watchdog reset happens on ESP32-C6; use standard RTS reset instead
+        ESPLoader.hard_reset(self)
 
     def hard_reset(self):
         ESPLoader.hard_reset(self)
@@ -3566,7 +3574,7 @@ class ESP32C5ROM(ESP32C6ROM):
 
     def watchdog_reset(self):
         # Re-enable watchdog reset (disabled in parent ESP32-C6 ROM)
-        ESP32C3ROM.rtc_wdt_reset(self)
+        ESP32C3ROM.watchdog_reset(self)
 
     def uses_key_manager_for_flash_encryption(self):
         return bool(
@@ -3621,7 +3629,7 @@ class ESP32C5ROM(ESP32C6ROM):
 
     def hard_reset(self):
         if self.uses_usb_jtag_serial():
-            self.rtc_wdt_reset()
+            self.watchdog_reset()
         else:
             ESPLoader.hard_reset(self)
 
@@ -3853,7 +3861,7 @@ class ESP32S31ROM(ESP32C5ROM):
 
     def hard_reset(self):
         (
-            self.rtc_wdt_reset()
+            self.watchdog_reset()
             if (not self.secure_download_mode and self.uses_usb_otg())
             else ESPLoader.hard_reset(self)
         )
@@ -4133,9 +4141,9 @@ class ESP32P4ROM(ESP32ROM):
 
     def hard_reset(self):
         if self.uses_usb_otg():
-            self.rtc_wdt_reset()
+            self.watchdog_reset()
         else:
-            else ESPLoader.hard_reset(self)
+            ESPLoader.hard_reset(self)
 
     def power_on_flash(self):
         """Power on the flash chip by setting the appropriate regs."""
@@ -4293,8 +4301,8 @@ class ESP32H2ROM(ESP32C6ROM):
         return 32
 
     def watchdog_reset(self):
-        # Watchdog reset is not supported on ESP32-H2
-        ESPLoader.watchdog_reset(self)
+        # Watchdog reset is not supported on ESP32-H2; use standard RTS reset
+        ESPLoader.hard_reset(self)
 
 
 class ESP32C2ROM(ESP32C3ROM):
