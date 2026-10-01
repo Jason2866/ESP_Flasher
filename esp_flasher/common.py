@@ -352,7 +352,7 @@ def configure_write_flash_args(
                 f"Only factory images are supported for {model.upper()}"
             )
 
-        if flash_freq in ("12m", "15m", "16m", "20m", "24m", "26m", "30m"):
+        if flash_freq in ("12m", "15m", "16m", "20m", "24m", "26m", "30m") and not flag_factory:
             raise Esp_flasherError(
                 f"No bootloader available for flash frequency {flash_freq}"
             )
