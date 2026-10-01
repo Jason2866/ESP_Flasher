@@ -61,7 +61,7 @@ except Exception:
         raise
 
 
-__version__ = "3.7.0"
+__version__ = "3.8.0"
 
 # Color constants for terminal output
 COLOR_RESET = colorama.Style.RESET_ALL
@@ -93,7 +93,7 @@ DEFAULT_SERIAL_WRITE_TIMEOUT = 10     # timeout for serial port write
 DEFAULT_CONNECT_ATTEMPTS = 7          # default number of times to try connection
 WRITE_BLOCK_ATTEMPTS = 3              # number of times to try writing a data block
 
-SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32s31', 'esp32c2', 'esp32c3', 'esp32c5', 'esp32c6', 'esp32c61', 'esp32h2', 'esp32p4']
+SUPPORTED_CHIPS = ['esp8266', 'esp32', 'esp32s2', 'esp32s3', 'esp32s31', 'esp32c2', 'esp32c3', 'esp32c5', 'esp32c6', 'esp32c61', 'esp32h2', 'esp32h4', 'esp32h21', 'esp32p4']
 
 # Handle PyInstaller's temporary directory for frozen executables
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
@@ -179,6 +179,8 @@ def _chip_to_rom_loader(chip):
         'esp32c6': ESP32C6ROM,
         'esp32c61': ESP32C61ROM,
         'esp32h2': ESP32H2ROM,
+        'esp32h4': ESP32H4ROM,
+        'esp32h21': ESP32H21ROM,
         'esp32c2': ESP32C2ROM,
     }[chip]
 
@@ -952,7 +954,7 @@ class ESPLoader(object):
 
         params = struct.pack('<IIII', erase_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
         if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM, ESP32C5ROM,
-                             ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4ROM, ESP32S31ROM)) and not self.IS_STUB:
+                             ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32H4ROM, ESP32H21ROM, ESP32C2ROM, ESP32P4ROM, ESP32S31ROM)) and not self.IS_STUB:
             params += struct.pack('<I', 1 if begin_rom_encrypted else 0)
         self.check_command("enter Flash download mode", self.ESP_FLASH_BEGIN,
                            params, timeout=timeout)
@@ -983,7 +985,7 @@ class ESPLoader(object):
 
     def flash_encrypt_block(self, data, seq, timeout=DEFAULT_TIMEOUT):
         """Encrypt, write block to flash, retry if fail"""
-        if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4ROM, ESP32S31ROM)) and not self.IS_STUB:
+        if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM, ESP32C5ROM, ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32H4ROM, ESP32H21ROM, ESP32C2ROM, ESP32P4ROM, ESP32S31ROM)) and not self.IS_STUB:
             # ROM support performs the encrypted writes via the normal write command,
             # triggered by flash_begin(begin_rom_encrypted=True)
             return self.flash_block(data, seq, timeout)
@@ -1124,7 +1126,7 @@ class ESPLoader(object):
         # print("Compressed %d bytes to %d..." % (size, compsize))
         params = struct.pack('<IIII', write_size, num_blocks, self.FLASH_WRITE_SIZE, offset)
         if isinstance(self, (ESP32S2ROM, ESP32S3ROM, ESP32C3ROM,ESP32C5ROM,
-                             ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32C2ROM, ESP32P4ROM, ESP32S31ROM)) and not self.IS_STUB:
+                             ESP32C6ROM, ESP32C61ROM, ESP32H2ROM, ESP32H4ROM, ESP32H21ROM, ESP32C2ROM, ESP32P4ROM, ESP32S31ROM)) and not self.IS_STUB:
             params += struct.pack('<I', 0)  # extra param is to enter encrypted flash mode via ROM (not supported currently)
         self.check_command("enter compressed flash mode", self.ESP_FLASH_DEFL_BEGIN, params, timeout=timeout)
         if size != 0 and not self.IS_STUB:
@@ -4305,6 +4307,455 @@ class ESP32H2ROM(ESP32C6ROM):
         ESPLoader.hard_reset(self)
 
 
+class ESP32H4ROM(ESP32C3ROM):
+    CHIP_NAME = "ESP32-H4"
+    IMAGE_CHIP_ID = 28
+
+    USB_OTG_SUPPORTED = False
+    USB_SERIAL_JTAG_SUPPORTED = True
+    WATCHDOG_RESET_SUPPORTED = False
+    SECURITY_INFO_SUPPORTED = True
+    CUSTOM_SPI_FLASH_PINS_SUPPORTED = False
+    USES_MAGIC_VALUE = False
+
+    IROM_MAP_START = 0x42000000
+    IROM_MAP_END = 0x44000000
+    DROM_MAP_START = 0x42000000
+    DROM_MAP_END = 0x44000000
+
+    BOOTLOADER_FLASH_OFFSET = 0x2000
+
+    SPI_REG_BASE = 0x60099000
+    SPI_USR_OFFS = 0x18
+    SPI_USR1_OFFS = 0x1C
+    SPI_USR2_OFFS = 0x20
+    SPI_MOSI_DLEN_OFFS = 0x24
+    SPI_MISO_DLEN_OFFS = 0x28
+    SPI_W0_OFFS = 0x58
+
+    UART_CLKDIV_REG = 0x60012000 + 0x14
+    UART_DATE_REG_ADDR = 0x60012000 + 0x8C
+
+    EFUSE_BASE = 0x600B1800
+    EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x044
+    MAC_EFUSE_REG = EFUSE_BASE + 0x044
+
+    EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
+
+    EFUSE_PURPOSE_KEY0_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY0_SHIFT = 0
+    EFUSE_PURPOSE_KEY1_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY1_SHIFT = 5
+    EFUSE_PURPOSE_KEY2_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY2_SHIFT = 10
+    EFUSE_PURPOSE_KEY3_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY3_SHIFT = 15
+    EFUSE_PURPOSE_KEY4_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY4_SHIFT = 20
+    EFUSE_PURPOSE_KEY5_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY5_SHIFT = 25
+
+    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
+    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 14
+
+    EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x030
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 23
+
+    EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x038
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 5
+
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_REG = EFUSE_BASE + 0x038
+    EFUSE_FORCE_USE_KEY_MANAGER_KEY_SHIFT = 19
+    FORCE_USE_KEY_MANAGER_VAL_XTS_AES_KEY = 2
+
+    PURPOSE_VAL_XTS_AES256_KEY_1 = 2
+    PURPOSE_VAL_XTS_AES256_KEY_2 = 3
+    PURPOSE_VAL_XTS_AES128_KEY = 4
+
+    FLASH_ENCRYPTED_WRITE_ALIGN = 16
+
+    DR_REG_TIMG_BASE = 0x60090000
+    RTC_CNTL_WDTCONFIG0_REG = DR_REG_TIMG_BASE + 0x48  # TIMG_WDTCONFIG0_REG
+    RTC_CNTL_WDTCONFIG1_REG = DR_REG_TIMG_BASE + 0x4C  # TIMG_WDTCONFIG1_REG
+    RTC_CNTL_WDTWPROTECT_REG = DR_REG_TIMG_BASE + 0x64  # TIMG_WDTWPROTECT_REG
+    RTC_CNTL_WDT_WKEY = 0x50D83AA1
+
+    DR_REG_LP_WDT_BASE = 0x600B5400
+    RTC_CNTL_SWD_CONF_REG = DR_REG_LP_WDT_BASE + 0x0020  # LP_WDT_SWD_CONFIG_REG
+    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 18
+    RTC_CNTL_SWD_WPROTECT_REG = DR_REG_LP_WDT_BASE + 0x0024  # LP_WDT_SWD_WPROTECT_REG
+    RTC_CNTL_SWD_WKEY = 0x50D83AA1
+
+    PCR_SYSCLK_CONF_REG = 0x60094114
+    PCR_SYSCLK_XTAL_FREQ_V = 0x7F << 24
+    PCR_SYSCLK_XTAL_FREQ_S = 24
+
+    # 2nd-stage bootloader uses 64 MHz source; ESP-IDF remaps to 48m/24m labels.
+    FLASH_FREQUENCY = {
+        "48m": 0xF,
+        "24m": 0x0,
+    }
+
+    MEMORY_MAP = [
+        [0x00000000, 0x00010000, "PADDING"],
+        [0x42000000, 0x44000000, "DROM"],
+        [0x40810000, 0x40860000, "DRAM"],
+        [0x40810000, 0x40860000, "BYTE_ACCESSIBLE"],
+        [0x40000000, 0x40020000, "DROM_MASK"],
+        [0x40000000, 0x40020000, "IROM_MASK"],
+        [0x42000000, 0x44000000, "IROM"],
+        [0x40810000, 0x40860000, "IRAM"],
+        [0x40810000, 0x40860000, "MEM_INTERNAL"],
+    ]
+
+    UF2_FAMILY_ID = 0x9E0BAA8A
+
+    KEY_PURPOSES: dict[int, str] = {
+        0: "USER/EMPTY",
+        1: "ECDSA_KEY",
+        2: "XTS_AES_256_KEY_FLASH_1",
+        3: "XTS_AES_256_KEY_FLASH_2",
+        4: "XTS_AES_128_KEY",
+        5: "HMAC_DOWN_ALL",
+        6: "HMAC_DOWN_JTAG",
+        7: "HMAC_DOWN_DIGITAL_SIGNATURE",
+        8: "HMAC_UP",
+        9: "SECURE_BOOT_DIGEST0",
+        10: "SECURE_BOOT_DIGEST1",
+        11: "SECURE_BOOT_DIGEST2",
+        12: "KM_INIT_KEY",
+        13: "XTS_AES_256_KEY_PSRAM_1",
+        14: "XTS_AES_256_KEY_PSRAM_2",
+        15: "XTS_AES_128_KEY_PSRAM",
+        16: "ECDSA_KEY_P192",
+        17: "ECDSA_KEY_P384_L",
+        18: "ECDSA_KEY_P384_H",
+    }
+
+    def get_pkg_version(self):
+        num_word = 4
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 12) & 0x07
+
+    def get_flash_cap(self):
+        # FLASH_CAP spans BLOCK1 words 3 and 4
+        word3 = self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * 3))
+        word4 = self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * 4))
+        return ((word3 >> 31) | ((word4 & 0x03) << 1)) & 0x07
+
+    def get_flash_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 2) & 0x07
+        return {1: "FM", 2: "XMC", 3: "PY"}.get(vendor_id, "")
+
+    def get_psram_cap(self):
+        num_word = 4
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 5) & 0x07
+
+    def get_psram_vendor(self):
+        num_word = 4
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 8) & 0x03
+        return {1: "AP"}.get(vendor_id, "")
+
+    def get_temp(self):
+        num_word = 4
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 10) & 0x03
+
+    def get_minor_chip_version(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 18) & 0x0F
+
+    def get_major_chip_version(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 22) & 0x03
+
+    def get_chip_description(self):
+        chip_name = "ESP32-H4"
+        chip_name += {1: "H"}.get(self.get_temp(), "?")
+        flash = {0: "", 1: "F4"}.get(self.get_flash_cap(), "F?")
+        if flash == "F4" and self.get_flash_vendor() == "PY":
+            flash = "FL4"
+        chip_name += flash
+        chip_name += {0: "", 1: "R8", 2: "R2"}.get(self.get_psram_cap(), "R?")
+        if "?" in chip_name:
+            chip_name = "Unknown " + chip_name
+        major_rev = self.get_major_chip_version()
+        minor_rev = self.get_minor_chip_version()
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
+
+    def get_chip_features(self):
+        features = ["BT 5 (LE)", "IEEE802.15.4", "Dual Core", "96MHz"]
+
+        flash_version = {
+            0: "No Embedded Flash",
+            1: "Embedded Flash 4MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+        if self.get_flash_cap() == 1:
+            flash_version += f" ({self.get_flash_vendor()})"
+        features += [flash_version]
+
+        psram_version = {
+            0: "No Embedded PSRAM",
+            1: "Embedded PSRAM 8MB",
+            2: "Embedded PSRAM 2MB",
+        }.get(self.get_psram_cap(), "Unknown Embedded PSRAM")
+        if self.get_psram_cap() in (1, 2):
+            psram_version += f" ({self.get_psram_vendor()})"
+        features += [psram_version]
+
+        return features
+
+    def get_crystal_freq(self):
+        # ESP32-H4 XTAL is fixed to 32MHz
+        return 32
+
+    def get_flash_crypt_config(self):
+        return None  # doesn't exist on ESP32-H4
+
+    def get_secure_boot_enabled(self):
+        return (
+            self.read_reg(self.EFUSE_SECURE_BOOT_EN_REG)
+            & self.EFUSE_SECURE_BOOT_EN_MASK
+        )
+
+    def get_key_block_purpose(self, key_block):
+        if key_block < 0 or key_block > self.EFUSE_MAX_KEY:
+            raise FatalError(
+                f"Valid key block numbers must be in range 0-{self.EFUSE_MAX_KEY}"
+            )
+        reg, shift = [
+            (self.EFUSE_PURPOSE_KEY0_REG, self.EFUSE_PURPOSE_KEY0_SHIFT),
+            (self.EFUSE_PURPOSE_KEY1_REG, self.EFUSE_PURPOSE_KEY1_SHIFT),
+            (self.EFUSE_PURPOSE_KEY2_REG, self.EFUSE_PURPOSE_KEY2_SHIFT),
+            (self.EFUSE_PURPOSE_KEY3_REG, self.EFUSE_PURPOSE_KEY3_SHIFT),
+            (self.EFUSE_PURPOSE_KEY4_REG, self.EFUSE_PURPOSE_KEY4_SHIFT),
+            (self.EFUSE_PURPOSE_KEY5_REG, self.EFUSE_PURPOSE_KEY5_SHIFT),
+        ][key_block]
+        return (self.read_reg(reg) >> shift) & 0x1F
+
+    def uses_key_manager_for_flash_encryption(self):
+        return bool(
+            (
+                self.read_reg(self.EFUSE_FORCE_USE_KEY_MANAGER_KEY_REG)
+                >> self.EFUSE_FORCE_USE_KEY_MANAGER_KEY_SHIFT
+            )
+            & self.FORCE_USE_KEY_MANAGER_VAL_XTS_AES_KEY
+        )
+
+    def is_flash_encryption_key_valid(self):
+        purposes = [
+            self.get_key_block_purpose(b) for b in range(self.EFUSE_MAX_KEY + 1)
+        ]
+        if any(p == self.PURPOSE_VAL_XTS_AES128_KEY for p in purposes):
+            return True
+        if any(p == self.PURPOSE_VAL_XTS_AES256_KEY_1 for p in purposes) and any(
+            p == self.PURPOSE_VAL_XTS_AES256_KEY_2 for p in purposes
+        ):
+            return True
+        return self.uses_key_manager_for_flash_encryption()
+
+    def change_baud(self, baud):
+        ESPLoader.change_baud(self, baud)
+
+    def read_mac(self, mac_type="BASE_MAC"):
+        """Read MAC from EFUSE region"""
+        mac0 = self.read_reg(self.MAC_EFUSE_REG)
+        mac1 = self.read_reg(self.MAC_EFUSE_REG + 4)  # only bottom 16 bits are MAC
+        base_mac = struct.pack(">II", mac1, mac0)[2:]
+        ext_mac = struct.pack(">H", (mac1 >> 16) & 0xFFFF)
+        eui64 = base_mac[0:3] + ext_mac + base_mac[3:6]
+        macs = {
+            "BASE_MAC": tuple(base_mac),
+            "EUI64": tuple(eui64),
+            "MAC_EXT": tuple(ext_mac),
+        }
+        return macs.get(mac_type, None)
+
+    def watchdog_reset(self):
+        # Watchdog reset is not supported on ESP32-H4; use standard RTS reset
+        ESPLoader.hard_reset(self)
+
+
+class ESP32H4StubLoader(ESP32H4ROM):
+    """Access class for ESP32-H4 stub loader, runs on top of ROM."""
+
+    FLASH_WRITE_SIZE = 0x4000
+    STATUS_BYTES_LENGTH = 2
+    IS_STUB = True
+
+    def __init__(self, rom_loader):
+        self.secure_download_mode = rom_loader.secure_download_mode
+        self._port = rom_loader._port
+        self._trace_enabled = rom_loader._trace_enabled
+        self.flush_input()
+
+
+ESP32H4ROM.STUB_CLASS = ESP32H4StubLoader
+
+
+class ESP32H21ROM(ESP32H2ROM):
+    CHIP_NAME = "ESP32-H21"
+    IMAGE_CHIP_ID = 25
+
+    USB_OTG_SUPPORTED = False
+    USB_SERIAL_JTAG_SUPPORTED = True
+    WATCHDOG_RESET_SUPPORTED = False
+    SECURITY_INFO_SUPPORTED = True
+    CUSTOM_SPI_FLASH_PINS_SUPPORTED = False
+    USES_MAGIC_VALUE = False
+
+    IROM_MAP_START = 0x42000000
+    IROM_MAP_END = 0x43000000
+    DROM_MAP_START = 0x42000000
+    DROM_MAP_END = 0x43000000
+
+    UART_DATE_REG_ADDR = 0x60000000 + 0x8C
+
+    FLASH_FREQUENCY = {
+        "48m": 0xF,
+        "24m": 0x0,
+    }
+
+    PCR_SYSCLK_CONF_REG = 0x6009610C
+    PCR_SYSCLK_XTAL_FREQ_V = 0x7F << 24
+    PCR_SYSCLK_XTAL_FREQ_S = 24
+
+    MEMORY_MAP = [
+        [0x00000000, 0x00010000, "PADDING"],
+        [0x42000000, 0x43000000, "DROM"],
+        [0x40800000, 0x40850000, "DRAM"],
+        [0x40800000, 0x40850000, "BYTE_ACCESSIBLE"],
+        [0x40000000, 0x40020000, "DROM_MASK"],
+        [0x40000000, 0x40020000, "IROM_MASK"],
+        [0x42000000, 0x43000000, "IROM"],
+        [0x40800000, 0x40850000, "IRAM"],
+        [0x50000000, 0x50001000, "RTC_IRAM"],
+        [0x50000000, 0x50001000, "RTC_DRAM"],
+        [0x40800000, 0x40850000, "MEM_INTERNAL"],
+    ]
+
+    UF2_FAMILY_ID = 0xB6DD00AF
+
+    DR_REG_LP_WDT_BASE = 0x600B1C00
+    RTC_CNTL_WDTCONFIG0_REG = DR_REG_LP_WDT_BASE + 0x0   # LP_WDT_RWDT_CONFIG0_REG
+    RTC_CNTL_WDTCONFIG1_REG = DR_REG_LP_WDT_BASE + 0x0004  # LP_WDT_RWDT_CONFIG1_REG
+    RTC_CNTL_WDTWPROTECT_REG = DR_REG_LP_WDT_BASE + 0x001C  # LP_WDT_RWDT_WPROTECT_REG
+    RTC_CNTL_WDT_WKEY = 0x50D83AA1
+
+    RTC_CNTL_SWD_CONF_REG = DR_REG_LP_WDT_BASE + 0x0020  # LP_WDT_SWD_CONFIG_REG
+    RTC_CNTL_SWD_AUTO_FEED_EN = 1 << 18
+    RTC_CNTL_SWD_WPROTECT_REG = DR_REG_LP_WDT_BASE + 0x0024  # LP_WDT_SWD_WPROTECT_REG
+    RTC_CNTL_SWD_WKEY = 0x50D83AA1
+
+    EFUSE_BASE = 0x600B4000
+    EFUSE_BLOCK1_ADDR = EFUSE_BASE + 0x044
+    MAC_EFUSE_REG = EFUSE_BASE + 0x044
+
+    EFUSE_RD_REG_BASE = EFUSE_BASE + 0x030  # BLOCK0 read base address
+
+    EFUSE_PURPOSE_KEY0_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY0_SHIFT = 24
+    EFUSE_PURPOSE_KEY1_REG = EFUSE_BASE + 0x34
+    EFUSE_PURPOSE_KEY1_SHIFT = 28
+    EFUSE_PURPOSE_KEY2_REG = EFUSE_BASE + 0x38
+    EFUSE_PURPOSE_KEY2_SHIFT = 0
+    EFUSE_PURPOSE_KEY3_REG = EFUSE_BASE + 0x38
+    EFUSE_PURPOSE_KEY3_SHIFT = 4
+    EFUSE_PURPOSE_KEY4_REG = EFUSE_BASE + 0x38
+    EFUSE_PURPOSE_KEY4_SHIFT = 8
+    EFUSE_PURPOSE_KEY5_REG = EFUSE_BASE + 0x38
+    EFUSE_PURPOSE_KEY5_SHIFT = 12
+
+    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT_REG = EFUSE_RD_REG_BASE
+    EFUSE_DIS_DOWNLOAD_MANUAL_ENCRYPT = 1 << 20
+
+    EFUSE_SPI_BOOT_CRYPT_CNT_REG = EFUSE_BASE + 0x034
+    EFUSE_SPI_BOOT_CRYPT_CNT_MASK = 0x7 << 18
+
+    EFUSE_SECURE_BOOT_EN_REG = EFUSE_BASE + 0x038
+    EFUSE_SECURE_BOOT_EN_MASK = 1 << 20
+
+    KEY_PURPOSES: dict[int, str] = {
+        0: "USER/EMPTY",
+        1: "ECDSA_KEY",
+        2: "RESERVED",
+        4: "XTS_AES_128_KEY",
+        5: "HMAC_DOWN_ALL",
+        6: "HMAC_DOWN_JTAG",
+        7: "HMAC_DOWN_DIGITAL_SIGNATURE",
+        8: "HMAC_UP",
+        9: "SECURE_BOOT_DIGEST0",
+        10: "SECURE_BOOT_DIGEST1",
+        11: "SECURE_BOOT_DIGEST2",
+    }
+
+    def get_pkg_version(self):
+        num_word = 5
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 11) & 0x07
+
+    def get_minor_chip_version(self):
+        num_word = 5
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 4) & 0x0F
+
+    def get_major_chip_version(self):
+        num_word = 5
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 8) & 0x03
+
+    def get_flash_cap(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 24) & 0x07
+
+    def get_flash_vendor(self):
+        num_word = 3
+        vendor_id = (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 27) & 0x07
+        return {1: "FM", 2: "XMC"}.get(vendor_id, "")
+
+    def get_temp(self):
+        num_word = 3
+        return (self.read_reg(self.EFUSE_BLOCK1_ADDR + (4 * num_word)) >> 30) & 0x03
+
+    def get_chip_description(self):
+        chip_name = "ESP32-H21"
+        chip_name += {0: "N", 1: "H"}.get(self.get_temp(), "?")
+        chip_name += {0: "", 1: "F4", 2: "F2"}.get(self.get_flash_cap(), "F?")
+        if "?" in chip_name:
+            chip_name = "Unknown " + chip_name
+        major_rev = self.get_major_chip_version()
+        minor_rev = self.get_minor_chip_version()
+        return f"{chip_name} (revision v{major_rev}.{minor_rev})"
+
+    def get_chip_features(self):
+        features = ["BT 5 (LE)", "IEEE802.15.4", "Single Core", "96MHz"]
+        flash = {
+            0: None,
+            1: "Embedded Flash 4MB",
+            2: "Embedded Flash 2MB",
+        }.get(self.get_flash_cap(), "Unknown Embedded Flash")
+        if flash is not None:
+            features += [flash + f" ({self.get_flash_vendor()})"]
+        return features
+
+    def get_crystal_freq(self):
+        # ESP32-H21 XTAL is fixed to 32MHz
+        return 32
+
+
+class ESP32H21StubLoader(ESP32H21ROM):
+    """Access class for ESP32-H21 stub loader, runs on top of ROM."""
+
+    FLASH_WRITE_SIZE = 0x4000
+    STATUS_BYTES_LENGTH = 2
+    IS_STUB = True
+
+    def __init__(self, rom_loader):
+        self.secure_download_mode = rom_loader.secure_download_mode
+        self._port = rom_loader._port
+        self._trace_enabled = rom_loader._trace_enabled
+        self.flush_input()
+
+
+ESP32H21ROM.STUB_CLASS = ESP32H21StubLoader
+
+
 class ESP32C2ROM(ESP32C3ROM):
     CHIP_NAME = "ESP32-C2"
     IMAGE_CHIP_ID = 12
@@ -4764,6 +5215,10 @@ def LoadFirmwareImage(chip, filename):
             return ESP32C6FirmwareImage(f)
         elif chip == 'esp32h2':
             return ESP32H2FirmwareImage(f)
+        elif chip == 'esp32h4':
+            return ESP32H4FirmwareImage(f)
+        elif chip == 'esp32h21':
+            return ESP32H21FirmwareImage(f)
         elif chip == 'esp32c2':
             return ESP32C2FirmwareImage(f)
         elif chip == 'esp32p4':
@@ -5606,6 +6061,24 @@ class ESP32H2FirmwareImage(ESP32C6FirmwareImage):
 ESP32H2ROM.BOOTLOADER_IMAGE = ESP32H2FirmwareImage
 
 
+class ESP32H4FirmwareImage(ESP32C6FirmwareImage):
+    """ESP32H4 Firmware Image almost exactly the same as ESP32C6FirmwareImage"""
+
+    ROM_LOADER = ESP32H4ROM
+
+
+ESP32H4ROM.BOOTLOADER_IMAGE = ESP32H4FirmwareImage
+
+
+class ESP32H21FirmwareImage(ESP32C6FirmwareImage):
+    """ESP32H21 Firmware Image almost exactly the same as ESP32C6FirmwareImage"""
+
+    ROM_LOADER = ESP32H21ROM
+
+
+ESP32H21ROM.BOOTLOADER_IMAGE = ESP32H21FirmwareImage
+
+
 class ESP32C2FirmwareImage(ESP32FirmwareImage):
     """ ESP32C2 Firmware Image almost exactly the same as ESP32FirmwareImage """
     ROM_LOADER = ESP32C2ROM
@@ -6425,6 +6898,14 @@ def elf2image(args):
             image.secure_pad = '2'
     elif args.chip == 'esp32h2':
         image = ESP32H2FirmwareImage()
+        if args.secure_pad_v2:
+            image.secure_pad = '2'
+    elif args.chip == 'esp32h4':
+        image = ESP32H4FirmwareImage()
+        if args.secure_pad_v2:
+            image.secure_pad = '2'
+    elif args.chip == 'esp32h21':
+        image = ESP32H21FirmwareImage()
         if args.secure_pad_v2:
             image.secure_pad = '2'
     elif args.chip == 'esp32c2':
@@ -7295,6 +7776,8 @@ ESP32C5ROM.STUB_CODE = load_stub("esp32c5")
 ESP32C6ROM.STUB_CODE = load_stub("esp32c6")
 ESP32C61ROM.STUB_CODE = load_stub("esp32c61")
 ESP32H2ROM.STUB_CODE = load_stub("esp32h2")
+ESP32H4ROM.STUB_CODE = load_stub("esp32h4")
+ESP32H21ROM.STUB_CODE = load_stub("esp32h21")
 ESP32C2ROM.STUB_CODE = load_stub("esp32c2")
 ESP32P4ROM.STUB_CODE = load_stub("esp32p4")
 ESP32P4RC1ROM.STUB_CODE = load_stub("esp32p4-rev1")
