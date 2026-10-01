@@ -2357,7 +2357,7 @@ class ESP32S2ROM(ESP32ROM):
                 self.watchdog_reset()
                 return
 
-        ESPLoader.hard_reset(self, uses_usb_otg)
+        ESPLoader.hard_reset(self)
 
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
@@ -2786,7 +2786,7 @@ class ESP32S3ROM(ESP32ROM):
                 self.watchdog_reset()
                 return
 
-        ESPLoader.hard_reset(self, uses_usb_otg)
+        ESPLoader.hard_reset(self)
 
     def change_baud(self, baud):
         ESPLoader.change_baud(self, baud)
