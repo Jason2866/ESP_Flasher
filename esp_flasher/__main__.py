@@ -40,6 +40,9 @@ def parse_args(argv):
     group.add_argument("--esp32c5", action="store_true")
     group.add_argument("--esp32c6", action="store_true")
     group.add_argument("--esp32c61", action="store_true")
+    group.add_argument("--esp32h2", action="store_true")
+    group.add_argument("--esp32h4", action="store_true")
+    group.add_argument("--esp32h21", action="store_true")
     group.add_argument("--esp32p4", action="store_true")
     parser.add_argument(
         "--upload-baud-rate",
@@ -143,6 +146,9 @@ def run_esp_flasher(argv, skip_logs=False):
         force_esp32c5=args.esp32c5,
         force_esp32c6=args.esp32c6,
         force_esp32c61=args.esp32c61,
+        force_esp32h2=args.esp32h2,
+        force_esp32h4=args.esp32h4,
+        force_esp32h21=args.esp32h21,
         force_esp32p4=args.esp32p4,
     )
     info = read_chip_info(chip)
@@ -197,6 +203,9 @@ def run_esp_flasher(argv, skip_logs=False):
                 force_esp32c5=args.esp32c5,
                 force_esp32c6=args.esp32c6,
                 force_esp32c61=args.esp32c61,
+                force_esp32h2=args.esp32h2,
+                force_esp32h4=args.esp32h4,
+                force_esp32h21=args.esp32h21,
                 force_esp32p4=args.esp32p4,
             )
             stub_chip = chip_run_stub(chip)
