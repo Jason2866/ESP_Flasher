@@ -149,11 +149,7 @@ def read_chip_info(chip):
             num_cores = 1
         
         # Frequency detection: supports 80MHz, 120MHz, 160MHz, 240MHz, 320MHz, 400MHz.
-        # ESP32-S31 reports a max CPU clock of 320MHz.
-        if "ESP32-S31" in model:
-            frequency = "320MHz"
-        else:
-            frequency = next((x for x in ("400MHz", "320MHz", "240MHz", "160MHz", "120MHz", "80MHz") if x in features), "80MHz")
+        frequency = next((x for x in ("400MHz", "320MHz", "240MHz", "160MHz", "120MHz", "80MHz") if x in features), "80MHz")
         
         # Bluetooth detection: supports "BT", "BLE", "BT 5", "BT 5 (LE)"
         has_bluetooth = any(bt in str(f) for f in features for bt in ["BLE", "BT"])
